@@ -85,6 +85,7 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-video": "^6.19.2",
+    "react-native-vlc-media-player": "^1.0.98",
     "react-native-volume-manager": "^2.0.8",
     "react-native-webrtc": "155.0.1",
     "react-native-webview": "13.16.1",

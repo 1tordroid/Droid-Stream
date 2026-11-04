@@ -47,6 +47,7 @@ module.exports = () => {
     './plugins/with-native-scroll-performance.js',
     './plugins/with-android-signing.js',
     './plugins/with-android-okhttp.js',
+    'react-native-vlc-media-player',
     ...(HAS_FIREBASE ? ['@react-native-firebase/app'] : []),
     ...(HAS_FIREBASE ? ['@react-native-firebase/crashlytics'] : []),
     [

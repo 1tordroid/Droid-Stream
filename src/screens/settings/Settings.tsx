@@ -337,8 +337,14 @@ const Settings = ({navigation}: Props) => {
                 <SettingsRow
                   title="Preferences"
                   icon="tune-variant"
-                  divider={false}
                   onPress={() => navigation.navigate('Preferences')}
+                />
+                <SettingsRow
+                  title="Video library"
+                  description="Scan device videos into a poster grid"
+                  icon="movie-open-outline"
+                  divider={false}
+                  onPress={() => navigation.navigate('LocalLibrary')}
                 />
               </SettingsSection>
             </AnimatedSection>

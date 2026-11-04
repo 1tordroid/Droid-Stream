@@ -14,6 +14,8 @@ import {getInitialVideoIntent, subscribeVideoIntent, setVideoIntentsEnabled, sup
 import Settings from './screens/settings/Settings';
 import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
+import LocalLibrary from './screens/LocalLibrary';
+import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
 import ScrollList from './screens/ScrollList';
@@ -171,6 +173,8 @@ export type SettingsStackParamList = {
   Extensions: {addSource?: string; requestId?: number} | undefined;
   DownloadsStack: undefined;
   DataManagement: undefined;
+  LocalLibrary: undefined;
+  OpenSourceLicenses: undefined;
 };
 
 export type DownloadsStackParamList = {
@@ -467,6 +471,8 @@ function SettingsStackScreen() {
         component={SubtitlePreference}
         options={subpageOptions}
       />
+      <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
+      <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }

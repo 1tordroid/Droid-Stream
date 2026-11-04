@@ -19,6 +19,7 @@ export interface Post {
   borderRadius?: number;
   tag?: string;
   cornerTag?: string;
+  rating?: string;
 }
 
 export declare enum TextTrackType {

@@ -92,6 +92,7 @@ export default function PlayerSettings({navigation}: Props) {
   const [askLocalFileFirst, setAskLocalFileFirst] = useState<boolean>(() =>
     settingsStorage.isAskLocalFileFirst(),
   );
+  const [playerEngine, setPlayerEngine] = useState(() => settingsStorage.getPlayerEngine());
 
   return (
     <TVFocusGuide
@@ -137,6 +138,27 @@ export default function PlayerSettings({navigation}: Props) {
             Playback, controls, appearance, and subtitles
           </AppText>
 
+          <SettingsSection title="Engine">
+            <SettingsRow
+              title="Built-in player"
+              description="Default for provider streams"
+              icon={playerEngine === 'builtin' ? 'check-circle' : 'circle-outline'}
+              onPress={() => {
+                settingsStorage.setPlayerEngine('builtin');
+                setPlayerEngine('builtin');
+              }}
+            />
+            <SettingsRow
+              title="VLC"
+              description="Direct MKV, ISO, AVI, MOV, HEVC, and embedded subtitles"
+              icon={playerEngine === 'vlc' ? 'check-circle' : 'circle-outline'}
+              divider={false}
+              onPress={() => {
+                settingsStorage.setPlayerEngine('vlc');
+                setPlayerEngine('vlc');
+              }}
+            />
+          </SettingsSection>
           <SettingsSection title="Customize player">
             <SettingsRow title="Control layout" description="Arrange, move, and hide controls"
               icon="view-dashboard-outline" onPress={() => navigation.navigate('PlayerControlSettings')} />

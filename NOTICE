@@ -15,3 +15,8 @@ respective authors; see the git history for attribution.
 
 This software includes third-party libraries, such as FFmpeg, libtorrent and
 React Native, under their own licenses.
+
+The optional VLC playback engine dynamically links libVLC and the VLC for
+Android media library, both under the GNU Lesser General Public License
+version 2.1. Droid Stream does not modify those libraries. Their source is
+available from VideoLAN (https://www.videolan.org/).

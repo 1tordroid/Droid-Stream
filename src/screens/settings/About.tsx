@@ -210,6 +210,12 @@ const About = ({navigation}: any) => {
             onPress={() => Linking.openURL(socialLinks.telegram)}
           />
           <SettingsRow
+            title="Open-source licenses"
+            description="libVLC and other media libraries"
+            icon="scale-balance"
+            onPress={() => navigation.navigate('OpenSourceLicenses')}
+          />
+          <SettingsRow
             title="Based on Vega by vega-org"
             description="Droid Stream is a noncommercial fork of Vega"
             icon="source-branch"

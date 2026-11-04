@@ -1,3 +1,5 @@
+import {markerKey, markersToSkips, readShowMarkers} from '../../lib/playback/introMarkers';
+import VlcPlayerScreen from './VlcPlayerScreen';
 import {findSavedSubtitle, savedSubtitleLabel} from '../../lib/subtitles/savedSubtitles';
 import RemovableSubtitleRow from '../../components/RemovableSubtitleRow';
 import {getPlaybackQuality} from '../../lib/player/playbackQuality';
@@ -1357,6 +1359,11 @@ const Player = ({route}: Props): React.JSX.Element => {
     }
 
     // Check cacheStorage if no skips found yet
+    const remembered = markersToSkips(
+      readShowMarkers(markerKey(route.params.primaryTitle, route.params.providerValue)),
+    );
+    addSkips(remembered);
+
     if (list.length === 0) {
       const episodeKey = getEpisodeIdentity(activeEpisode);
       const cached = getCachedSkips([
@@ -1392,6 +1399,8 @@ const Player = ({route}: Props): React.JSX.Element => {
     matchedDownloadSkip,
     selectedStream,
     (route.params as any)?.linkList,
+    route.params.primaryTitle,
+    route.params.providerValue,
   ]);
 
   // New skip intervals change what the current position renders.
@@ -4627,4 +4636,17 @@ const SkipButton = ({
   );
 };
 
-export default Player;
+const PlayerEntry = (props: Props): React.JSX.Element => {
+  if (
+    settingsStorage.getPlayerEngine() === 'vlc' &&
+    (props.route.params.localContent ||
+      props.route.params.directUrl ||
+      props.route.params.file ||
+      props.route.params.externalVideo)
+  ) {
+    return <VlcPlayerScreen {...props} />;
+  }
+  return <Player {...props} />;
+};
+
+export default PlayerEntry;

@@ -54,6 +54,7 @@ export enum SettingsKeys {
   FORWARD_BUFFER_MB = 'forwardBufferMB',
   BACK_BUFFER_MB = 'backBufferMB',
   SEEK_INTERVAL = 'seekInterval',
+  PLAYER_ENGINE = 'playerEngine',
   PLAYBACK_SPEED = 'playbackSpeed',
   DEFAULT_RESIZE_MODE = 'defaultResizeMode',
   PLAYER_CONTROL_LAYOUT = 'playerControlLayout',
@@ -505,6 +506,16 @@ export class SettingsStorage {
   getSeekInterval(): number {
     const value = mainStorage.getNumber(SettingsKeys.SEEK_INTERVAL);
     return isValidSeekInterval(value) ? value : DEFAULT_SEEK_INTERVAL;
+  }
+
+  getPlayerEngine(): 'builtin' | 'vlc' {
+    return mainStorage.getString(SettingsKeys.PLAYER_ENGINE) === 'vlc'
+      ? 'vlc'
+      : 'builtin';
+  }
+
+  setPlayerEngine(engine: 'builtin' | 'vlc'): void {
+    mainStorage.setString(SettingsKeys.PLAYER_ENGINE, engine);
   }
 
   setSeekInterval(seconds: number): void {
