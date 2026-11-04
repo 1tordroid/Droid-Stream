@@ -6,6 +6,7 @@ import {listEmby, listJellyfin, listPlex, signInEmby, signInJellyfin, signInPlex
 import {listSmbShare} from '../lib/sources/smb';
 import {deleteSource, listSources, saveSource, type SavedSource, type SourceKind} from '../lib/sources/vault';
 import {listWebDav, type RemoteFile} from '../lib/sources/webdav';
+import Magnet from './Magnet';
 import {useM3Colors} from '../theme/M3PaletteContext';
 
 const KINDS: SourceKind[] = ['webdav', 'smb', 'jellyfin', 'emby', 'plex'];
@@ -24,6 +25,7 @@ const Sources = ({navigation}: {navigation: any}) => {
     share: '',
   });
   const [open, setOpen] = useState<SavedSource>();
+  const [showMagnet, setShowMagnet] = useState(false);
   const [rows, setRows] = useState<Array<{id: string; title: string; directory: boolean; playUrl?: string}>>([]);
   const [folder, setFolder] = useState('');
 
@@ -73,9 +75,14 @@ const Sources = ({navigation}: {navigation: any}) => {
       </AppText>
       {!open ? (
         <>
-          <Pressable onPress={() => setAdding(true)} style={{marginBottom: 12}}>
-            <AppText style={{color: colors.primary}}>Add source</AppText>
-          </Pressable>
+              <View style={{flexDirection: 'row', gap: 16, marginBottom: 12}}>
+            <Pressable onPress={() => setAdding(true)}>
+              <AppText style={{color: colors.primary}}>Add source</AppText>
+            </Pressable>
+            <Pressable onPress={() => setShowMagnet(true)}>
+              <AppText style={{color: colors.primary}}>Magnet</AppText>
+            </Pressable>
+          </View>
           <FlatList
             data={sources}
             keyExtractor={item => item.id}
@@ -106,7 +113,8 @@ const Sources = ({navigation}: {navigation: any}) => {
           />
         </>
       )}
-      {adding ? (
+      {showMagnet ? <Magnet navigation={navigation} onClose={() => setShowMagnet(false)} /> : null}
+      {!showMagnet && adding ? (
         <View style={{position: 'absolute', left: 16, right: 16, bottom: 16, backgroundColor: colors.surfaceContainerHigh, borderRadius: 20, padding: 16}}>
           <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8}}>
             {KINDS.map(kind => (
