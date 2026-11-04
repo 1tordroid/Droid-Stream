@@ -16,6 +16,7 @@ import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
+import Sources from './screens/Sources';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
 import ScrollList from './screens/ScrollList';
@@ -187,6 +188,7 @@ export type TabStackParamList = {
   HomeStack: undefined;
   SearchStack: undefined;
   WatchListStack: undefined;
+  SourcesStack: undefined;
   DownloadsStack: undefined;
   SettingsStack: undefined;
 };
@@ -516,6 +518,11 @@ function TabStack() {
         name="WatchListStack"
         component={WatchListStackScreen}
         options={watchListTabOptions}
+      />
+      <Tab.Screen
+        name="SourcesStack"
+        component={Sources}
+        options={{title: 'Sources', tabBarIcon: makeTabIcon('server', 'server-network')}}
       />
       {!hideDownloadsTab && (
         <Tab.Screen

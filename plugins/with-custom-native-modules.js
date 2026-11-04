@@ -111,6 +111,7 @@ allprojects {
       'RemoteDeliveryPackage()',
       'DlnaPackage()',
       'VideoIntentPackage()',
+      'SmbPackage()',
     ];
 
     for (const pkg of packagesToAdd) {
@@ -156,6 +157,13 @@ allprojects {
     let contents = cfg.modResults.contents;
 
     // Add okhttp-dnsoverhttps if not present
+    if (!contents.includes('com.hierynomus:smbj')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match => `${match}\n    implementation 'com.hierynomus:smbj:0.13.0'\n`,
+      );
+    }
+
     if (!contents.includes('okhttp-dnsoverhttps')) {
       // Find the dependencies block
       contents = contents.replace(
