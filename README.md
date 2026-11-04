@@ -2,7 +2,7 @@
 
 # Droid Stream
 
-Android app for streaming and casting media, built by **Tordroid** (Tordroid Universal Labs).
+Android app for streaming and casting media, built by **Tordroid**. Universal Labs is the tagline.
 
 Based on Vega by [vega-org](https://github.com/vega-org/vega-app).
 

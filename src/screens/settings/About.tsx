@@ -133,7 +133,10 @@ const About = ({navigation}: any) => {
             </AppText>
           </View>
           <AppText role="bodyLarge" className="mt-1 text-m3-on-surface-variant">
-            Tordroid Universal Labs
+            Tordroid
+          </AppText>
+          <AppText role="labelLarge" className="mt-0.5 text-m3-on-surface-variant">
+            Universal Labs
           </AppText>
         </View>
 
@@ -193,6 +196,11 @@ const About = ({navigation}: any) => {
         </SettingsSection>
 
         <SettingsSection title="Tordroid">
+          <SettingsRow
+            title="Developer"
+            description="Tordroid"
+            icon="account-outline"
+          />
           <SettingsRow
             title="Website"
             description="tordroid.com"
