@@ -18,13 +18,15 @@ const CurrentDownloadsSection = ({
   primary,
   firstActionRef,
   onFirstActionLayout,
+  include,
 }: {
   primary: string;
   firstActionRef?: React.RefObject<View | null>;
   onFirstActionLayout?: () => void;
+  include?: (item: ReturnType<typeof selectCurrentDownloads>[number]) => boolean;
 }) => {
   const colors = useM3Colors();
-  const downloads = useDownloadsStore(useShallow(selectCurrentDownloads));
+  const downloads = useDownloadsStore(useShallow(selectCurrentDownloads)).filter(item => !include || include(item));
 
 
   if (downloads.length === 0) {

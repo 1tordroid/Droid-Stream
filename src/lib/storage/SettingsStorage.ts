@@ -57,6 +57,9 @@ export enum SettingsKeys {
   PLAYER_ENGINE = 'playerEngine',
   DIRECT_TORRENT_WIFI_ONLY = 'directTorrentWifiOnly',
   DIRECT_TORRENT_KEEP_FILE = 'directTorrentKeepFile',
+  ADVANCED_MODE = 'advancedMode',
+  TIPS_SEEN = 'tipsSeen',
+  CLIPBOARD_GRABBER = 'clipboardGrabber',
   PLAYBACK_SPEED = 'playbackSpeed',
   DEFAULT_RESIZE_MODE = 'defaultResizeMode',
   PLAYER_CONTROL_LAYOUT = 'playerControlLayout',
@@ -136,8 +139,8 @@ export const BUFFER_LIMITS = {
 } as const;
 /** Connections one download may open; servers that refuse extra ones lower it. */
 export const MIN_DOWNLOAD_CONNECTIONS = 1;
-export const MAX_DOWNLOAD_CONNECTIONS = 16;
-const DEFAULT_DOWNLOAD_CONNECTIONS = 4;
+export const MAX_DOWNLOAD_CONNECTIONS = 32;
+const DEFAULT_DOWNLOAD_CONNECTIONS = 8;
 
 const isValidConnectionCount = (value: number | undefined): value is number =>
   Number.isInteger(value) &&
@@ -534,6 +537,31 @@ export class SettingsStorage {
 
   setKeepDirectTorrentFile(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.DIRECT_TORRENT_KEEP_FILE, enabled);
+  }
+
+  isAdvancedMode(): boolean {
+    return mainStorage.getBool(SettingsKeys.ADVANCED_MODE, false);
+  }
+
+  setAdvancedMode(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.ADVANCED_MODE, enabled);
+  }
+
+  hasSeenTips(): boolean {
+    return mainStorage.getBool(SettingsKeys.TIPS_SEEN, false);
+  }
+
+  setTipsSeen(): void {
+    mainStorage.setBool(SettingsKeys.TIPS_SEEN, true);
+  }
+
+  clipboardGrabber(): 'ask' | 'on' | 'off' {
+    const value = mainStorage.getString(SettingsKeys.CLIPBOARD_GRABBER);
+    return value === 'on' || value === 'off' ? value : 'ask';
+  }
+
+  setClipboardGrabber(value: 'ask' | 'on' | 'off'): void {
+    mainStorage.setString(SettingsKeys.CLIPBOARD_GRABBER, value);
   }
 
   setSeekInterval(seconds: number): void {

@@ -33,16 +33,27 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             "udp://tracker.tiny-vps.com:6969/announce",
             "udp://tracker.openbittorrent.com:6969/announce"
         )
-        private var sessionManager: SessionManager? = null
-        private var streamServer: TorrentStreamServer? = null
-        private val torrentHandles = mutableMapOf<String, TorrentHandle>()
-        private val torrentSavePaths = mutableMapOf<String, String>()
-        private val torrentOutputPaths = mutableMapOf<String, String>()
+        internal var sessionManager: SessionManager? = null
+        internal var streamServer: TorrentStreamServer? = null
+        internal val torrentHandles = mutableMapOf<String, TorrentHandle>()
+        internal val torrentSavePaths = mutableMapOf<String, String>()
+        internal val torrentOutputPaths = mutableMapOf<String, String>()
+        internal var addPublicTrackers = true
+        internal var transfersAllowed = true
+        internal var preferPex = true
+        internal val userStopped = mutableSetOf<String>()
+        internal val policyPaused = mutableSetOf<String>()
+
+        internal fun saveDirectory(context: Context): File {
+            val dir = context.getExternalFilesDir("torrents") ?: File(context.filesDir, "torrents")
+            dir.mkdirs()
+            return dir
+        }
     }
 
     override fun getName(): String = "TorrentModule"
 
-    private fun ensureSession(): SessionManager {
+    internal fun ensureSession(): SessionManager {
         sessionManager?.let { if (it.isRunning) return it }
 
         val sm = SessionManager(false)
@@ -73,7 +84,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         return sm
     }
 
-    private fun ensureServer(): TorrentStreamServer {
+    internal fun ensureServer(): TorrentStreamServer {
         streamServer?.let { return it }
         val server = TorrentStreamServer()
         server.sessionManager = ensureSession()
@@ -83,7 +94,8 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         return server
     }
 
-    private fun withPublicTrackers(magnet: String): String {
+    internal fun withPublicTrackers(magnet: String): String {
+        if (!addPublicTrackers) return magnet
         val builder = StringBuilder(magnet)
         for (tracker in PUBLIC_TRACKERS) {
             val encoded = java.net.URLEncoder.encode(tracker, "UTF-8")

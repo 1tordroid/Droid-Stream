@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {FlatList, Pressable, TextInput, ToastAndroid, View} from 'react-native';
 import AppText from '../components/ui/Text';
 import {listEmby, listJellyfin, listPlex, signInEmby, signInJellyfin, signInPlex, type LibraryItem} from '../lib/sources/mediaServers';
@@ -11,7 +11,7 @@ import {useM3Colors} from '../theme/M3PaletteContext';
 
 const KINDS: SourceKind[] = ['webdav', 'smb', 'jellyfin', 'emby', 'plex'];
 
-const Sources = ({navigation}: {navigation: any}) => {
+const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?: string; openId?: string}}}) => {
   const colors = useM3Colors();
   const [sources, setSources] = useState(listSources());
   const [adding, setAdding] = useState(false);
@@ -30,6 +30,21 @@ const Sources = ({navigation}: {navigation: any}) => {
   const [folder, setFolder] = useState('');
 
   const refresh = () => setSources(listSources());
+  useEffect(() => {
+    const kind = route?.params?.kind;
+    if (kind === 'pikpak') setShowMagnet(true);
+    else if (kind && kind !== 'pikpak') {
+      setAdding(true);
+      setDraft(current => ({...current, kind: kind as SourceKind}));
+    }
+    const openId = route?.params?.openId;
+    if (openId) {
+      const source = listSources().find(item => item.id === openId);
+      if (source) browse(source);
+    }
+    // Open the requested source once when the screen is entered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const browse = async (source: SavedSource, nextFolder = '') => {
     setOpen(source);
@@ -79,9 +94,6 @@ const Sources = ({navigation}: {navigation: any}) => {
             <Pressable onPress={() => setAdding(true)}>
               <AppText style={{color: colors.primary}}>Add source</AppText>
             </Pressable>
-            <Pressable onPress={() => setShowMagnet(true)}>
-              <AppText style={{color: colors.primary}}>Magnet</AppText>
-            </Pressable>
           </View>
           <FlatList
             data={sources}
@@ -113,7 +125,7 @@ const Sources = ({navigation}: {navigation: any}) => {
           />
         </>
       )}
-      {showMagnet ? <Magnet navigation={navigation} onClose={() => setShowMagnet(false)} /> : null}
+      {showMagnet ? <Magnet navigation={navigation} pikpakOnly onClose={() => setShowMagnet(false)} /> : null}
       {!showMagnet && adding ? (
         <View style={{position: 'absolute', left: 16, right: 16, bottom: 16, backgroundColor: colors.surfaceContainerHigh, borderRadius: 20, padding: 16}}>
           <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8}}>

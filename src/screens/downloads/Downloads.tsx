@@ -43,6 +43,8 @@ import DownloadsEmptyState from './components/DownloadsEmptyState';
 import DownloadsSelectionBottomBar from './components/DownloadsSelectionBottomBar';
 import DownloadsSelectionHeader from './components/DownloadsSelectionHeader';
 import {deleteDownloadedMediaGroups} from './utils/deleteDownloadGroups';
+import {matchesDownload, sortDownloads, type DownloadSort, type SourceFilter, type StatusFilter, type TypeFilter} from '../../lib/downloads/query';
+import {TextInput, Pressable} from 'react-native';
 
 const Downloads = () => {
   const insets = useSafeAreaInsets();
@@ -55,6 +57,24 @@ const Downloads = () => {
   const completed = useDownloadsStore(useShallow(selectCompletedDownloads));
   const currentDownloads = useDownloadsStore(useShallow(selectCurrentDownloads));
   const groups = useMemo(() => groupCompletedDownloads(completed), [completed]);
+  const [downloadQuery, setDownloadQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [downloadSort, setDownloadSort] = useState<DownloadSort>('date');
+  const shownGroups = useMemo(() => {
+    const matched = groups
+      .map(group => ({
+        ...group,
+        items: sortDownloads(
+          group.items.filter(item => matchesDownload(item, downloadQuery, statusFilter, typeFilter, sourceFilter)),
+          downloadSort,
+        ),
+      }))
+      .filter(group => group.items.length > 0 || (!downloadQuery ? false : group.title.toLowerCase().includes(downloadQuery.toLowerCase())));
+    if (downloadSort === 'name') matched.sort((left, right) => left.title.localeCompare(right.title));
+    return matched;
+  }, [groups, downloadQuery, statusFilter, typeFilter, sourceFilter, downloadSort]);
   const localTitles = useLocalContentStore(state => state.titles);
   // Imported local content, as listed in Library. It opens the same Info page.
   const localItems = useMemo(
@@ -335,7 +355,7 @@ const Downloads = () => {
       ) : null}
 
       <FlatList
-        data={groups}
+        data={shownGroups}
         key={`downloads-cols-${columns}`}
         numColumns={columns}
         keyExtractor={item => item.id}
@@ -403,10 +423,36 @@ const Downloads = () => {
                   </TVFocusable>
                 ) : null}
               </View>
+              <TextInput value={downloadQuery} onChangeText={setDownloadQuery} placeholder="Search downloads" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search downloads" style={{color: colors.onSurface, minHeight: 48, marginBottom: 8}} />
+              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8}}>
+                {(['all', 'downloading', 'completed', 'paused', 'failed'] as StatusFilter[]).map(item => (
+                  <Pressable key={item} accessibilityRole="button" accessibilityLabel={`Status ${item}`} onPress={() => setStatusFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
+                    <AppText style={{color: statusFilter === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8}}>
+                {(['all', 'video', 'subtitle', 'other'] as TypeFilter[]).map(item => (
+                  <Pressable key={item} accessibilityRole="button" accessibilityLabel={`Type ${item}`} onPress={() => setTypeFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
+                    <AppText style={{color: typeFilter === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
+                  </Pressable>
+                ))}
+                {(['all', 'vega', 'torrent', 'webdav', 'pikpak'] as SourceFilter[]).map(item => (
+                  <Pressable key={`source-${item}`} accessibilityRole="button" accessibilityLabel={`Source ${item}`} onPress={() => setSourceFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
+                    <AppText style={{color: sourceFilter === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
+                  </Pressable>
+                ))}
+                {(['date', 'name', 'size', 'progress'] as DownloadSort[]).map(item => (
+                  <Pressable key={`sort-${item}`} accessibilityRole="button" accessibilityLabel={`Sort by ${item}`} onPress={() => setDownloadSort(item)} style={{minHeight: 44, justifyContent: 'center'}}>
+                    <AppText style={{color: downloadSort === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
+                  </Pressable>
+                ))}
+              </View>
               <CurrentDownloadsSection
                 primary={colors.primary}
                 firstActionRef={currentDownloadActionRef}
                 onFirstActionLayout={updateCurrentDownloadActionNode}
+                include={item => matchesDownload(item, downloadQuery, statusFilter, typeFilter, sourceFilter)}
               />
               <MissingDownloadsSection primary={colors.primary} />
               {groups.length > 0 ? (

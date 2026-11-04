@@ -1,4 +1,4 @@
-import {View, FlatList, Keyboard} from 'react-native';
+import {View, FlatList, Keyboard, Pressable} from 'react-native';
 import React, {useState, useEffect, useCallback, memo, useRef} from 'react';
 import {useNavigation} from '@react-navigation/native';
 import type {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
@@ -16,6 +16,7 @@ import SearchSuggestions from '../components/search/SearchSuggestions';
 import SearchHistory from '../components/search/SearchHistory';
 import IconButton from '../components/ui/IconButton';
 import AppText from '../components/ui/Text';
+import FeatureSearchPanel from '../components/FeatureSearchPanel';
 import SearchField, {type SearchFieldRef} from '../components/ui/SearchField';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../components/tv';
@@ -101,6 +102,7 @@ const Search = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
   const [searchText, setSearchText] = useState('');
+  const [searchMode, setSearchMode] = useState<'content' | 'features'>('content');
   const [searchFieldNode, setSearchFieldNode] = useState<number | null>(null);
   const [clearBtnNode, setClearBtnNode] = useState<number | null>(null);
   const [firstItemNode, setFirstItemNode] = useState<number | null>(null);
@@ -339,10 +341,18 @@ const Search = () => {
       <HeaderContainer
         {...(!isTV ? {entering: FadeInDown.duration(300)} : {})}
         className="px-4 pt-5">
+        <View style={{flexDirection: 'row', gap: 16, marginBottom: 12}}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Search content" onPress={() => setSearchMode('content')} style={{minHeight: 44, justifyContent: 'center'}}>
+            <AppText style={{color: searchMode === 'content' ? colors.primary : colors.onSurfaceVariant}}>Content</AppText>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Search settings and features" onPress={() => setSearchMode('features')} style={{minHeight: 44, justifyContent: 'center'}}>
+            <AppText style={{color: searchMode === 'features' ? colors.primary : colors.onSurfaceVariant}}>Settings & features</AppText>
+          </Pressable>
+        </View>
         <AppText
           role="bodyLarge"
           style={{color: colors.onSurfaceVariant, marginBottom: 18}}>
-          Search across all providers
+          {searchMode === 'features' ? 'Jump to any setting, including advanced ones' : 'Search across all providers'}
         </AppText>
         <View className="flex-row items-center space-x-3 mb-3">
           <View className="flex-1">
@@ -372,8 +382,13 @@ const Search = () => {
         </View>
       </HeaderContainer>
 
+      {searchMode === 'features' ? (
+        <View style={{flex: 1, paddingHorizontal: 16}}>
+          <FeatureSearchPanel initialQuery={searchText} />
+        </View>
+      ) : null}
       {/* Search Content */}
-      <View className="flex-1">
+      <View className="flex-1" style={searchMode === 'features' ? {display: 'none'} : undefined}>
         <View className="flex-1">
           {showSuggestions ? (
             <View style={{flex: 1}}>

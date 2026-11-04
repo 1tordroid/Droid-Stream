@@ -17,6 +17,11 @@ import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
 import Sources from './screens/Sources';
+import LibraryHub from './screens/library/LibraryHub';
+import Torrents from './screens/torrents/Torrents';
+import TorrentDetails from './screens/torrents/TorrentDetails';
+import TorrentOptions from './screens/torrents/TorrentOptions';
+import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
 import ScrollList from './screens/ScrollList';
@@ -80,7 +85,6 @@ import {
   reconcileDownloadState,
 } from './lib/downloadReconciliation';
 import useDownloadsStore from './lib/zustand/downloadsStore';
-import useNavigationPreferencesStore from './lib/zustand/navigationPreferencesStore';
 import {
   initializeSyncService,
   publishSyncManifest,
@@ -157,9 +161,18 @@ export type SearchStackParamList = {
 };
 
 export type WatchListStackParamList = {
+  LibraryHome: undefined;
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
+  LocalLibrary: undefined;
+  Sources: {kind?: string; openId?: string} | undefined;
   Info: {link: string; provider?: string; poster?: string};
+};
+
+export type TorrentsStackParamList = {
+  Torrents: {highlight?: string} | undefined;
+  TorrentDetails: {infoHash: string; highlight?: string};
+  TorrentOptions: {highlight?: string} | undefined;
 };
 
 export type SettingsStackParamList = {
@@ -187,9 +200,8 @@ export type DownloadsStackParamList = {
 export type TabStackParamList = {
   HomeStack: undefined;
   SearchStack: undefined;
+  TorrentsStack: undefined;
   WatchListStack: undefined;
-  SourcesStack: undefined;
-  DownloadsStack: undefined;
   SettingsStack: undefined;
 };
 const Tab = createBottomTabNavigator<TabStackParamList>();
@@ -199,6 +211,7 @@ const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
 const WatchListStack = createNativeStackNavigator<WatchListStackParamList>();
+const TorrentsStack = createNativeStackNavigator<TorrentsStackParamList>();
 const DownloadsStack = createNativeStackNavigator<DownloadsStackParamList>();
 const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -231,14 +244,10 @@ export const openDownloadsScreen = (): void => {
     return;
   }
   pendingDownloadsNavigation = false;
-  if (settingsStorage.hideDownloadsTab()) {
-    navigationRef.navigate('TabStack', {
-      screen: 'SettingsStack',
-      params: {screen: 'DownloadsStack'},
-    });
-    return;
-  }
-  navigationRef.navigate('TabStack', {screen: 'DownloadsStack'});
+  navigationRef.navigate('TabStack', {
+    screen: 'SettingsStack',
+    params: {screen: 'DownloadsStack'},
+  });
 };
 
 // Opens Extensions with the add source dialog prefilled. The user still
@@ -403,10 +412,23 @@ function WatchListStackScreen() {
     <WatchListStack.Navigator
       screenListeners={navigationWorkListeners}
       screenOptions={stackScreenOptions}>
+      <WatchListStack.Screen name="LibraryHome" component={LibraryHub} />
       <WatchListStack.Screen name="WatchList" component={Library} />
+      <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} />
+      <WatchListStack.Screen name="Sources" component={Sources} />
       <WatchListStack.Screen name="LocalContent" component={LocalContent} />
       <WatchListStack.Screen name="Info" component={Info} />
     </WatchListStack.Navigator>
+  );
+}
+
+function TorrentsStackScreen() {
+  return (
+    <TorrentsStack.Navigator screenListeners={navigationWorkListeners} screenOptions={stackScreenOptions}>
+      <TorrentsStack.Screen name="Torrents" component={Torrents} />
+      <TorrentsStack.Screen name="TorrentDetails" component={TorrentDetails} />
+      <TorrentsStack.Screen name="TorrentOptions" component={TorrentOptions} />
+    </TorrentsStack.Navigator>
   );
 }
 
@@ -484,9 +506,6 @@ function TabStack() {
   // Use the navigator's native detach policy until retention is touch-safe.
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const isLargeScreen = isTV || Math.min(windowWidth, windowHeight) >= 600;
-  const hideDownloadsTab = useNavigationPreferencesStore(
-    state => state.hideDownloadsTab,
-  );
   const screenOptions = useMemo(
     () => ({
       animation: isTV ? ('shift' as const) : ('fade' as const),
@@ -515,22 +534,15 @@ function TabStack() {
         options={searchTabOptions}
       />
       <Tab.Screen
+        name="TorrentsStack"
+        component={TorrentsStackScreen}
+        options={{title: 'Torrents', tabBarIcon: makeTabIcon('magnet', 'magnet-on')}}
+      />
+      <Tab.Screen
         name="WatchListStack"
         component={WatchListStackScreen}
         options={watchListTabOptions}
       />
-      <Tab.Screen
-        name="SourcesStack"
-        component={Sources}
-        options={{title: 'Sources', tabBarIcon: makeTabIcon('server', 'server-network')}}
-      />
-      {!hideDownloadsTab && (
-        <Tab.Screen
-          name="DownloadsStack"
-          component={DownloadsStackScreen}
-          options={downloadsTabOptions}
-        />
-      )}
       <Tab.Screen
         name="SettingsStack"
         component={SettingsStackScreen}
@@ -768,6 +780,7 @@ const App = () => {
         <GlobalErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <GestureHandlerRootView style={{flex: 1, backgroundColor: 'black'}}>
+              <UndoSnackbar />
               <NavigationContainer
                 ref={navigationRef}
                 onReady={handleNavigationReady}

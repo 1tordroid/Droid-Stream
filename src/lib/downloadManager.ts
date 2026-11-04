@@ -37,6 +37,8 @@ import {
 } from './downloadSourceRefresh';
 import {DownloadPausedError} from './downloadBackends/types';
 import {canTryNextDownloadServer, downloadServerKey, getNextDownloadServer} from './downloadServerFallback';
+import {compareQueue} from './downloadEngine/planner';
+import {readQueueMeta, transfersOpen} from './downloadEngine/queueStore';
 import type {Stream} from './providers/types';
 
 const activeDownloads = new Set<string>();
@@ -239,11 +241,7 @@ const getQueuedDownloads = (): DownloadItem[] =>
   Object.values(useDownloadsStore.getState().downloads)
     .filter(item => item.status === 'queued' && item.downloadLocation &&
       !(activeDownloads.has(item.id) && getDownloadBackend(item.sourceType).restartOnResume))
-    .sort((left, right) =>
-      left.createdAt === right.createdAt
-        ? left.id.localeCompare(right.id)
-        : left.createdAt - right.createdAt,
-    );
+    .sort((left, right) => compareQueue(left, right, readQueueMeta()));
 
 // A link that expired before any data arrived (a queued download that waited
 // too long) is fetched again once from the same server. Partial data stays
@@ -304,7 +302,7 @@ const startBackendWithFreshLink = async (
 };
 
 export const scheduleQueuedDownloads = async (): Promise<void> => {
-  if (schedulerRunning || useDownloadsStore.getState().storageFullHold) {
+  if (schedulerRunning || useDownloadsStore.getState().storageFullHold || !transfersOpen()) {
     return;
   }
   schedulerRunning = true;

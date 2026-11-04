@@ -18,10 +18,10 @@ import {useM3Colors} from '../theme/M3PaletteContext';
 
 type MagnetRoute = 'pikpak' | 'direct';
 
-const Magnet = ({navigation, onClose}: {navigation: any; onClose?: () => void}) => {
+const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onClose?: () => void; pikpakOnly?: boolean}) => {
   const colors = useM3Colors();
   const saved = readPikPakAccount();
-  const [route, setRoute] = useState<MagnetRoute>('direct');
+  const [route, setRoute] = useState<MagnetRoute>(pikpakOnly ? 'pikpak' : 'direct');
   const [username, setUsername] = useState(saved?.username || '');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
@@ -108,10 +108,10 @@ const Magnet = ({navigation, onClose}: {navigation: any; onClose?: () => void}) 
         <AppText style={{color: colors.primary}}>Back</AppText>
       </Pressable>
       <AppText role="headlineSmallEmphasized" className="text-m3-on-background">Magnet</AppText>
-      <View style={{flexDirection: 'row', gap: 16, marginVertical: 12}}>
+      {!pikpakOnly ? <View style={{flexDirection: 'row', gap: 16, marginVertical: 12}}>
         <Pressable onPress={() => setRoute('direct')}><AppText style={{color: route === 'direct' ? colors.primary : colors.onSurfaceVariant}}>Direct (on-device)</AppText></Pressable>
         <Pressable onPress={() => setRoute('pikpak')}><AppText style={{color: route === 'pikpak' ? colors.primary : colors.onSurfaceVariant}}>PikPak (cloud)</AppText></Pressable>
-      </View>
+      </View> : null}
       <TextInput value={magnet} onChangeText={setMagnet} placeholder="magnet:?xt=urn:btih:..." placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" multiline style={{color: colors.onSurface, marginBottom: 12}} />
       {route === 'direct' ? (
         <View>

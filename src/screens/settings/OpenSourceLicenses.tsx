@@ -14,6 +14,21 @@ const LICENSES = [
     license: 'LGPL-2.1',
     note: 'The native media library used by the VLC engine. Source is available from VideoLAN.',
   },
+  {
+    name: 'libtorrent and libtorrent4j',
+    license: 'BSD-3-Clause',
+    note: 'One shared session for direct playback and the Torrents tab. Droid Stream does not copy GPL torrent-client code.',
+  },
+  {
+    name: 'NanoHTTPD',
+    license: 'BSD',
+    note: 'Serves a torrent file to the on-device player at 127.0.0.1 only.',
+  },
+  {
+    name: 'OkHttp',
+    license: 'Apache-2.0',
+    note: 'HTTP client used for segmented downloads.',
+  },
 ];
 
 const OpenSourceLicenses = () => {

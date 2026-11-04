@@ -48,7 +48,11 @@ if (project.android) {
     }
     defaultConfig {
       ndk {
-        abiFilters 'armeabi-v7a', 'arm64-v8a'
+        if (project.hasProperty('droidstreamArm64Only')) {
+          abiFilters 'arm64-v8a'
+        } else {
+          abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
       }
     }
     packagingOptions {
@@ -57,6 +61,9 @@ if (project.android) {
       }
       dex {
         useLegacyPackaging true
+      }
+      resources {
+        pickFirsts += ['org/bouncycastle/**', 'META-INF/versions/**']
       }
     }
   }

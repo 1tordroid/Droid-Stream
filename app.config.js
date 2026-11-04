@@ -187,6 +187,7 @@ module.exports = () => {
           'WRITE_SETTINGS',
           'WAKE_LOCK',
           'POST_NOTIFICATIONS',
+          'RECEIVE_BOOT_COMPLETED',
         ],
         blockedPermissions: [
           // Casting uses WebRTC data channels, not microphone capture.

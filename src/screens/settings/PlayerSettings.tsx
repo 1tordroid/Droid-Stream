@@ -13,6 +13,7 @@ import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
 import AppText from '../../components/ui/Text';
+import MoreOptions from '../../components/MoreOptions';
 import SettingsSection from '../../components/ui/SettingsSection';
 import SettingsPage from '../../components/ui/SettingsPage';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
@@ -138,6 +139,7 @@ export default function PlayerSettings({navigation}: Props) {
             Playback, controls, appearance, and subtitles
           </AppText>
 
+          <MoreOptions id="player-engine">
           <SettingsSection title="Engine">
             <SettingsRow
               title="Built-in player"
@@ -165,6 +167,7 @@ export default function PlayerSettings({navigation}: Props) {
             <SettingsRow title="Subtitle style" description="Font, colors, background, placement, and more"
               icon="subtitles-outline" divider={false} onPress={() => navigation.navigate('SubTitlesPreferences')} />
           </SettingsSection>
+          </MoreOptions>
           <SettingsSection title="Control appearance">
             {getPlayerControlStyleRows({value: controlStyle, color: colors.primary,
               onChange: next => {settingsStorage.setPlayerControlStyle(next); setControlStyle(next);},

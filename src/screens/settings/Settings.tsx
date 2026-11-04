@@ -7,6 +7,7 @@ import {
   TextInput,
   BackHandler,
   Linking,
+  Pressable,
 } from 'react-native';
 
 interface ProviderItemProps {
@@ -102,7 +103,7 @@ const ProviderItem = React.memo(
     );
   },
 );
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
   settingsStorage,
   ProviderExtension,
@@ -122,7 +123,8 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import RenderProviderFlagIcon from '../../components/RenderProviderFLagIcon';
-import useNavigationPreferencesStore from '../../lib/zustand/navigationPreferencesStore';
+import FeatureSearchPanel from '../../components/FeatureSearchPanel';
+import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
 import BrandLinkButtons from './components/BrandLinkButtons';
 import DnsPreference from './components/DnsPreference';
 import SettingsRow from '../../components/ui/SettingsRow';
@@ -148,9 +150,8 @@ const Settings = ({navigation}: Props) => {
   const provider = useContentStore(state => state.provider);
   const setProvider = useContentStore(state => state.setProvider);
   const installedProviders = useContentStore(state => state.installedProviders);
-  const hideDownloadsTab = useNavigationPreferencesStore(
-    state => state.hideDownloadsTab,
-  );
+  const [searching, setSearching] = useState(false);
+  const [advanced, setAdvanced] = useState(() => settingsStorage.isAdvancedMode());
 
   const handleProviderSelect = useCallback(
     (item: ProviderExtension) => {
@@ -242,13 +243,19 @@ const Settings = ({navigation}: Props) => {
                 Settings
               </AppText>
             ) : (
-              <Animated.View>
+              <>
+              <Animated.View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
                 <AppText
                   role="headlineLargeEmphasized"
                   className="mb-6 text-m3-on-background">
                   Settings
                 </AppText>
+                <Pressable accessibilityRole="button" accessibilityLabel="Search settings" onPress={() => setSearching(value => !value)} style={{minHeight: 48, justifyContent: 'center', marginBottom: 24}}>
+                  <MaterialIcons name="search" size={28} color={colors.primary} />
+                </Pressable>
               </Animated.View>
+              {searching ? <FeatureSearchPanel autoFocus /> : null}
+              </>
             )}
 
             {/* Content provider section */}
@@ -316,6 +323,15 @@ const Settings = ({navigation}: Props) => {
             {/* Main options section */}
             <AnimatedSection delay={200}>
               <SettingsSection title="Options">
+                <SettingsSwitchRow
+                  title="Advanced mode"
+                  description="Shows speed limits, player engine, subtitles, and other extra controls"
+                  value={advanced}
+                  onValueChange={next => {
+                    settingsStorage.setAdvancedMode(next);
+                    setAdvanced(next);
+                  }}
+                />
                 <SettingsRow
                   title="Appearance"
                   // description="Accent colors and launcher icon"
@@ -327,13 +343,12 @@ const Settings = ({navigation}: Props) => {
                   icon="play-circle-outline"
                   onPress={() => navigation.navigate('PlayerSettings')}
                 />
-                {hideDownloadsTab && (
-                  <SettingsRow
-                    title="Downloads"
-                    icon="download-circle-outline"
-                    onPress={() => navigation.navigate('DownloadsStack')}
-                  />
-                )}
+                <SettingsRow
+                  title="Downloads"
+                  description="Search, filter, and open saved files"
+                  icon="download-circle-outline"
+                  onPress={() => navigation.navigate('DownloadsStack')}
+                />
                 <SettingsRow
                   title="Preferences"
                   icon="tune-variant"

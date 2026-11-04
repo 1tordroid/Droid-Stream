@@ -17,6 +17,7 @@ import DownloadConcurrencyPreference from './components/DownloadConcurrencyPrefe
 import VerificationWindowPreference from './components/VerificationWindowPreference';
 import TmdbApiKeyPreference from './components/TmdbApiKeyPreference';
 import AppText from '../../components/ui/Text';
+import MoreOptions from '../../components/MoreOptions';
 import SettingsSection from '../../components/ui/SettingsSection';
 import SettingsPage from '../../components/ui/SettingsPage';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
@@ -327,7 +328,9 @@ const Preferences = ({navigation}: any) => {
 
           <DownloadLocationPreference primary={colors.primary} />
 
-          <DownloadConcurrencyPreference primary={colors.primary} />
+          <MoreOptions id="download-connections">
+            <DownloadConcurrencyPreference primary={colors.primary} />
+          </MoreOptions>
 
       </SettingsPage>
     </TVFocusGuide>

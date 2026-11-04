@@ -19,6 +19,7 @@ import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';
 const TAB_ICONS: Record<string, AnimatedTabIconName> = {
   HomeStack: 'home',
   SearchStack: 'search',
+  TorrentsStack: 'download',
   WatchListStack: 'watchlist',
   DownloadsStack: 'download',
   SettingsStack: 'settings',

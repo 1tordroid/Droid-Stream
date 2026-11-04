@@ -1,6 +1,6 @@
 import {NativeModules, Platform} from 'react-native';
 
-const {TorrentModule} = NativeModules;
+const {TorrentModule, TorrentClientModule, HttpDownloadModule} = NativeModules;
 
 export interface TorrentFile {
   index: number;
@@ -177,6 +177,128 @@ class TorrentManager {
     await this.init();
     await TorrentModule.deleteTorrent(infoHash, deleteFiles);
   }
+
+  async applySettings(settings: Record<string, string | number | boolean>): Promise<void> {
+    await this.init();
+    await TorrentClientModule.applySettings(settings);
+  }
+
+  async enqueue(source: string, savePath?: string): Promise<{infoHash: string; name?: string; hasMetadata: boolean}> {
+    await this.init();
+    return TorrentClientModule.enqueue(source, savePath || null);
+  }
+
+  async listTorrents(): Promise<TorrentRow[]> {
+    await this.init();
+    return TorrentClientModule.listTorrents();
+  }
+
+  async getDetails(infoHash: string): Promise<TorrentDetails> {
+    await this.init();
+    return TorrentClientModule.getDetails(infoHash);
+  }
+
+  async setFilePriorities(infoHash: string, priorities: number[]): Promise<void> {
+    await this.init();
+    await TorrentClientModule.setFilePriorities(infoHash, priorities);
+  }
+
+  async setSequential(infoHash: string, enabled: boolean): Promise<void> {
+    await this.init();
+    await TorrentClientModule.setSequential(infoHash, enabled);
+  }
+
+  async setLimits(infoHash: string, download: number, upload: number): Promise<void> {
+    await this.init();
+    await TorrentClientModule.setLimits(infoHash, download, upload);
+  }
+
+  async setStopped(infoHash: string, stopped: boolean): Promise<void> {
+    await this.init();
+    await TorrentClientModule.setStopped(infoHash, stopped);
+  }
+
+  async setTrackers(infoHash: string, urls: string[]): Promise<void> {
+    await this.init();
+    await TorrentClientModule.setTrackers(infoHash, urls);
+  }
+
+  async moveStorage(infoHash: string, path: string): Promise<void> {
+    await this.init();
+    await TorrentClientModule.moveStorage(infoHash, path);
+  }
+
+  async createTorrent(path: string, trackers: string[], comment: string, outputPath: string): Promise<string> {
+    await this.init();
+    return TorrentClientModule.createTorrent(path, trackers, comment, outputPath);
+  }
+
+  async applyBlocklist(text: string): Promise<{applied: boolean; ranges: number; reason: string}> {
+    await this.init();
+    return TorrentClientModule.applyBlocklist(text);
+  }
+
+  async setTransfersAllowed(allowed: boolean): Promise<void> {
+    await this.init();
+    await TorrentClientModule.setTransfersAllowed(allowed);
+  }
+
+  async networkStatus(): Promise<NetworkStatus> {
+    if (TorrentClientModule?.networkStatus) return TorrentClientModule.networkStatus();
+    if (HttpDownloadModule?.networkPolicy) {
+      const status = await HttpDownloadModule.networkPolicy();
+      return {...status, vpnAddress: ''};
+    }
+    return {wifi: true, charging: true, vpn: false, powerSave: false, vpnAddress: ''};
+  }
+
+  async consumeLaunchIntent(): Promise<{kind: 'magnet' | 'torrent' | 'http'; value: string} | null> {
+    return (await TorrentClientModule?.consumeLaunchIntent?.()) || null;
+  }
+
+  async readClipboard(): Promise<string> {
+    return (await TorrentClientModule?.readClipboard?.()) || '';
+  }
+
+  async exportToFolder(infoHash: string, treeUri: string): Promise<number> {
+    await this.init();
+    return TorrentClientModule.exportToFolder(infoHash, treeUri);
+  }
+}
+
+export interface TorrentRow {
+  infoHash: string;
+  name: string;
+  state: string;
+  paused: boolean;
+  stopped: boolean;
+  progress: number;
+  downloadRate: number;
+  uploadRate: number;
+  numPeers: number;
+  numSeeds: number;
+  totalDone: number;
+  totalWanted: number;
+  allTimeDownload: number;
+  allTimeUpload: number;
+  hasMetadata: boolean;
+  savePath?: string;
+}
+
+export interface TorrentDetails extends TorrentRow {
+  peers: {address: string; client: string; progress: number; downSpeed: number; upSpeed: number}[];
+  trackers: {url: string; tier: number; verified: boolean}[];
+  files?: {index: number; name: string; path: string; size: number; progress: number; priority: number}[];
+  pieces?: string;
+  sequential?: boolean;
+}
+
+export interface NetworkStatus {
+  wifi: boolean;
+  charging: boolean;
+  vpn: boolean;
+  powerSave: boolean;
+  vpnAddress: string;
 }
 
 export const torrentManager = new TorrentManager();
