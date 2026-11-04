@@ -22,7 +22,7 @@ const DOWNLOAD_LOCATION_PREFIX = 'download-location:';
 export const getTVDefaultDownloadLocation = (): PathDownloadLocation => ({
   type: 'path',
   path: `${RNFS.ExternalDirectoryPath || RNFS.DocumentDirectoryPath}/Vega Downloads`,
-  label: 'Vega app storage',
+  label: 'Droid Stream storage',
 });
 
 export const serializeDownloadLocation = (

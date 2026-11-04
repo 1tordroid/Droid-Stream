@@ -98,8 +98,18 @@ const withLauncherManifest = config =>
     // that was off. Google TV keeps the previous banner when the newly enabled
     // alias is one the manifest already enables.
     const packageName = manifestConfig.android?.package;
+    // The install-time icon is the full-color Tordroid mark. Color aliases
+    // below still tint a copy of that foreground when the user picks one.
+    const brandAlias = createLauncherAlias(
+      packageName,
+      variants[0],
+      '.LauncherDefault',
+      true,
+    );
+    brandAlias.$['android:icon'] = '@drawable/ic_launcher_brand';
+    brandAlias.$['android:roundIcon'] = '@drawable/ic_launcher_brand';
     application['activity-alias'] = [
-      createLauncherAlias(packageName, variants[0], '.LauncherDefault', true),
+      brandAlias,
       ...variants.map(variant => createLauncherAlias(packageName, variant)),
     ];
     addVideoPlayerAlias(application);
@@ -182,6 +192,19 @@ const writeLauncherResources = resRoot => {
   const drawableV26 = path.join(resRoot, 'drawable-v26');
   fs.mkdirSync(drawable, {recursive: true});
   fs.mkdirSync(drawableV26, {recursive: true});
+  fs.writeFileSync(
+    path.join(drawable, 'ic_launcher_brand.xml'),
+    `<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="fill"
+    android:src="@mipmap/ic_launcher" />\n`,
+  );
+  fs.writeFileSync(
+    path.join(drawableV26, 'ic_launcher_brand.xml'),
+    `<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/iconBackground" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>\n`,
+  );
   for (const variant of variants) {
     const id = variant.id.toLowerCase();
     fs.writeFileSync(
@@ -268,7 +291,7 @@ const withLauncherResources = config =>
       copySplashResources(projectRoot, resRoot);
       patchGeneratedBootSplashFiles(
         projectRoot,
-        modConfig.android?.package || 'com.vega',
+        modConfig.android?.package || 'com.tordroid.droidstream',
       );
       return modConfig;
     },

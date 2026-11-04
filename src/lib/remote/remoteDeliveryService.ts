@@ -403,7 +403,7 @@ class RemoteDeliveryService {
     if (this.serverInfo && target.origin === new URL(this.serverInfo.baseUrl).origin &&
         /^\/(subtitle|extsub)\//.test(target.pathname)) {
       if (!VegaRemoteDelivery?.prepareSubtitle) {
-        throw new Error('Update Vega to enable native subtitle preparation');
+        throw new Error('Update Droid Stream to enable native subtitle preparation');
       }
       await VegaRemoteDelivery.prepareSubtitle(url);
       return;

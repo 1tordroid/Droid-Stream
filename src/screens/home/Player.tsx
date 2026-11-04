@@ -2530,7 +2530,7 @@ const Player = ({route}: Props): React.JSX.Element => {
           sourceUrl: processedStreamUrl,
           sourceType: selectedStream?.type,
           isLocal: Boolean(isLocalOrDownloadedStream),
-          title: route.params?.primaryTitle || 'Vega Media',
+          title: route.params?.primaryTitle || 'Droid Stream',
           subtitle: activeEpisode?.title || route.params?.secondaryTitle,
           artwork:
             route.params?.poster?.background || route.params?.poster?.poster,

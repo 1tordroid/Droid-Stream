@@ -147,7 +147,7 @@ const ScrollListCard = memo(({
           source={{
             uri:
               item.image ||
-              'https://placehold.jp/24/363636/ffffff/100x150.png?text=Vega',
+              'https://placehold.jp/24/363636/ffffff/100x150.png?text=Droid+Stream',
           }}
           resizeMode="cover"
           resizeMethod="resize"

@@ -241,7 +241,7 @@ const DownloadedFileDetails = ({navigation, route}: DownloadedDetailsProps) => {
   const backgroundImage =
     metadata.background ||
     metadata.poster ||
-    'https://placehold.jp/24/171717/ffffff/800x450.png?text=Vega';
+    'https://placehold.jp/24/171717/ffffff/800x450.png?text=Droid+Stream';
   const hasArtwork = !!(metadata.background || metadata.poster);
 
   return (

@@ -512,7 +512,7 @@ const DownloadBottomSheet = ({
 
           {/* External / Internal Button */}
           <SheetButton
-            accessibilityLabel={`${isAlwaysExternal ? 'Download in Vega' : 'Open externally'}: ${item.server || 'Unknown Server'}`}
+            accessibilityLabel={`${isAlwaysExternal ? 'Download in Droid Stream' : 'Open externally'}: ${item.server || 'Unknown Server'}`}
             activeOpacity={0.7}
             onPress={() => {
               if (isAlwaysExternal) {

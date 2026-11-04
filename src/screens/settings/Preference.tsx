@@ -250,7 +250,7 @@ const Preferences = ({navigation}: any) => {
             <SettingsSection title="Privacy">
               <SettingsSwitchRow
                 title="Usage and crash reports"
-                description="Help improve Vega with anonymous diagnostics"
+                description="Help improve Droid Stream with anonymous diagnostics"
                 value={telemetryOptIn}
                 divider={false}
                 onValueChange={async next => {

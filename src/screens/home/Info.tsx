@@ -141,11 +141,11 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     meta?.poster ||
     route.params.poster ||
     info?.image ||
-    'https://placehold.jp/24/363636/ffffff/500x750.png?text=Vega';
+    'https://placehold.jp/24/363636/ffffff/500x750.png?text=Droid+Stream';
   const backgroundImage =
     meta?.background ||
     info?.image ||
-    'https://placehold.jp/24/363636/ffffff/900x1200.png?text=Vega';
+    'https://placehold.jp/24/363636/ffffff/900x1200.png?text=Droid+Stream';
   // Posters and small images are blurred behind the page, with the sharp
   // poster shown in the header instead of stretched across it.
   const {ready: backdropReady, posterLike: backdropPosterLike} =

@@ -31,6 +31,7 @@ export enum SettingsKeys {
   // Update settings
   AUTO_CHECK_UPDATE = 'autoCheckUpdate',
   AUTO_DOWNLOAD = 'autoDownload',
+  SKIPPED_UPDATE_TAG = 'skippedUpdateTag',
   AUTO_UPDATE_PROVIDERS = 'autoUpdateProviders',
   VERIFICATION_WINDOWS = 'verificationWindows',
 
@@ -374,6 +375,15 @@ export class SettingsStorage {
 
   setAutoDownloadEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.AUTO_DOWNLOAD, enabled);
+  }
+
+  /** GitHub release tag the user chose to ignore, for example `v5.4.0`. */
+  getSkippedUpdateTag(): string | undefined {
+    return mainStorage.getString(SettingsKeys.SKIPPED_UPDATE_TAG);
+  }
+
+  setSkippedUpdateTag(tag: string): void {
+    mainStorage.setString(SettingsKeys.SKIPPED_UPDATE_TAG, tag);
   }
 
   // Player settings

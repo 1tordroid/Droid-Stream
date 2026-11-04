@@ -22,14 +22,17 @@ module.exports = () => {
   const IS_TV = process.env.EXPO_TV === '1' || process.env.APP_VARIANT === 'tv';
   const HAS_FIREBASE =
     !IS_PLAYSTORE && (hasAndroidGoogleServices || hasIosGooglePlist);
-  const PACKAGE_NAME = IS_PLAYSTORE ? 'vega.app' : 'com.vega';
-  const APP_SCHEME = IS_PLAYSTORE ? 'vegaapp' : 'com.vega';
+  // Distinct from Vega (com.vega / vega.app) so both apps can be installed.
+  // The Play build drops REQUEST_INSTALL_PACKAGES, so it uses its own id.
+  const PACKAGE_NAME = IS_PLAYSTORE
+    ? 'com.tordroid.droidstream.play'
+    : 'com.tordroid.droidstream';
   const plugins = [
     './plugins/with-custom-native-modules.js',
       [
         'expo-camera',
         {
-          cameraPermission: 'Allow Vega to scan receiver QR codes.',
+          cameraPermission: 'Allow Droid Stream to scan receiver QR codes.',
           recordAudioAndroid: false,
         },
       ],
@@ -144,14 +147,23 @@ module.exports = () => {
   ];
   return {
     expo: {
-      name: 'Vega',
-      scheme: [APP_SCHEME, 'vega-cast'],
-      displayName: 'Vega',
+      name: 'Droid Stream',
+      // com.vega, vegaapp, and vega-cast stay so existing provider, share,
+      // and Vega Cast links still open this install.
+      scheme: [
+        'droidstream',
+        'com.tordroid.droidstream',
+        'com.vega',
+        'vegaapp',
+        'vega-cast',
+      ],
+      displayName: 'Droid Stream',
       jsEngine: 'hermes',
       newArchEnabled: true,
       autolinking: {exclude: ['expo-splash-screen']},
       plugins,
-      slug: 'vega',
+      slug: 'droid-stream',
+      icon: './assets/icon.png',
       version: '5.3.2',
       userInterfaceStyle: 'dark',
       experiments: {
@@ -197,6 +209,7 @@ module.exports = () => {
         allowBackup: true,
         adaptiveIcon: {
           foregroundImage: './assets/adaptive_icon.png',
+          monochromeImage: './assets/adaptive_icon_monochrome.png',
           backgroundColor: '#000000',
         },
         launchMode: 'singleTask',

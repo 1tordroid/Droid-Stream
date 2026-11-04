@@ -31,7 +31,7 @@ module.exports = function withProguardRules(config) {
         'proguard-rules.pro'
       );
       
-      const packageName = cfg.android?.package || 'com.vega';
+      const packageName = cfg.android?.package || 'com.tordroid.droidstream';
 
       if (fs.existsSync(proguardRulesFile)) {
         let content = fs.readFileSync(proguardRulesFile, 'utf8');

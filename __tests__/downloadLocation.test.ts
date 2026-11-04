@@ -61,7 +61,7 @@ describe('Android SAF download location', () => {
     expect(location).toEqual({
       type: 'path',
       path: '/app-files/Vega Downloads',
-      label: 'Vega app storage',
+      label: 'Droid Stream storage',
     });
     expect(parseDownloadLocation('/old/phone/downloads')).toEqual(location);
     await expect(ensureDownloadLocationAccess(location)).resolves.toEqual(location);

@@ -45,7 +45,9 @@ export const themes: {name: string; color: string}[] = [
 ];
 
 export const socialLinks = {
-  github: 'https://github.com/vega-org/vega-app',
-  discord: 'https://discord.gg/cr42m6maWy',
-  sponsor: 'https://github.com/sponsors/Zenda-Cross',
+  github: 'https://github.com/1tordroid/Droid-Stream',
+  website: 'https://tordroid.com',
+  telegram: 'https://t.me/Tordroid_admin',
+  upstream: 'https://github.com/vega-org/vega-app',
+  providers: 'https://github.com/vega-org/vega-providers',
 };

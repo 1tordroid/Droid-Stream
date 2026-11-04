@@ -134,7 +134,7 @@ export const RemoteHeader: React.FC<RemoteHeaderProps> = ({
         <MenuRow
           icon="volume-vibrate"
           title="Volume keys control the TV"
-          detail="Phone volume buttons change the receiver volume while Vega is open."
+          detail="Phone volume buttons change the receiver volume while Droid Stream is open."
           onPress={() => toggleVolumeKeys(!volumeKeys)}
           right={<M3Switch value={volumeKeys} onChange={toggleVolumeKeys} />}
         />

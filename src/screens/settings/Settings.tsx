@@ -6,6 +6,7 @@ import {
   Keyboard,
   TextInput,
   BackHandler,
+  Linking,
 } from 'react-native';
 
 interface ProviderItemProps {
@@ -18,6 +19,7 @@ interface ProviderItemProps {
 }
 
 import useTVNavigationStore from '../../lib/zustand/tvNavigationStore';
+import {socialLinks} from '../../lib/constants';
 
 const ProviderItem = React.memo(
   ({
@@ -358,9 +360,21 @@ const Settings = ({navigation}: Props) => {
             <AnimatedSection delay={400}>
               <SettingsSection title="About">
                 <SettingsRow
-                  title="About Vega"
+                  title="About Droid Stream"
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
+                />
+                <SettingsRow
+                  title="Website"
+                  description="tordroid.com"
+                  icon="web"
+                  onPress={() => Linking.openURL(socialLinks.website)}
+                />
+                <SettingsRow
+                  title="Support"
+                  description="Telegram"
+                  icon="send"
+                  onPress={() => Linking.openURL(socialLinks.telegram)}
                 />
                 <GitHubStarButton primary={colors.primary} />
               </SettingsSection>

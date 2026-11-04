@@ -72,7 +72,7 @@ const TmdbApiKeyPreference = ({draft}: {draft?: {
             marginTop: 4,
           }}>
           A custom TMDB API v3 key takes priority over the key bundled with
-          Vega. Clear it to return to the default.
+          Droid Stream. Clear it to return to the default.
         </AppText>
 
         <View

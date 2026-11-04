@@ -2,6 +2,7 @@ import {ProviderVersionMismatchError, validateProviderModuleVersion, validatePro
 import axios from 'axios';
 import {
   extensionStorage,
+  ExtensionKeys,
   ProviderExtension,
   ProviderModule,
   ProviderSource,
@@ -130,6 +131,33 @@ export class ExtensionManager {
     } finally {
       mainStorage.delete(this.legacyCustomProviderBaseUrlKey);
     }
+  }
+
+  /**
+   * First launch points at vega-org/vega-providers, the catalog Vega installs
+   * from. An empty list that was saved on purpose is left empty.
+   */
+  private ensureDefaultProviderSource(): void {
+    try {
+      if (
+        typeof mainStorage.hasKey === 'function' &&
+        mainStorage.hasKey(ExtensionKeys.PROVIDER_SOURCES)
+      ) {
+        return;
+      }
+    } catch {
+      return;
+    }
+    if (extensionStorage.getProviderSources().length > 0) {
+      return;
+    }
+    const source = createProviderSource('vega-org');
+    extensionStorage.addProviderSources(
+      source.author,
+      source.url,
+      source.manifestUrl,
+    );
+    extensionStorage.setDefaultProviderSource(source.author);
   }
 
   // Test mode configuration
@@ -552,6 +580,7 @@ export class ExtensionManager {
   async initialize(): Promise<void> {
     try {
       this.migrateLegacyCustomProviderSource();
+      this.ensureDefaultProviderSource();
 
       // Load providers from cache
       const source = this.getActiveSource();

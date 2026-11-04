@@ -317,7 +317,7 @@ const ErrorFallbackUI: React.FC<ErrorFallbackUIProps> = ({
             {Application.nativeBuildVersion})
           </Text>
           <Text className="text-gray-600 text-xs text-center mt-1">
-            If this keeps happening, report on github or discord
+            If this keeps happening, report it on GitHub or Telegram
           </Text>
         </View>
       </ScrollView>
