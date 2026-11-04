@@ -78,6 +78,11 @@ class TorrentManager {
   private streamPort: number | null = null;
   private isInitialized = false;
 
+  async isOnWifi(): Promise<boolean> {
+    if (Platform.OS !== 'android' || !TorrentModule?.isOnWifi) return true;
+    return Boolean(await TorrentModule.isOnWifi());
+  }
+
   async init(): Promise<void> {
     if (Platform.OS !== 'android') {
       throw new Error('Torrent streaming is only supported on Android');

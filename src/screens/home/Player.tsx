@@ -1696,7 +1696,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       if (prevHash) {
         activeTorrentRef.current = null;
         try {
-          await torrentManager.deleteTorrent(prevHash, true);
+          await torrentManager.deleteTorrent(prevHash, !settingsStorage.keepDirectTorrentFile());
         } catch {}
       }
     };
@@ -1731,7 +1731,7 @@ const Player = ({route}: Props): React.JSX.Element => {
           setTorrentDownloadSpeed(0);
           const resolved = await resolveTorrentStream(selectedStream.link, {
             addTorrent: link => torrentManager.addTorrent(link),
-            deleteTorrent: hash => torrentManager.deleteTorrent(hash, true),
+            deleteTorrent: hash => torrentManager.deleteTorrent(hash, !settingsStorage.keepDirectTorrentFile()),
             findVideoFileIndex,
             prepareVideoFile: (hash, fileIndex) =>
               torrentManager.prepareVideoFile(
@@ -1805,7 +1805,7 @@ const Player = ({route}: Props): React.JSX.Element => {
         // A receiver still streaming this torrent keeps it until casting stops.
         if (remotePlaybackManager.adoptTorrent(hash)) return;
         try {
-          torrentManager.deleteTorrent(hash, true);
+          torrentManager.deleteTorrent(hash, !settingsStorage.keepDirectTorrentFile());
         } catch (e) {
           console.warn('Failed to delete active torrent on unmount', e);
         }

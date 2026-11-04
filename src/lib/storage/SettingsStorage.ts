@@ -55,6 +55,8 @@ export enum SettingsKeys {
   BACK_BUFFER_MB = 'backBufferMB',
   SEEK_INTERVAL = 'seekInterval',
   PLAYER_ENGINE = 'playerEngine',
+  DIRECT_TORRENT_WIFI_ONLY = 'directTorrentWifiOnly',
+  DIRECT_TORRENT_KEEP_FILE = 'directTorrentKeepFile',
   PLAYBACK_SPEED = 'playbackSpeed',
   DEFAULT_RESIZE_MODE = 'defaultResizeMode',
   PLAYER_CONTROL_LAYOUT = 'playerControlLayout',
@@ -516,6 +518,22 @@ export class SettingsStorage {
 
   setPlayerEngine(engine: 'builtin' | 'vlc'): void {
     mainStorage.setString(SettingsKeys.PLAYER_ENGINE, engine);
+  }
+
+  isDirectTorrentWifiOnly(): boolean {
+    return mainStorage.getBool(SettingsKeys.DIRECT_TORRENT_WIFI_ONLY, true);
+  }
+
+  setDirectTorrentWifiOnly(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.DIRECT_TORRENT_WIFI_ONLY, enabled);
+  }
+
+  keepDirectTorrentFile(): boolean {
+    return mainStorage.getBool(SettingsKeys.DIRECT_TORRENT_KEEP_FILE, false);
+  }
+
+  setKeepDirectTorrentFile(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.DIRECT_TORRENT_KEEP_FILE, enabled);
   }
 
   setSeekInterval(seconds: number): void {

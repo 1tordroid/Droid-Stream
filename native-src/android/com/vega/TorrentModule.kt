@@ -1,5 +1,8 @@
 package com.vega
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import com.facebook.react.bridge.*
 import org.libtorrent4j.*
@@ -59,6 +62,10 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         sp.setBoolean(settings_pack.bool_types.strict_end_game_mode.swigValue(), false)
         sp.setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true)
         sp.setBoolean(settings_pack.bool_types.announce_to_all_tiers.swigValue(), true)
+        // Finished torrents are not kept active as seeds. Piece upload while a
+        // download is still running is unchanged.
+        sp.setInteger(settings_pack.int_types.active_seeds.swigValue(), 0)
+        sp.setInteger(settings_pack.int_types.seed_time_limit.swigValue(), 1)
         
         sm.start(SessionParams(sp))
         sessionManager = sm
@@ -85,6 +92,17 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             }
         }
         return builder.toString()
+    }
+
+    @ReactMethod
+    fun isOnWifi(promise: Promise) {
+        try {
+            val manager = reactApplicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val capabilities = manager.getNetworkCapabilities(manager.activeNetwork)
+            promise.resolve(capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
     }
 
     @ReactMethod
