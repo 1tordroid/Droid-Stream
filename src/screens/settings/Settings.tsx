@@ -123,7 +123,7 @@ import {
 } from '@react-navigation/native';
 import RenderProviderFlagIcon from '../../components/RenderProviderFLagIcon';
 import useNavigationPreferencesStore from '../../lib/zustand/navigationPreferencesStore';
-import GitHubStarButton from './components/GitHubStarButton';
+import BrandLinkButtons from './components/BrandLinkButtons';
 import DnsPreference from './components/DnsPreference';
 import SettingsRow from '../../components/ui/SettingsRow';
 import SettingsSection from '../../components/ui/SettingsSection';
@@ -365,18 +365,12 @@ const Settings = ({navigation}: Props) => {
                   onPress={() => navigation.navigate('About')}
                 />
                 <SettingsRow
-                  title="Website"
-                  description="tordroid.com"
-                  icon="web"
-                  onPress={() => Linking.openURL(socialLinks.website)}
-                />
-                <SettingsRow
                   title="Support"
                   description="Telegram"
                   icon="send"
                   onPress={() => Linking.openURL(socialLinks.telegram)}
                 />
-                <GitHubStarButton primary={colors.primary} />
+                <BrandLinkButtons />
               </SettingsSection>
             </AnimatedSection>
           </View>

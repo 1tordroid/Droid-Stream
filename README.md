@@ -107,7 +107,7 @@ npm run android
 
 `extra.eas.projectId` in `app.config.js` is still the upstream Expo project. Replace it with a Tordroid project before using EAS.
 
-Regenerate launcher, splash, and notification art from `assets/brand/tordroid-logo.jpg` with:
+Regenerate launcher, splash, player, plugin, and website-button art with:
 
 ```bash
 python3 scripts/generate-brand-assets.py

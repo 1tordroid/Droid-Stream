@@ -13,8 +13,9 @@ export const styles = StyleSheet.create({
     zIndex: 99999,
   },
   playContainer: {
-    width: Platform.isTV ? 96 : '35%',
-    ...(Platform.isTV ? {height: 96, borderRadius: 48} : {}),
+    width: Platform.isTV ? 112 : '35%',
+    opacity: 1,
+    ...(Platform.isTV ? {height: 112, borderRadius: 56} : {}),
     alignItems: 'center',
     ...(Platform.isTV ? {justifyContent: 'center', padding: 0} : {}),
   },

@@ -21,6 +21,7 @@ import {
 } from '../../lib/logging/vegaLog';
 import {useRemoteStore} from '../../lib/remote/remoteStore';
 import {socialLinks} from '../../lib/constants';
+import BrandLinkButtons from './components/BrandLinkButtons';
 import {checkForUpdate} from '../../lib/updates/checkForUpdate';
 
 export {checkForUpdate};
@@ -142,7 +143,7 @@ const About = ({navigation}: any) => {
 
         <Image
           source={require('../../../assets/brand/logo.png')}
-          accessibilityLabel="Tordroid logo"
+          accessibilityLabel="Droid Stream"
           resizeMode="contain"
           style={{alignSelf: 'center', height: 168, marginBottom: 20, width: 168}}
         />
@@ -201,23 +202,12 @@ const About = ({navigation}: any) => {
             description="Tordroid"
             icon="account-outline"
           />
-          <SettingsRow
-            title="Website"
-            description="tordroid.com"
-            icon="web"
-            onPress={() => Linking.openURL(socialLinks.website)}
-          />
+          <BrandLinkButtons />
           <SettingsRow
             title="Support"
             description="Message Tordroid on Telegram"
             icon="send"
             onPress={() => Linking.openURL(socialLinks.telegram)}
-          />
-          <SettingsRow
-            title="Source code"
-            description="1tordroid/Droid-Stream"
-            icon="github"
-            onPress={() => Linking.openURL(socialLinks.github)}
           />
           <SettingsRow
             title="Based on Vega by vega-org"
