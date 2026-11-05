@@ -3,6 +3,17 @@
 Continue this project in any AI coding tool (Claude Code, Gemini/Antigravity, Cursor).
 Repo: https://github.com/1tordroid/Droid-Stream (standalone, not a fork) · Developer: Tordroid · https://tordroid.com · Support: https://t.me/Tordroid_admin
 
+## Start here (local PC session, 2026-11-05)
+The owner is continuing on their Windows PC with a OnePlus 15 on USB (the OnePlus 12 is busy in another session). Do these in order:
+1. `git fetch origin claude/torrent-search-engine && git checkout claude/torrent-search-engine && git pull`
+2. `npm ci`, then `npx tsc --noEmit -p tsconfig.json` and `npx jest` (all suites passed in the cloud: 172 suites / 1173 tests).
+3. Build the standalone test APK: `npx expo prebuild --platform android --clean --no-install`, then in `android/`: `gradlew assembleRelease -PdroidstreamArm64Only=true -PreactNativeArchitectures=arm64-v8a`. Release builds without signing secrets are signed with the debug key (plugins/with-android-signing.js fallback was fixed); R8 rules for smbj are in plugins/with-proguard-rules.js.
+4. `adb devices` → pick the OP 15 serial → `adb -s <serial> install -r android/app/build/outputs/apk/release/app-release.apk`.
+5. On the device: Torrents → Sites → Test all (built-in HTML selectors and mirrors were never verified live; the cloud network blocked those hosts). Fix selectors or mirrors in src/lib/torrentSearch/engines/html.ts for sites that fail. Then try Find streams, Stremio add-ons (Torrentio), Debrid screens, Settings → Languages, and Watch sync.
+6. Maestro: install it, then `maestro --device <serial> test .maestro` (or `npm run e2e:phone`). Adjust flows if labels differ on device.
+7. Release signing: run `powershell -ExecutionPolicy Bypass -File scripts\setup-release-signing.ps1` WITH the owner (they choose and keep the password). It creates %USERPROFILE%\droid-stream-release.keystore and sets KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD at repo level and in the "nightly" environment via gh. Remind them to back up the keystore and password. The cloud session could not do this: its proxy blocks the Actions secrets API.
+8. Commit fixes to claude/torrent-search-engine and push. CI (.github/workflows/test-apk.yml) also builds an arm64 test APK artifact on every push.
+
 ## Hard rules
 - Based on vega-org/vega-app (React Native + Expo, TypeScript). Must stay compatible with ALL Vega plugins/providers and keep the connection to the official Vega providers repo; credit Vega.
 - Keep PolyForm Noncommercial LICENSE, NOTICE and every "Required Notice:" line. No ads, no paid access, no commercial use.
