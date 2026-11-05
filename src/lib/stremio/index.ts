@@ -75,6 +75,7 @@ export interface StremioMeta {
   description?: string;
   imdbRating?: string;
   moviedb_id?: number;
+  genres?: string[];
   videos?: {id: string; title?: string; name?: string; season?: number; episode?: number; released?: string; thumbnail?: string}[];
 }
 
@@ -215,6 +216,13 @@ export const fetchAddonSubtitles = async (
 export const searchCinemeta = async (query: string, type: 'movie' | 'series'): Promise<StremioMeta[]> => {
   const data = await getJson<{metas?: StremioMeta[]}>(`${CINEMETA}/catalog/${type}/top/search=${encodeURIComponent(query)}.json`);
   return data?.metas || [];
+};
+
+/** Most popular titles, for everything or for one genre. */
+export const fetchCatalog = async (type: 'movie' | 'series', genre?: string): Promise<StremioMeta[]> => {
+  const path = genre ? `top/genre=${encodeURIComponent(genre)}` : 'top';
+  const data = await getJson<{metas?: StremioMeta[]}>(`${CINEMETA}/catalog/${type}/${path}.json`);
+  return (data?.metas || []).filter(meta => meta.poster);
 };
 
 export const fetchMeta = async (type: 'movie' | 'series', id: string): Promise<StremioMeta | undefined> => {

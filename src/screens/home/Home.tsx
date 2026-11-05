@@ -32,6 +32,7 @@ import {StatusBar} from 'expo-status-bar';
 import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import ContinueWatching from '../../components/ContinueWatching';
+import DiscoverRows from '../../components/DiscoverRows';
 import StatusBarScrim from '../../components/ui/StatusBarScrim';
 import {isTV} from '../../lib/tv/constants';
 import useNavigationPreferencesStore from '../../lib/zustand/navigationPreferencesStore';
@@ -60,7 +61,7 @@ const homeRowType = (row: HomeRow) =>
 // ready so fast D-pad presses do not run past the rendered content.
 const HOME_DRAW_DISTANCE = isTV ? 800 : 250;
 
-const Home = ({}: Props) => {
+const Home = ({navigation}: Props) => {
   const colors = useM3Colors();
   const isFocused = useIsFocused();
   const [statusBarScrimVisible, setStatusBarScrimVisible] = useState(false);
@@ -273,6 +274,10 @@ const Home = ({}: Props) => {
     );
   }, [error, isLoading, homeData.length]);
 
+  const openAvailableProviders = useCallback(() => {
+    (navigation.getParent<any>() ?? (navigation as any)).navigate('SettingsStack', {screen: 'Extensions', initial: false});
+  }, [navigation]);
+
   // Early return for no providers
   if (
     !installedProviders ||
@@ -310,6 +315,7 @@ const Home = ({}: Props) => {
                   isOpen={isDrawerOpen}
                   onSelectProvider={selectProvider}
                   onClose={closeDrawer}
+                  onBrowseProviders={openAvailableProviders}
                 />
               ) : null
             }>
@@ -354,6 +360,7 @@ const Home = ({}: Props) => {
               }
               ListFooterComponent={
                 <View className="pb-8">
+                  <DiscoverRows />
                   {errorComponent}
                   <View className="h-8" />
                 </View>
@@ -380,7 +387,7 @@ const Home = ({}: Props) => {
                     height: '100%',
                     backgroundColor: '#121214',
                   }}>
-                  <ProviderDrawer onClose={() => setIsDrawerOpen(false)} />
+                  <ProviderDrawer onClose={() => setIsDrawerOpen(false)} onBrowseProviders={openAvailableProviders} />
                 </View>
                 <Pressable
                   style={{flex: 1}}

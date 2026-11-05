@@ -15,6 +15,8 @@ import ReorderableProviderList from './ReorderableProviderList';
 
 interface ProviderDrawerProps {
   onClose: () => void;
+  /** Opens the list of providers people can install. */
+  onBrowseProviders?: () => void;
   /** The mobile drawer renders its content while closed. */
   isOpen?: boolean;
   onSelectProvider?: (
@@ -24,6 +26,7 @@ interface ProviderDrawerProps {
 
 const ProviderDrawer = ({
   onClose,
+  onBrowseProviders,
   isOpen = true,
   onSelectProvider,
 }: ProviderDrawerProps) => {
@@ -196,6 +199,34 @@ const ProviderDrawer = ({
               onSelect={handleSelectProvider}
             />
           )}
+          {onBrowseProviders ? (
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel="Available providers"
+              onPress={() => {
+                onClose();
+                onBrowseProviders();
+              }}
+              borderRadius={12}
+              focusBorderColor={focusBorderColor}
+              style={{
+                alignItems: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                borderColor: primary,
+                borderRadius: 12,
+                borderWidth: 1,
+                flexDirection: 'row',
+                marginTop: 12,
+                minHeight: 52,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}>
+              <MaterialIcons name="add-circle-outline" size={24} color={primary} />
+              <Text style={{color: '#FFFFFF', flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10}}>
+                Available providers
+              </Text>
+            </TVFocusable>
+          ) : null}
           <View className="h-16" />
         </ScrollView>
       </TVFocusGuide>
