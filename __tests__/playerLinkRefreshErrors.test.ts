@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import ts from 'typescript';
-import {decidePlaybackError} from '../src/lib/player/playbackErrorRetry';
+import {decidePlaybackError, isContainerParsingError} from '../src/lib/player/playbackErrorRetry';
 
 // Exercise the actual Player callback without mounting native video, navigation,
 // casting and download services unrelated to this error-recovery regression.
@@ -32,7 +32,7 @@ const setup = () => {
     pendingLinkRefreshRef: {current: null},
     activeEpisodeKeyRef: {current: 'episode-1'},
     isTorrentStream: () => false, isLocalPath: () => false,
-    decidePlaybackError,
+    decidePlaybackError, isContainerParsingError,
     ToastAndroid: {show: jest.fn(), SHORT: 0},
     refreshLinks: jest.fn(() => new Promise<boolean>((resolve, reject) => {
       pending.push({resolve, reject});

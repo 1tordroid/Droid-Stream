@@ -11,6 +11,8 @@ import useDownloadsStore, {
   selectCurrentDownloads,
 } from '../../../lib/zustand/downloadsStore';
 import {useShallow} from 'zustand/react/shallow';
+import {useNavigation} from '@react-navigation/native';
+import {getDownloadPlayerParams} from '../../../lib/downloadPlayback';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import CurrentDownloadRow from './CurrentDownloadRow';
 
@@ -26,6 +28,7 @@ const CurrentDownloadsSection = ({
   include?: (item: ReturnType<typeof selectCurrentDownloads>[number]) => boolean;
 }) => {
   const colors = useM3Colors();
+  const navigation = useNavigation<any>();
   const downloads = useDownloadsStore(useShallow(selectCurrentDownloads)).filter(item => !include || include(item));
 
 
@@ -65,6 +68,10 @@ const CurrentDownloadsSection = ({
           onPause={() => pauseDownload(item.id).catch(console.error)}
           onResume={() => resumeDownload(item.id).catch(console.error)}
           onRetry={() => retryDownload(item.id).catch(console.error)}
+          onWatch={() => {
+            const params = getDownloadPlayerParams(item);
+            if (params) navigation.navigate('Player', params);
+          }}
           onStartNow={() =>
             startQueuedDownloadNow(item.id).catch(console.error)
           }

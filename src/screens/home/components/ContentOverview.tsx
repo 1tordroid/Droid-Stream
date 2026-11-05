@@ -6,7 +6,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import SkeletonLoader from '../../../components/Skeleton';
 import AppText from '../../../components/ui/Text';
-import SynopsisText from './SynopsisText';
+import SynopsisText, {isSynopsisExpandable} from './SynopsisText';
 import {isTV} from '../../../lib/tv';
 import useTVNavigationStore from '../../../lib/zustand/tvNavigationStore';
 
@@ -350,6 +350,18 @@ const ContentOverview = ({
               {providerName}
             </AppText>
           </View>
+          {!synopsisLoading && isSynopsisExpandable(synopsis) ? (
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel={readMore ? 'Show less synopsis' : 'Read more synopsis'}
+              accessibilityState={{expanded: readMore}}
+              onPress={onToggleSynopsis}
+              style={{minHeight: 44, justifyContent: 'center', paddingLeft: 12}}>
+              <AppText role="labelLargeEmphasized" style={{color: colors.primary}}>
+                {readMore ? 'Show less' : 'Read more'}
+              </AppText>
+            </TVFocusable>
+          ) : null}
         </View>
 
         {synopsisLoading ? (
@@ -363,6 +375,7 @@ const ContentOverview = ({
             synopsis={synopsis}
             expanded={readMore}
             onToggle={onToggleSynopsis}
+            inlineToggle={false}
           />
         )}
 
