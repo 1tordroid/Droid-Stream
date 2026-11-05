@@ -313,6 +313,19 @@ const SearchResults = ({route, navigation}: Props): React.ReactElement => {
 
         <TVFocusGuide autoFocus={false} style={{paddingHorizontal: 16}}>
           {searchSliders}
+          {isAllLoaded && (
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel={`Search torrent sites for ${route.params.filter}`}
+              onPress={() => (navigation as any).navigate('TorrentsStack', {screen: 'TorrentSearch', params: {query: route.params.filter}})}
+              style={{minHeight: 48, padding: 14, marginTop: 12, borderRadius: 16,
+                backgroundColor: colors.surfaceContainer, flexDirection: 'row', alignItems: 'center', gap: 12}}>
+              <MaterialCommunityIcons name="magnet" size={22} color={colors.primary} />
+              <AppText role="labelLarge" style={{flex: 1, color: colors.primary}}>
+                Search torrent sites for "{route.params.filter}"
+              </AppText>
+            </TVFocusable>
+          )}
           {emptyCount > 0 && (
             <EmptyResultsButton accessibilityRole="button"
               accessibilityLabel={showEmptyResults ? 'Hide empty results' : 'Show empty results'}

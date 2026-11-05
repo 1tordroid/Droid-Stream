@@ -31,7 +31,6 @@ const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {high
   const [rows, setRows] = useState<TorrentRow[]>([]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'downloading' | 'paused' | 'done'>('all');
-  const [magnet, setMagnet] = useState('');
   const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState(() => !readTorrentSettings().acknowledged);
   const [menu, setMenu] = useState<string>();
@@ -72,7 +71,6 @@ const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {high
     const next = readStoredTorrents().filter(item => item.infoHash !== added.infoHash);
     next.unshift({infoHash: added.infoHash, source, name: added.name || added.infoHash});
     writeStoredTorrents(next);
-    setMagnet('');
     setAdding(false);
     await refresh();
   };
@@ -93,7 +91,25 @@ const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {high
           </Pressable>
         </View>
       ) : null}
-      <TextInput value={query} onChangeText={setQuery} placeholder="Search torrents" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search torrents" style={{color: colors.onSurface, minHeight: 48, marginBottom: 8}} />
+      <TVFocusable
+        accessibilityRole="button"
+        accessibilityLabel="Search torrent sites"
+        onPress={() => navigation.navigate('TorrentSearch')}
+        borderRadius={28}
+        style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 52, paddingHorizontal: 16, marginVertical: 8}}>
+        <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
+        <AppText role="bodyLarge" style={{color: colors.onSurfaceVariant, marginLeft: 12, flex: 1}}>Search movies, shows, anime on every site</AppText>
+        <MaterialCommunityIcons name="lightning-bolt" size={20} color={colors.primary} />
+      </TVFocusable>
+      <View style={{flexDirection: 'row', gap: 16, marginBottom: 4}}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Debrid and cloud services" onPress={() => navigation.navigate('DebridSettings')} style={{minHeight: 44, justifyContent: 'center'}}>
+          <AppText style={{color: colors.primary}}>TorBox, Real-Debrid, PikPak…</AppText>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Torrent sites" onPress={() => navigation.navigate('TorrentSources')} style={{minHeight: 44, justifyContent: 'center'}}>
+          <AppText style={{color: colors.primary}}>Sites</AppText>
+        </Pressable>
+      </View>
+      <TextInput value={query} onChangeText={setQuery} placeholder="Filter my torrents" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Filter my torrents" style={{color: colors.onSurface, minHeight: 48, marginBottom: 8}} />
       <View style={{flexDirection: 'row', gap: 12, marginBottom: 8}}>
         {(['all', 'downloading', 'paused', 'done'] as const).map(item => (
           <Pressable key={item} accessibilityRole="button" accessibilityLabel={`Filter ${item}`} onPress={() => setFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
@@ -162,7 +178,7 @@ const AddSheet = ({onClose, onAdd}: {onClose: () => void; onAdd: (source: string
         <Pressable accessibilityLabel="Search added providers" onPress={async () => {
           const providers = extensionStorage.getInstalledProviders().filter(provider => !provider.disabled);
           if (!providers.length) {
-            ToastAndroid.show('Add a provider in Settings. There is no built-in index.', ToastAndroid.LONG);
+            ToastAndroid.show('No Vega provider is installed. Use Search torrent sites instead.', ToastAndroid.LONG);
             return;
           }
           const found: {title: string; link: string}[] = [];

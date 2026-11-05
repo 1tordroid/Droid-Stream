@@ -21,6 +21,9 @@ import LibraryHub from './screens/library/LibraryHub';
 import Torrents from './screens/torrents/Torrents';
 import TorrentDetails from './screens/torrents/TorrentDetails';
 import TorrentOptions from './screens/torrents/TorrentOptions';
+import TorrentSearch from './screens/torrents/TorrentSearch';
+import TorrentSources from './screens/torrents/TorrentSources';
+import DebridSettings from './screens/torrents/DebridSettings';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
@@ -173,6 +176,9 @@ export type TorrentsStackParamList = {
   Torrents: {highlight?: string} | undefined;
   TorrentDetails: {infoHash: string; highlight?: string};
   TorrentOptions: {highlight?: string} | undefined;
+  TorrentSearch: {query?: string; category?: import('./lib/torrentSearch/types').TorrentCategory} | undefined;
+  TorrentSources: undefined;
+  DebridSettings: undefined;
 };
 
 export type SettingsStackParamList = {
@@ -428,6 +434,9 @@ function TorrentsStackScreen() {
       <TorrentsStack.Screen name="Torrents" component={Torrents} />
       <TorrentsStack.Screen name="TorrentDetails" component={TorrentDetails} />
       <TorrentsStack.Screen name="TorrentOptions" component={TorrentOptions} />
+      <TorrentsStack.Screen name="TorrentSearch" component={TorrentSearch} />
+      <TorrentsStack.Screen name="TorrentSources" component={TorrentSources} />
+      <TorrentsStack.Screen name="DebridSettings" component={DebridSettings} />
     </TorrentsStack.Navigator>
   );
 }
