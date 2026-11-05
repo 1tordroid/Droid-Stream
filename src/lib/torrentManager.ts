@@ -1,4 +1,5 @@
 import * as RNFS from '@dr.pogodin/react-native-fs';
+import * as FileSystem from 'expo-file-system/legacy';
 import {NativeModules, Platform} from 'react-native';
 
 const {TorrentModule, TorrentClientModule, HttpDownloadModule} = NativeModules;
@@ -65,14 +66,20 @@ export function base32ToHex(input: string): string {
  * The native module only recognizes 40-char hex info hashes, so base32
  * btih magnets are rewritten to hex. Anything else is returned unchanged.
  */
+const TORRENT_FILE_TIMEOUT_MS = 30000;
+
 /** The native client reads magnets and local files, so a .torrent link is saved first. */
 export async function localTorrentSource(source: string): Promise<string> {
   if (!source) throw new Error('This result has no magnet or torrent file');
   if (!/^https?:\/\//i.test(source)) return source;
   const name = source.replace(/[^a-z0-9]+/gi, '_').slice(-80);
   const path = `${RNFS.CachesDirectoryPath}/${name}.torrent`;
-  const {statusCode} = await RNFS.downloadFile({fromUrl: source, toFile: path}).promise;
-  if (statusCode < 200 || statusCode >= 300) throw new Error(`Could not get the torrent file (HTTP ${statusCode})`);
+  const download = FileSystem.downloadAsync(source, `file://${path}`);
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('The torrent file took too long to download')), TORRENT_FILE_TIMEOUT_MS);
+  });
+  const {status} = await Promise.race([download, timeout]);
+  if (status < 200 || status >= 300) throw new Error(`Could not get the torrent file (HTTP ${status})`);
   return path;
 }
 
