@@ -47,9 +47,11 @@ export const probeLink = async (url: string): Promise<ProbedLink> => {
 /** Streams with several qualities: the choices, best first, with duplicates removed. */
 export const qualityChoices = (variants: ProbedLink['variants'], limit = 4): ProbedLink['variants'] => {
   const seen = new Set<string>();
+  const rank = (label: string) => Number(label.match(/\d+/)?.[0] || 0) * (/kbps/i.test(label) ? 0.001 : 1);
   return variants
     .filter(item => item.kind !== 'audio' && item.kind !== 'subtitle')
     .filter(item => !seen.has(item.label) && Boolean(seen.add(item.label)))
+    .sort((left, right) => rank(right.label) - rank(left.label))
     .slice(0, limit);
 };
 
@@ -64,7 +66,8 @@ export const queueLink = async (url: string, fileName?: string): Promise<'queued
   const extension = name.includes('.') ? name.split('.').pop() || 'mp4' : 'mp4';
   await downloadManager({
     downloadId: `link-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    title: name,
+    // The saved file may change format (an HLS stream becomes one video), so the title has no extension.
+    title: name.replace(/\.[^.]+$/, ''),
     mediaType: 'movie',
     url,
     fileName: name.replace(/\.[^.]+$/, ''),

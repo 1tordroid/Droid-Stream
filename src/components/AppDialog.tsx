@@ -7,7 +7,8 @@ import {
   TextButton,
 } from '@expo/ui/jetpack-compose';
 import React from 'react';
-import {Modal, ScrollView, Text as ReactNativeText, View} from 'react-native';
+import {Modal, ScrollView, View, Pressable} from 'react-native';
+import {RawText as ReactNativeText} from './ui/Text';
 import Markdown from 'react-native-markdown-display';
 import {useM3Colors, useM3HostTheme} from '../theme/M3PaletteContext';
 import {isTV} from '../lib/tv';
@@ -63,6 +64,8 @@ const AppDialog = ({
   const iconColor = colors[appearance.colorRole];
   const confirmAction = actions[actions.length - 1];
   const dismissAction = actions.length > 1 ? actions[0] : undefined;
+  // The system dialog only has two button slots, so any others list in the body.
+  const middleActions = actions.slice(1, -1);
 
   const handleAction = (action: AppDialogAction) => {
     action.onPress?.();
@@ -310,16 +313,41 @@ const AppDialog = ({
                 {/* matchContents measures with no width limit, so unbounded
                     text is laid out as one long line and Compose clips both
                     ends. A fixed width (same as the title) makes it wrap. */}
-                <ReactNativeText
-                  testID="app-dialog-message"
-                  style={{
-                    color: colors.onSurfaceVariant,
-                    fontSize: 14,
-                    lineHeight: 20,
-                    width: 280,
-                  }}>
-                  {message}
-                </ReactNativeText>
+                <View style={{width: 280}}>
+                  <ReactNativeText
+                    testID="app-dialog-message"
+                    style={{
+                      color: colors.onSurfaceVariant,
+                      fontFamily: 'Inter_400Regular',
+                      fontSize: 14,
+                      lineHeight: 20,
+                      width: 280,
+                    }}>
+                    {message}
+                  </ReactNativeText>
+                  {middleActions.map(action => (
+                    <Pressable
+                      key={action.label}
+                      accessibilityRole="button"
+                      accessibilityLabel={action.label}
+                      disabled={action.disabled}
+                      testID={action.testID}
+                      onPress={() => handleAction(action)}
+                      style={{
+                        alignItems: 'center',
+                        borderColor: colors.outlineVariant,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        justifyContent: 'center',
+                        marginTop: 8,
+                        minHeight: 44,
+                      }}>
+                      <ReactNativeText style={{color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 14}}>
+                        {action.label}
+                      </ReactNativeText>
+                    </Pressable>
+                  ))}
+                </View>
               </RNHostView>
             )}
           </AlertDialog.Text>

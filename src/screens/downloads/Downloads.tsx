@@ -44,7 +44,28 @@ import DownloadsSelectionBottomBar from './components/DownloadsSelectionBottomBa
 import DownloadsSelectionHeader from './components/DownloadsSelectionHeader';
 import {deleteDownloadedMediaGroups} from './utils/deleteDownloadGroups';
 import {matchesDownload, sortDownloads, type DownloadSort, type SourceFilter, type StatusFilter, type TypeFilter} from '../../lib/downloads/query';
-import {TextInput, Pressable} from 'react-native';
+import {ScrollView} from 'react-native';
+import Chip from '../../components/torrentSearch/Chip';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
+
+const FILTER_LABEL: Record<string, string> = {
+  all: 'All',
+  downloading: 'Downloading',
+  completed: 'Completed',
+  paused: 'Paused',
+  failed: 'Failed',
+  video: 'Video',
+  subtitle: 'Subtitles',
+  other: 'Other',
+  vega: 'Vega',
+  torrent: 'Torrent',
+  webdav: 'WebDAV',
+  pikpak: 'PikPak',
+  date: 'Date',
+  name: 'Name',
+  size: 'Size',
+  progress: 'Progress',
+};
 
 const Downloads = () => {
   const insets = useSafeAreaInsets();
@@ -423,31 +444,26 @@ const Downloads = () => {
                   </TVFocusable>
                 ) : null}
               </View>
-              <TextInput value={downloadQuery} onChangeText={setDownloadQuery} placeholder="Search downloads" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search downloads" style={{color: colors.onSurface, minHeight: 48, marginBottom: 8}} />
-              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8}}>
-                {(['all', 'downloading', 'completed', 'paused', 'failed'] as StatusFilter[]).map(item => (
-                  <Pressable key={item} accessibilityRole="button" accessibilityLabel={`Status ${item}`} onPress={() => setStatusFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
-                    <AppText style={{color: statusFilter === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
-                  </Pressable>
-                ))}
+              <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 52, paddingHorizontal: 16, marginBottom: 12}}>
+                <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
+                <TextInput value={downloadQuery} onChangeText={setDownloadQuery} placeholder="Search downloads" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search downloads" style={{flex: 1, color: colors.onSurface, marginLeft: 8, fontSize: 16}} />
               </View>
-              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8}}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 8}}>
+                {(['all', 'downloading', 'completed', 'paused', 'failed'] as StatusFilter[]).map(item => (
+                  <Chip key={`status-${item}`} label={FILTER_LABEL[item] || item} accessibilityLabel={`Status ${item}`} selected={statusFilter === item} onPress={() => setStatusFilter(item)} />
+                ))}
+              </ScrollView>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 12}}>
                 {(['all', 'video', 'subtitle', 'other'] as TypeFilter[]).map(item => (
-                  <Pressable key={item} accessibilityRole="button" accessibilityLabel={`Type ${item}`} onPress={() => setTypeFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
-                    <AppText style={{color: typeFilter === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
-                  </Pressable>
+                  <Chip key={`type-${item}`} label={item === 'all' ? 'All types' : FILTER_LABEL[item] || item} accessibilityLabel={`Type ${item}`} selected={typeFilter === item} onPress={() => setTypeFilter(item)} />
                 ))}
                 {(['all', 'vega', 'torrent', 'webdav', 'pikpak'] as SourceFilter[]).map(item => (
-                  <Pressable key={`source-${item}`} accessibilityRole="button" accessibilityLabel={`Source ${item}`} onPress={() => setSourceFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
-                    <AppText style={{color: sourceFilter === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
-                  </Pressable>
+                  <Chip key={`source-${item}`} label={item === 'all' ? 'All sources' : FILTER_LABEL[item] || item} accessibilityLabel={`Source ${item}`} selected={sourceFilter === item} onPress={() => setSourceFilter(item)} />
                 ))}
                 {(['date', 'name', 'size', 'progress'] as DownloadSort[]).map(item => (
-                  <Pressable key={`sort-${item}`} accessibilityRole="button" accessibilityLabel={`Sort by ${item}`} onPress={() => setDownloadSort(item)} style={{minHeight: 44, justifyContent: 'center'}}>
-                    <AppText style={{color: downloadSort === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
-                  </Pressable>
+                  <Chip key={`sort-${item}`} icon="sort" label={FILTER_LABEL[item] || item} accessibilityLabel={`Sort by ${item}`} selected={downloadSort === item} onPress={() => setDownloadSort(item)} />
                 ))}
-              </View>
+              </ScrollView>
               <CurrentDownloadsSection
                 primary={colors.primary}
                 firstActionRef={currentDownloadActionRef}
@@ -473,6 +489,7 @@ const Downloads = () => {
 
           return (
             <MediaPosterCard
+              fullTitle
               ref={index === 0 ? firstCardRef : undefined}
               onLayout={index === 0 ? updateFirstCardNode : undefined}
               title={item.title}
@@ -529,6 +546,7 @@ const Downloads = () => {
                 const isFirstCard = groups.length === 0 && index === 0;
                 return (
                   <MediaPosterCard
+                    fullTitle
                     ref={isFirstCard ? firstCardRef : undefined}
                     onLayout={isFirstCard ? updateFirstCardNode : undefined}
                     title={item.title}

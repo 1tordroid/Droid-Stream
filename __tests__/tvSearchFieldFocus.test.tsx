@@ -15,6 +15,7 @@ jest.mock('@expo/ui/jetpack-compose', () => ({useNativeState: () => ({})}));
 jest.mock('@expo/ui/jetpack-compose/modifiers', () => ({fillMaxWidth: () => ({})}));
 jest.mock('react-native', () => ({
   Pressable: 'Pressable', View: 'View', Text: 'Text', TextInput: 'TextInput',
+  StyleSheet: {flatten: (style: unknown) => style},
   findNodeHandle: (node: any) => node?.handle ?? null,
   UIManager: {dispatchViewManagerCommand: jest.fn()},
   Keyboard: {dismiss: jest.fn()},

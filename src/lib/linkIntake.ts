@@ -2,7 +2,7 @@
  * Handles magnets, .torrent files, and links that reach the app from other
  * apps (browser taps, Share), and copied links when the clipboard grabber is on.
  */
-import {AppState, type AppStateStatus} from 'react-native';
+import {AppState, DeviceEventEmitter, type AppStateStatus} from 'react-native';
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {connectedServices} from './debrid';
 import {probeLink, qualityChoices, queueLink} from './linkGrabber';
@@ -55,17 +55,15 @@ const downloadLink = async (url: string): Promise<void> => {
     await queueWithToast(choices[0]?.url || url, probed?.fileName);
     return;
   }
+  const save = (choice: (typeof choices)[number]) => ({
+    label: choice.label,
+    onPress: () => queueWithToast(choice.url, `${(probed?.fileName || 'video').replace(/\.[^.]+$/, '')} ${choice.label}.m3u8`),
+  });
   showAppDialog({
     title: 'Choose a quality',
     message: probed?.fileName || url,
-    actions: [
-      {label: 'Not now'},
-      ...choices.map((choice, index) => ({
-        label: choice.label,
-        variant: index === 0 ? ('primary' as const) : undefined,
-        onPress: () => queueWithToast(choice.url, `${(probed?.fileName || 'video').replace(/\.[^.]+$/, '')} ${choice.label}.m3u8`),
-      })),
-    ],
+    // The last action is the highlighted one, so the best quality goes there.
+    actions: [{label: 'Not now'}, ...choices.slice(1).map(save), {...save(choices[0]), variant: 'primary'}],
   });
 };
 
@@ -129,8 +127,10 @@ export const startLinkIntake = (navigate: (screen: string, params?: object) => v
   };
   const subscription = AppState.addEventListener('change', onChange);
   const first = setTimeout(() => check().catch(() => undefined), 1500);
+  const shared = DeviceEventEmitter.addListener('onVegaSharedLink', () => check().catch(() => undefined));
   return () => {
     clearTimeout(first);
     subscription.remove();
+    shared.remove();
   };
 };

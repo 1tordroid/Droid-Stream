@@ -29,7 +29,26 @@ import java.net.Inet4Address
  * Queue, limits, and file controls on the single SessionManager owned by
  * [TorrentModule]. Direct magnet playback and this client share that session.
  */
-class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), ActivityEventListener {
+    // Android keeps the first launch intent on the activity, so a link shared
+    // while the app is already running only arrives through onNewIntent.
+    private var sharedIntent: Intent? = null
+
+    init {
+        reactContext.addActivityEventListener(this)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        sharedIntent = intent
+        if (reactApplicationContext.hasActiveReactInstance()) {
+            reactApplicationContext
+                .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                .emit("onVegaSharedLink", null)
+        }
+    }
+
+    override fun onActivityResult(activity: android.app.Activity, requestCode: Int, resultCode: Int, data: Intent?) {}
+
     override fun getName(): String = "TorrentClientModule"
 
     private fun engine(): TorrentModule = TorrentModule(reactApplicationContext)
@@ -397,7 +416,8 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
     fun consumeLaunchIntent(promise: Promise) {
         try {
             val activity = reactApplicationContext.currentActivity
-            val intent = activity?.intent
+            val intent = sharedIntent ?: activity?.intent
+            sharedIntent = null
             if (intent == null) {
                 promise.resolve(null)
                 return

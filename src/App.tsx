@@ -177,6 +177,7 @@ export type SearchStackParamList = {
 
 export type WatchListStackParamList = {
   LibraryHome: undefined;
+  DebridSettings: undefined;
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
@@ -447,6 +448,7 @@ function WatchListStackScreen() {
       screenListeners={navigationWorkListeners}
       screenOptions={stackScreenOptions}>
       <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
+      <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
       <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />

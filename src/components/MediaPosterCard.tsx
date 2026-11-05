@@ -55,6 +55,8 @@ interface MediaPosterCardProps {
   poster?: string;
   width: number;
   subtitle?: string;
+  /** Shows the title as given, for file names where release details matter. */
+  fullTitle?: boolean;
   badge?: number | string;
   aspectRatio?: number | string;
   borderRadius?: number;
@@ -96,6 +98,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
   (
     {
       title,
+      fullTitle,
       poster,
       width,
       subtitle,
@@ -406,7 +409,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                     marginTop: selected ? 4 : 7,
                     marginHorizontal: selected ? 4 : 0,
                   }}>
-                  {displayTitle(title)}
+                  {fullTitle ? title : displayTitle(title)}
                 </AppText>
                 {subtitle ? (
                   <AppText
