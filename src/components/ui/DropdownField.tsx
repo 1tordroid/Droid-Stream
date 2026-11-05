@@ -286,8 +286,8 @@ const DropdownField = <T,>({
           })}
           textStyle={{fontSize: 14, color: colors.onSurface}}
           colors={{
-            focusedContainerColor: LEGACY_TERTIARY_BACKGROUND,
-            unfocusedContainerColor: LEGACY_TERTIARY_BACKGROUND,
+            focusedContainerColor: colors.surfaceContainer,
+            unfocusedContainerColor: colors.surfaceContainer,
             focusedTextColor: colors.onSurface,
             unfocusedTextColor: colors.onSurface,
             focusedIndicatorColor: colors.primary,
@@ -300,7 +300,8 @@ const DropdownField = <T,>({
               color={colors.onSurface}
               maxLines={1}
               overflow="ellipsis"
-              softWrap={false}>
+              softWrap={false}
+              style={{fontFamily: 'Inter_400Regular'}}>
               {selectedLabel}
             </Text>
           </TextField.Placeholder>
@@ -353,7 +354,7 @@ const DropdownField = <T,>({
                       maxLines={showFullOptionLabels ? undefined : 2}
                       overflow={showFullOptionLabels ? undefined : 'ellipsis'}
                       softWrap={showFullOptionLabels}
-                      style={{fontWeight: selected ? '700' : '400'}}>
+                      style={{fontFamily: selected ? 'Inter_700Bold' : 'Inter_400Regular'}}>
                       {getLabel(option)}
                     </Text>
                   </DropdownMenuItem.Text>

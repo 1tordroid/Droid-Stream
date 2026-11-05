@@ -1,4 +1,5 @@
 import {directLink, getService} from '../debrid';
+import {archiveDirectVideo} from '../torrentSearch/archive';
 import {resolveDebrid, toast} from '../torrentSearch/actions';
 import {torrentManager} from '../torrentManager';
 import type {WatchMeta} from '../watchMeta';
@@ -32,6 +33,13 @@ const openPlayer = (navigation: any, want: WantedVideo, url: string, server: str
     meta: metaOf(want),
   });
 
+const finishPlay = (options: {next?: WantedVideo}): void => {
+  if (options.next) {
+    preloadNext(options.next).catch(() => undefined);
+    toast('Preparing the next episode in the background');
+  }
+};
+
 /**
  * Plays one candidate: direct links open at once; torrents go through a
  * debrid when one has it (or is set for uncached torrents), otherwise the
@@ -46,6 +54,11 @@ export const playCandidate = async (
   const status = options.onStatus || (() => undefined);
   if (candidate.kind === 'direct' && candidate.url) {
     openPlayer(navigation, want, candidate.url, candidate.origin, candidate.title, candidate.headers);
+    return finishPlay(options);
+  }
+  const archived = await archiveDirectVideo(candidate.torrentUrl);
+  if (archived) {
+    openPlayer(navigation, want, archived.url, 'Internet Archive', archived.name);
   } else {
     const result = candidateToResult(candidate);
     const service = options.forcePhone || !candidate.magnet ? undefined : debridFor(candidate);
@@ -77,8 +90,5 @@ export const playCandidate = async (
       });
     }
   }
-  if (options.next) {
-    preloadNext(options.next).catch(() => undefined);
-    toast('Preparing the next episode in the background');
-  }
+  finishPlay(options);
 };

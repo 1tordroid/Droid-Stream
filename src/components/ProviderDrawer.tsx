@@ -126,6 +126,36 @@ const ProviderDrawer = ({
         trapFocusUp={false}
         trapFocusDown={true}
         style={{flex: 1}}>
+        {/* Always visible, so it never scrolls away with a long provider list. */}
+        {onBrowseProviders ? (
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel="Available providers"
+              onPress={() => {
+                onClose();
+                onBrowseProviders();
+              }}
+              borderRadius={12}
+              focusBorderColor={focusBorderColor}
+              style={{
+                alignItems: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                borderColor: primary,
+                borderRadius: 12,
+                borderWidth: 1,
+                flexDirection: 'row',
+                marginBottom: 8,
+                marginHorizontal: 8,
+                minHeight: 52,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}>
+              <MaterialIcons name="add-circle-outline" size={24} color={primary} />
+              <Text style={{color: '#FFFFFF', flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10}}>
+                Available providers
+              </Text>
+            </TVFocusable>
+        ) : null}
         <ScrollView
           showsVerticalScrollIndicator={false}
           className="flex-1 px-2">
@@ -199,34 +229,6 @@ const ProviderDrawer = ({
               onSelect={handleSelectProvider}
             />
           )}
-          {onBrowseProviders ? (
-            <TVFocusable
-              accessibilityRole="button"
-              accessibilityLabel="Available providers"
-              onPress={() => {
-                onClose();
-                onBrowseProviders();
-              }}
-              borderRadius={12}
-              focusBorderColor={focusBorderColor}
-              style={{
-                alignItems: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                borderColor: primary,
-                borderRadius: 12,
-                borderWidth: 1,
-                flexDirection: 'row',
-                marginTop: 12,
-                minHeight: 52,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}>
-              <MaterialIcons name="add-circle-outline" size={24} color={primary} />
-              <Text style={{color: '#FFFFFF', flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10}}>
-                Available providers
-              </Text>
-            </TVFocusable>
-          ) : null}
           <View className="h-16" />
         </ScrollView>
       </TVFocusGuide>

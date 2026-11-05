@@ -343,7 +343,7 @@ const SearchField = forwardRef<SearchFieldRef, SearchFieldProps>(
           }}
           modifiers={[fillMaxWidth()]}>
           <TextField.Placeholder>
-            <Text color={colors.onSurfaceVariant}>{placeholder}</Text>
+            <Text color={colors.onSurfaceVariant} style={{fontFamily: 'Inter_400Regular'}}>{placeholder}</Text>
           </TextField.Placeholder>
           <TextField.LeadingIcon>
             <RNHostView matchContents>

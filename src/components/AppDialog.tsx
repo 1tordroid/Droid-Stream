@@ -335,7 +335,7 @@ const AppDialog = ({
                 colors={{contentColor: colors.onSurfaceVariant}}>
                 <Text
                   color={String(colors.onSurfaceVariant)}
-                  style={{typography: 'labelLarge', fontWeight: '700'}}>
+                  style={{typography: 'labelLarge', fontWeight: '700', fontFamily: 'Inter_700Bold'}}>
                   {dismissAction.label}
                 </Text>
               </TextButton>
@@ -362,7 +362,7 @@ const AppDialog = ({
                       ? colors.error
                       : colors.primary,
                   )}
-                  style={{typography: 'labelLarge', fontWeight: '700'}}>
+                  style={{typography: 'labelLarge', fontWeight: '700', fontFamily: 'Inter_700Bold'}}>
                   {confirmAction.label}
                 </Text>
               </TextButton>

@@ -1,3 +1,4 @@
+import {archiveDirectVideo} from './archive';
 import {Clipboard, Linking, Share, ToastAndroid} from 'react-native';
 import {
   connectedServices,
@@ -23,6 +24,12 @@ export const toast = (message: string) => ToastAndroid.show(message, ToastAndroi
 /** Adds to the built-in torrent client and remembers it in the Torrents list. */
 export const downloadWithClient = async (input: TorrentResult): Promise<void> => {
   const result = await resolveResult(input);
+  const archived = await archiveDirectVideo(result.torrentUrl);
+  if (archived) {
+    await queueLink(archived.url, archived.name);
+    toast(`Downloading ${result.title}`);
+    return;
+  }
   const source = sourceOf(result);
   const added = await torrentManager.enqueue(source);
   const stored = readStoredTorrents().filter(item => item.infoHash !== added.infoHash);
@@ -33,6 +40,19 @@ export const downloadWithClient = async (input: TorrentResult): Promise<void> =>
 /** Streams on this device while the torrent downloads (sequential pieces). */
 export const streamOnDevice = async (input: TorrentResult, navigation: any): Promise<void> => {
   const result = await resolveResult(input);
+  const archived = await archiveDirectVideo(result.torrentUrl);
+  if (archived) {
+    navigation.navigate('Player', {
+      linkIndex: 0,
+      episodeList: [{title: archived.name, link: archived.url}],
+      directUrl: archived.url,
+      type: 'mp4',
+      primaryTitle: result.title,
+      poster: result.poster ? {poster: result.poster} : {},
+      initialStream: {server: 'Internet Archive', link: archived.url, type: 'mp4'},
+    });
+    return;
+  }
   const source = sourceOf(result);
   const added = await torrentManager.addTorrent(source);
   const files = added.files?.length ? added.files : await torrentManager.getFiles(added.infoHash);
