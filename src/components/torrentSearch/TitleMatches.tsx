@@ -2,6 +2,8 @@ import React, {useEffect, useState} from 'react';
 import {Image, Pressable, ScrollView, View} from 'react-native';
 import {searchCinemeta, type StremioMeta} from '../../lib/stremio';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import FadeIn from '../FadeIn';
+import PosterRowSkeleton from '../PosterRowSkeleton';
 import AppText from '../ui/Text';
 
 export interface TitleMatch {
@@ -30,6 +32,7 @@ const TitleMatches = ({
 }) => {
   const colors = useM3Colors();
   const [matches, setMatches] = useState<TitleMatch[]>([]);
+  const [loading, setLoading] = useState(false);
   // Posters that fail to load leave blank tiles, so those titles drop out.
   const [broken, setBroken] = useState<Set<string>>(() => new Set());
 
@@ -40,6 +43,7 @@ const TitleMatches = ({
       return;
     }
     let current = true;
+    setLoading(true);
     Promise.all(
       (['movie', 'series'] as const).map(type =>
         searchCinemeta(text, type)
@@ -54,6 +58,7 @@ const TitleMatches = ({
         .sort((left, right) => rank(text, left.meta.name) - rank(text, right.meta.name))
         .slice(0, MAX_MATCHES);
       setMatches(found);
+      setLoading(false);
     });
     return () => {
       current = false;
@@ -61,10 +66,11 @@ const TitleMatches = ({
   }, [query]);
 
   const visible = matches.filter(match => !broken.has(match.meta.id));
+  if (loading && !visible.length) return <View style={{marginHorizontal: -20, marginTop: -12}}><PosterRowSkeleton count={4} width={96} title={false} /></View>;
   if (!visible.length) return null;
 
   return (
-    <View style={{marginTop: 12}}>
+    <FadeIn style={{marginTop: 12}}>
       <AppText role="labelLarge" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>Pick the right title</AppText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 10}}>
         {visible.map(match => {
@@ -90,7 +96,7 @@ const TitleMatches = ({
           );
         })}
       </ScrollView>
-    </View>
+    </FadeIn>
   );
 };
 

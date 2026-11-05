@@ -5,7 +5,9 @@ import {FlatList, View} from 'react-native';
 import {fetchCatalog, fetchMeta, findImdb, type StremioMeta} from '../lib/stremio';
 import useContinueWatchingStore from '../lib/zustand/continueWatchingStore';
 import {useM3Colors} from '../theme/M3PaletteContext';
+import FadeIn from './FadeIn';
 import MediaPosterCard from './MediaPosterCard';
+import PosterRowSkeleton from './PosterRowSkeleton';
 import AppText from './ui/Text';
 
 type MediaType = 'movie' | 'series';
@@ -27,7 +29,7 @@ const Row = ({title, type, metas, ranked}: {title: string; type: MediaType; meta
   const navigation = useNavigation<any>();
   if (!metas.length) return null;
   return (
-    <View style={{marginTop: 24}}>
+    <FadeIn style={{marginTop: 24}}>
       <AppText role="titleLargeEmphasized" numberOfLines={1} style={{color: colors.onBackground, paddingHorizontal: 20, marginBottom: 12}}>{title}</AppText>
       <FlatList
         horizontal
@@ -48,7 +50,7 @@ const Row = ({title, type, metas, ranked}: {title: string; type: MediaType; meta
           />
         )}
       />
-    </View>
+    </FadeIn>
   );
 };
 
@@ -89,7 +91,9 @@ const DiscoverRows = () => {
   return (
     <View>
       {similar.data?.length ? <Row title={`Because you watched ${watchedTitle}`} type={watchedType} metas={similar.data} /> : null}
+      {movies.isLoading ? <PosterRowSkeleton /> : null}
       <Row title="Top 10 movies" type="movie" metas={(movies.data || []).slice(0, TOP_COUNT)} ranked />
+      {series.isLoading ? <PosterRowSkeleton /> : null}
       <Row title="Top 10 shows" type="series" metas={(series.data || []).slice(0, TOP_COUNT)} ranked />
     </View>
   );

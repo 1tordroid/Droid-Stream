@@ -10,7 +10,7 @@ Confirmed on OnePlus 15: magnet and Internet Archive playback (Archive streams d
 
 Known: 1337x and EZTV are blocked by Cloudflare (no bypass). Vixsrc answers HTTP 403. The Apple BipBop test stream uses byte-range HLS, which the downloader does not support. A FORTIFY mutex abort shows in logcat when the app process is killed by a reinstall; not seen during use.
 
-Still to do: Android TV focus pass and TV flow, smoother transitions and loading placeholders, PikPak files listed in Library (needs an account to test), release signing (owner sets the password), extra.eas.projectId (needs the owner's Expo account), PR merge order (confirm with owner). yt-dlp downloader: confirm with the owner before building. Dropped: Light theme, Same as device, CloudStream plugins.
+Release signing is set up (keystore at %USERPROFILE%\droid-stream-release.keystore, 4 secrets at repo level and in the nightly environment); not yet proven by a tagged build. Library has Cloud files (PikPak and debrid listings, untested without accounts). Still to do: Android TV focus pass and TV flow, extra.eas.projectId (needs the owner's Expo account), PR merge order (confirm with owner). yt-dlp downloader: confirm with the owner before building. Dropped: Light theme, Same as device, CloudStream plugins.
 
 ## Start here (local PC session, 2026-11-05)
 The owner is continuing on their Windows PC with a OnePlus 15 on USB (the OnePlus 12 is busy in another session). Do these in order:

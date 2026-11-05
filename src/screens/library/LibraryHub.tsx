@@ -74,7 +74,7 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
       <View style={{marginTop: 16}}>
         <Row label="Saved titles" title="Saved" description="Titles you saved from providers." icon="bookmark-outline" onPress={() => navigation.navigate('WatchList')} />
         <Row label="Videos on this device" title="On this device" description="Poster grid for videos in a folder you pick." icon="cellphone" onPress={() => navigation.navigate('LocalLibrary')} />
-        <Row label="Cloud and debrid files" title="PikPak and debrid files" description="Files in PikPak, TorBox, Real-Debrid and others." icon="cloud-check-outline" onPress={() => navigation.navigate('DebridSettings')} />
+        <Row label="Cloud and debrid files" title="Cloud files" description="Play or save files from PikPak, TorBox, Real-Debrid and others." icon="cloud-check-outline" onPress={() => navigation.navigate('CloudFiles')} />
       </View>
 
       <AppText role="titleMedium" style={{color: colors.onSurface, marginTop: 16, marginBottom: 8}}>Your sources</AppText>

@@ -3,6 +3,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ActivityIndicator, Clipboard, FlatList, Image, Pressable, ScrollView, Switch, View} from 'react-native';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
+import {CardListSkeleton} from '../../components/PosterRowSkeleton';
 import TitleMatches from '../../components/torrentSearch/TitleMatches';
 import {TVFocusable} from '../../components/tv';
 import AppText from '../../components/ui/Text';
@@ -221,7 +222,7 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
                 <AppText style={{color: colors.primary}}>Add Stremio add-ons like Torrentio for more sources</AppText>
               </Pressable>
             ) : null}
-            {loading ? <ActivityIndicator color={colors.primary} style={{marginVertical: 12}} /> : null}
+            {loading && !candidates.length ? <CardListSkeleton count={3} /> : loading ? <ActivityIndicator color={colors.primary} style={{marginVertical: 12}} /> : null}
           </View>
         }
         renderItem={({item, index}) => (

@@ -1,6 +1,7 @@
 jest.mock('../src/lib/stremio', () => ({fetchCatalog: jest.fn(), fetchMeta: jest.fn(), findImdb: jest.fn()}));
 jest.mock('../src/lib/zustand/continueWatchingStore', () => jest.fn());
 jest.mock('../src/components/MediaPosterCard', () => 'MediaPosterCard');
+jest.mock('../src/components/PosterRowSkeleton', () => 'PosterRowSkeleton');
 jest.mock('../src/components/ui/Text', () => 'AppText');
 import {similarTitles, yearOf} from '../src/components/DiscoverRows';
 

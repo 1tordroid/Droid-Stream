@@ -21,6 +21,7 @@ import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
 import Credits from './screens/settings/Credits';
+import CloudFiles from './screens/library/CloudFiles';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
 import Torrents from './screens/torrents/Torrents';
@@ -178,6 +179,7 @@ export type SearchStackParamList = {
 export type WatchListStackParamList = {
   LibraryHome: undefined;
   DebridSettings: undefined;
+  CloudFiles: undefined;
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
@@ -449,6 +451,7 @@ function WatchListStackScreen() {
       screenOptions={stackScreenOptions}>
       <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
       <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
+      <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
       <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />
