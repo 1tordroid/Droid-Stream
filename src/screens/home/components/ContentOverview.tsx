@@ -28,6 +28,7 @@ interface ContentOverviewProps {
   onSearchTitle: () => void;
   /** Opens Find streams: Stremio add-ons, torrent sites, and debrid caches. */
   onFindStreams?: () => void;
+  onPlay?: () => void;
   onToggleLibrary: () => void;
   onToggleSynopsis: () => void;
   providerName: string;
@@ -168,6 +169,7 @@ const ContentOverview = ({
   onOpenWeb,
   onSearchTitle,
   onFindStreams,
+  onPlay,
   onToggleLibrary,
   onToggleSynopsis,
   providerName,
@@ -382,6 +384,18 @@ const ContentOverview = ({
           />
         )}
 
+        {onPlay ? (
+          <TVFocusable
+            accessibilityRole="button"
+            accessibilityLabel="Play"
+            hasTVPreferredFocus
+            onPress={onPlay}
+            borderRadius={28}
+            style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minHeight: 56, borderRadius: 28, marginTop: 18, backgroundColor: colors.primary}}>
+            <MaterialCommunityIcons name="play" size={26} color={colors.onPrimary} />
+            <AppText role="titleMediumEmphasized" style={{color: colors.onPrimary, marginLeft: 8}}>Play</AppText>
+          </TVFocusable>
+        ) : null}
         <View
           style={{
             flexDirection: 'row',

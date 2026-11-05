@@ -103,6 +103,10 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     };
   }, []));
   const exploreRef = useRef<View>(null);
+  const playRef = useRef<(() => boolean) | null>(null);
+  const playMain = useCallback(() => {
+    if (!playRef.current?.()) ToastAndroid.show('Still loading. Try again in a moment.', ToastAndroid.SHORT);
+  }, []);
   const closeStory = useCallback(() => {
     setStoryVisible(false);
     if (isTV) {
@@ -394,6 +398,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   onOpenWeb={webUrl ? handleOpenWeb : undefined}
                   onSearchTitle={searchTitle}
                   onFindStreams={findStreams}
+                  onPlay={localTitle ? undefined : playMain}
                   onToggleLibrary={toggleLibrary}
                   onToggleSynopsis={() => setReadMore(value => !value)}
                   providerName={contentProviderName}
@@ -437,6 +442,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                       synopsis={synopsis}
                       routeParams={route.params}
                       quickDownload={info?.quickDownload}
+                      playRef={playRef}
                     />
                   )}
                 </View>
