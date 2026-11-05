@@ -294,6 +294,15 @@ const stackScreenOptions = {
   freezeOnBlur: true,
 } as const;
 
+// Pages without their own artwork or safe area stay below the status bar.
+const useTopInsetOptions = () => {
+  const insets = useSafeAreaInsets();
+  return useMemo(
+    () => ({contentStyle: {flex: 1, paddingTop: isTV ? 0 : insets.top}}),
+    [insets.top],
+  );
+};
+
 const rootStackScreenOptions = {
   ...stackScreenOptions,
   contentStyle: {backgroundColor: 'transparent'},
@@ -426,14 +435,16 @@ function SearchStackScreen() {
 }
 
 function WatchListStackScreen() {
+  const subpageOptions = useTopInsetOptions();
+
   return (
     <WatchListStack.Navigator
       screenListeners={navigationWorkListeners}
       screenOptions={stackScreenOptions}>
-      <WatchListStack.Screen name="LibraryHome" component={LibraryHub} />
+      <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
-      <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} />
-      <WatchListStack.Screen name="Sources" component={Sources} />
+      <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
+      <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />
       <WatchListStack.Screen name="LocalContent" component={LocalContent} />
       <WatchListStack.Screen name="Info" component={Info} />
     </WatchListStack.Navigator>
@@ -441,8 +452,14 @@ function WatchListStackScreen() {
 }
 
 function TorrentsStackScreen() {
+  const subpageOptions = useTopInsetOptions();
+  const screenOptions = useMemo(
+    () => ({...stackScreenOptions, ...subpageOptions}),
+    [subpageOptions],
+  );
+
   return (
-    <TorrentsStack.Navigator screenListeners={navigationWorkListeners} screenOptions={stackScreenOptions}>
+    <TorrentsStack.Navigator screenListeners={navigationWorkListeners} screenOptions={screenOptions}>
       <TorrentsStack.Screen name="Torrents" component={Torrents} />
       <TorrentsStack.Screen name="TorrentDetails" component={TorrentDetails} />
       <TorrentsStack.Screen name="TorrentOptions" component={TorrentOptions} />
@@ -471,11 +488,7 @@ function DownloadsStackScreen() {
 }
 
 function SettingsStackScreen() {
-  const insets = useSafeAreaInsets();
-  const subpageOptions = useMemo(
-    () => ({contentStyle: {flex: 1, paddingTop: isTV ? 0 : insets.top}}),
-    [insets.top],
-  );
+  const subpageOptions = useTopInsetOptions();
 
   return (
     <SettingsStack.Navigator

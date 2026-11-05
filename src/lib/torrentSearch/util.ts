@@ -190,7 +190,9 @@ export const fetchJson = async <T = any>(url: string, signal: AbortSignal, init:
 
 /** Detects Cloudflare and similar walls so the UI can say so. */
 export const assertNotBlocked = (html: string): void => {
-  if (/cf-browser-verification|challenge-platform|Just a moment\.\.\.|Attention Required! \| Cloudflare|ddos-guard/i.test(html)) {
+  // Cloudflare also injects a /challenge-platform/ script into normal pages, so
+  // that path alone does not mean the page is blocked.
+  if (/cf-browser-verification|_cf_chl_opt|<title>\s*Just a moment|Attention Required! \| Cloudflare|ddos-guard/i.test(html)) {
     throw new Error('Blocked by a browser check. Try another mirror or a VPN.');
   }
 };

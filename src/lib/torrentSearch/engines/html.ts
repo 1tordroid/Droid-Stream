@@ -150,8 +150,8 @@ export const torrentGalaxy: TorrentEngine = {
   name: 'TorrentGalaxy',
   description: 'Movies, TV, and general releases',
   categories: ['all', 'movies', 'tv', 'anime', 'music', 'games', 'apps', 'books'],
-  mirrors: ['https://torrentgalaxy.to', 'https://tgx.rs', 'https://torrentgalaxy.mx', 'https://tgx.sb'],
-  enabledByDefault: true,
+  mirrors: ['https://torrentgalaxy.to', 'https://torrentgalaxy.mx', 'https://tgx.sb'],
+  enabledByDefault: false,
   async search(query, {page, signal, baseUrl, category}) {
     const cat = {movies: '&c3=1&c46=1&c45=1&c42=1&c4=1&c1=1', tv: '&c41=1&c5=1&c11=1&c6=1&c7=1', anime: '&c28=1', music: '&c22=1&c26=1&c23=1&c25=1&c24=1', games: '&c10=1&c43=1', apps: '&c20=1&c21=1&c18=1', books: '&c13=1&c12=1&c14=1&c15=1'}[category as string] || '';
     const $ = await page$(`${baseUrl}/torrents.php?search=${slug(query)}${cat}&sort=seeders&order=desc&page=${page - 1}`, signal);
@@ -186,7 +186,7 @@ export const limeTorrents: TorrentEngine = {
   name: 'LimeTorrents',
   description: 'Verified general index',
   categories: ['all', 'movies', 'tv', 'anime', 'music', 'games', 'apps', 'other'],
-  mirrors: ['https://www.limetorrents.lol', 'https://limetorrents.info', 'https://www.limetorrents.fun'],
+  mirrors: ['https://www.limetorrents.fun', 'https://limetorrents.info', 'https://www.limetorrents.lol'],
   enabledByDefault: true,
   async search(query, {page, signal, baseUrl, category}) {
     const cat = {movies: 'movies', tv: 'tv', anime: 'anime', music: 'music', games: 'games', apps: 'applications', other: 'other'}[category as string] || 'all';
@@ -306,8 +306,8 @@ export const magnetDl: TorrentEngine = {
   name: 'MagnetDL',
   description: 'Magnet-only index',
   categories: ['all', 'movies', 'tv', 'music', 'games', 'apps', 'books'],
-  mirrors: ['https://www.magnetdl.com', 'https://magnetdl.hair'],
-  enabledByDefault: true,
+  mirrors: ['https://www.magnetdl.com'],
+  enabledByDefault: false,
   async search(query, {page, signal, baseUrl}) {
     const words = query.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     if (!words) return [];
@@ -378,7 +378,7 @@ export const torlock: TorrentEngine = {
   name: 'TorLock',
   description: 'Verified torrents only',
   categories: ['all', 'movies', 'tv', 'anime', 'music', 'games', 'apps', 'books'],
-  mirrors: ['https://www.torlock.com', 'https://torlock.unblockit.lat'],
+  mirrors: ['https://www.torlock.com'],
   enabledByDefault: false,
   lazyMagnet: true,
   async search(query, {page, signal, baseUrl, category}) {

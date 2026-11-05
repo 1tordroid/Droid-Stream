@@ -4,7 +4,7 @@ import {parseTorznab} from '../src/lib/torrentSearch/engines/torznab';
 import {applyFilters, dedupe, qualityOf, sortResults, suggestions, titleMatch} from '../src/lib/torrentSearch/rank';
 import {searchAll} from '../src/lib/torrentSearch/search';
 import {defaultFilters, type TorrentEngine} from '../src/lib/torrentSearch/types';
-import {buildMagnet, formatBytes, infoHashFrom, makeResult, parseDate, parseSize} from '../src/lib/torrentSearch/util';
+import {assertNotBlocked, buildMagnet, formatBytes, infoHashFrom, makeResult, parseDate, parseSize} from '../src/lib/torrentSearch/util';
 
 const HASH = 'a'.repeat(40);
 const HASH2 = 'b'.repeat(40);
@@ -38,6 +38,18 @@ describe('torrent search utilities', () => {
     expect(qualityOf('Movie.2024.2160p.WEB-DL.DV.HDR.x265').resolution).toBe('2160p');
     expect(qualityOf('Movie 2024 1080p BluRay x264').tags).toEqual(expect.arrayContaining(['BluRay', 'H.264']));
     expect(qualityOf('Movie 2024 HDCAM').lowQuality).toBe(true);
+  });
+});
+
+describe('blocked page detection', () => {
+  it('accepts a normal page that carries the Cloudflare script', () => {
+    const html = "<title>ubuntu Torrents</title><table></table><script>var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js';</script>";
+    expect(() => assertNotBlocked(html)).not.toThrow();
+  });
+
+  it('rejects real browser check pages', () => {
+    expect(() => assertNotBlocked('<html><head><title>Just a moment...</title></head></html>')).toThrow('browser check');
+    expect(() => assertNotBlocked('<script>window._cf_chl_opt={}</script>')).toThrow('browser check');
   });
 });
 

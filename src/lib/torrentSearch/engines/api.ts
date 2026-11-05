@@ -113,7 +113,7 @@ export const yts: TorrentEngine = {
   name: 'YTS',
   description: 'Movies in small encodes, with posters',
   categories: ['movies'],
-  mirrors: ['https://yts.mx', 'https://yts.lt', 'https://yts.am'],
+  mirrors: ['https://yts.gg', 'https://movies-api.accel.li', 'https://yts.lt', 'https://yts.am'],
   enabledByDefault: true,
   async search(query, {signal, baseUrl, page}) {
     const data = await fetchJson<any>(`${baseUrl}/api/v2/list_movies.json?query_term=${enc(query)}&limit=50&page=${page}&sort_by=seeds`, signal);
@@ -178,7 +178,7 @@ export const animetosho: TorrentEngine = {
   name: 'AnimeTosho',
   description: 'Anime mirror of Nyaa and others, JSON feed',
   categories: ['anime'],
-  mirrors: ['https://feed.animetosho.org'],
+  mirrors: ['https://feed.animetosho.net', 'https://feed.animetosho.xyz'],
   enabledByDefault: true,
   async search(query, {signal, baseUrl, page}) {
     const rows = await fetchJson<any[]>(`${baseUrl}/json?q=${enc(query)}&page=${page}`, signal);
