@@ -344,6 +344,12 @@ const Settings = ({navigation}: Props) => {
                   onPress={() => navigation.navigate('PlayerSettings')}
                 />
                 <SettingsRow
+                  title="Languages"
+                  description="Preferred audio and subtitle languages"
+                  icon="translate"
+                  onPress={() => navigation.navigate('Languages')}
+                />
+                <SettingsRow
                   title="Watch sync"
                   description="Trakt, Simkl, AniList, and AniSkip"
                   icon="sync"

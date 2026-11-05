@@ -27,6 +27,7 @@ import DebridSettings from './screens/torrents/DebridSettings';
 import StreamFinder from './screens/torrents/StreamFinder';
 import StremioAddons from './screens/torrents/StremioAddons';
 import WatchSync from './screens/settings/WatchSync';
+import LanguageSettings from './screens/settings/LanguageSettings';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
@@ -205,6 +206,7 @@ export type SettingsStackParamList = {
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
   WatchSync: undefined;
+  Languages: undefined;
 };
 
 export type DownloadsStackParamList = {
@@ -519,6 +521,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
+      <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }

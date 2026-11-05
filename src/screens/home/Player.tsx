@@ -105,6 +105,9 @@ import {findAnimeSkips} from '../../lib/aniskip';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {syncWatched} from '../../lib/watchSync';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
+import {TextTrackType} from 'react-native-video';
+import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
+import {findMatchedSubtitles} from '../../lib/subtitles/hashMatch';
 import useLocalVideoStore from '../../lib/zustand/localVideoStore';
 import useDownloadsStore from '../../lib/zustand/downloadsStore';
 import {RemotePlayerScreen} from '../../components/remote-player';
@@ -552,6 +555,10 @@ const Player = ({route}: Props): React.JSX.Element => {
     handleVideoLoad,
     resetVideoTracks,
   } = useVideoSettings();
+  // Latest audio choice and playing URI, read by effects that run later.
+  const selectedAudioTrackIndexRef = useRef(selectedAudioTrackIndex);
+  selectedAudioTrackIndexRef.current = selectedAudioTrackIndex;
+  const videoPlayerSourceUriRef = useRef<string | undefined>(undefined);
   const isFullScreenRef = useRef(isFullScreen);
   const syncedContinueWatching = useContinueWatchingStore(state =>
     state.items.find(item => item.id === continueWatchingId),
@@ -2454,28 +2461,40 @@ const Player = ({route}: Props): React.JSX.Element => {
     setSearchQuery(route.params?.primaryTitle || '');
   }, [route.params?.primaryTitle]);
 
-  // Set last selected audio and subtitle tracks
+  // Pick audio and subtitle tracks from the preferred languages (Settings →
+  // Languages), then the language chosen by hand last time.
   useEffect(() => {
     const lastAudioTrack = cacheStorage.getString('lastAudioTrack') || 'auto';
     const lastTextTrack = cacheStorage.getString('lastTextTrack') || 'auto';
+    const languagePrefs = readLanguagePrefs();
 
     if (!hasSetInitialAudioRef.current && audioTracks.length > 0) {
       hasSetInitialAudioRef.current = true;
-      const audioTrackIndex = audioTracks.findIndex(
-        track => track.language === lastAudioTrack,
-      );
+      let audioTrackIndex = chooseAudioTrack(audioTracks, languagePrefs, lastAudioTrack);
+      if (audioTrackIndex === -1) {
+        audioTrackIndex = audioTracks.findIndex(track => track.language === lastAudioTrack);
+      }
       if (audioTrackIndex !== -1) {
         setSelectedAudioTrack({
           type: SelectedTrackType.INDEX,
           value: audioTrackIndex,
         });
         setSelectedAudioTrackIndex(audioTrackIndex);
+        selectedAudioTrackIndexRef.current = audioTrackIndex;
       }
     }
 
-    if (!hasSetInitialTextRef.current && textTracks.length > 0) {
+    // Wait for the audio choice: subtitles depend on whether it is understood.
+    if (!hasSetInitialTextRef.current && textTracks.length > 0 && (audioTracks.length > 0 || hasSetInitialAudioRef.current)) {
       hasSetInitialTextRef.current = true;
-      let textTrackIndex = textTracks.findIndex(
+      const audioLanguage = audioTracks[selectedAudioTrackIndexRef.current]?.language;
+      const preferred = chooseSubtitleTrack(textTracks, languagePrefs, {audioLanguage, last: lastTextTrack});
+      if (preferred === NO_SUBTITLE) {
+        setSelectedTextTrack({type: SelectedTrackType.DISABLED});
+        setSelectedTextTrackIndex(1000);
+        return;
+      }
+      let textTrackIndex = preferred !== -1 ? preferred : textTracks.findIndex(
         track =>
           track.language === lastTextTrack ||
           track.title === lastTextTrack ||
@@ -2508,6 +2527,35 @@ const Player = ({route}: Props): React.JSX.Element => {
     setSelectedAudioTrackIndex,
     setSelectedTextTrackIndex,
   ]);
+
+  // No subtitle in a preferred language: fetch one matched to this file, once
+  // per stream, after the tracks have settled.
+  const autoSubtitleTriedRef = useRef('');
+  useEffect(() => {
+    const streamKey = selectedStream?.link || '';
+    if (!streamKey || autoSubtitleTriedRef.current === streamKey || !watchMeta?.title) return;
+    const languagePrefs = readLanguagePrefs();
+    if (!languagePrefs.autoDownloadSubtitles) return;
+    const timer = setTimeout(() => {
+      const audioLanguage = audioTracks[selectedAudioTrackIndexRef.current]?.language;
+      const missing = missingSubtitleLanguages(textTracks, languagePrefs, audioLanguage);
+      if (!missing.length || autoSubtitleTriedRef.current === streamKey) return;
+      autoSubtitleTriedRef.current = streamKey;
+      findMatchedSubtitles({url: String(videoPlayerSourceUriRef.current || '') || undefined, headers: selectedStream?.headers, meta: watchMeta})
+        .then(found => {
+          const pick = missing
+            .map(lang => found.find(sub => normalizeLanguage(sub.lang) === lang))
+            .find(Boolean);
+          if (!pick) return;
+          return saveSubtitle(
+            {type: TextTrackType.SUBRIP, language: pick.lang, title: `${languageNameFor(pick.lang)} · ${pick.addon}`, uri: pick.url},
+            'search',
+          ).then(() => setToast(`${languageNameFor(pick.lang)} subtitles added`, 2500));
+        })
+        .catch(() => undefined);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [selectedStream?.link, textTracks, audioTracks, watchMeta]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -2880,6 +2928,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       backBufferMB,
     ],
   );
+  videoPlayerSourceUriRef.current = videoPlayerProps.source?.uri as string | undefined;
 
   const handleSettingsMenuFocus = useCallback(
     () => setSettingsCloseFocused(false),

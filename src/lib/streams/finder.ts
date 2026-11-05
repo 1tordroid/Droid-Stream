@@ -5,6 +5,7 @@
  */
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {checkAllCaches, connectedServices, getService, pickVideo, readDebridSettings, sendToDebrid, type DebridFile, type DebridId} from '../debrid';
+import {readLanguagePrefs, normalizeLanguage} from '../languagePrefs';
 import {episodeTag, parseRelease, releaseMatches} from '../releaseName';
 import {fetchStreams, videoId, type StremioStream} from '../stremio';
 import {searchAll} from '../torrentSearch/search';
@@ -137,6 +138,15 @@ export const fromSearch = (row: TorrentResult): Candidate => {
   };
 };
 
+const preferredAudioLanguages = (): string[] => {
+  try {
+    const languages = readLanguagePrefs();
+    return [languages.audioPrimary, languages.audioSecondary].map(normalizeLanguage).filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
 /** Higher is better. Exported for tests. */
 export const scoreCandidate = (candidate: Candidate, prefs: FinderPrefs): number => {
   let score = 0;
@@ -148,7 +158,10 @@ export const scoreCandidate = (candidate: Candidate, prefs: FinderPrefs): number
   if (resIndex >= 0) score += resIndex > maxIndex ? 40 - (resIndex - maxIndex) * 60 : 40 + resIndex * 25;
   if (candidate.kind === 'torrent') score += Math.min(120, Math.log10(1 + candidate.seeders) * 40) - (candidate.seeders === 0 ? 200 : 0);
   if (prefs.avoidCam && candidate.lowQuality) score -= 400;
-  if (prefs.preferredLanguage && candidate.languages.some(lang => lang.toLowerCase() === prefs.preferredLanguage.toLowerCase())) score += 60;
+  const wantedLanguages = prefs.preferredLanguage ? [normalizeLanguage(prefs.preferredLanguage)] : preferredAudioLanguages();
+  const candidateLanguages = candidate.languages.map(normalizeLanguage);
+  if (wantedLanguages[0] && candidateLanguages.includes(wantedLanguages[0])) score += 60;
+  else if (wantedLanguages[1] && candidateLanguages.includes(wantedLanguages[1])) score += 30;
   // Very large files are slow on phones unless cached.
   if (!candidate.cachedOn.length && !candidate.debridDirect && candidate.sizeBytes > 25 * 1024 ** 3) score -= 50;
   return score;
