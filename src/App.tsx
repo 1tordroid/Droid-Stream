@@ -42,6 +42,8 @@ import SearchResults from './screens/SearchResults';
 // import DisableProviders from './screens/settings/DisableProviders';
 import About from './screens/settings/About';
 import {checkForUpdate} from './lib/updates/checkForUpdate';
+import {startLinkIntake} from './lib/linkIntake';
+import FirstRunTips from './components/FirstRunTips';
 import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
 import {enableFreeze, enableScreens} from 'react-native-screens';
@@ -578,6 +580,16 @@ const App = () => {
     syncParallelStreaming();
   }, []);
 
+  // Magnets and links opened from other apps, and copied magnets.
+  useEffect(
+    () =>
+      startLinkIntake((screen, params) => {
+        if (!navigationRef.isReady()) return;
+        (navigationRef.navigate as (name: string, params?: object) => void)(screen, params);
+      }),
+    [],
+  );
+
   // Safety fallback to ensure splash is hidden
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -811,6 +823,7 @@ const App = () => {
               <VerificationConsentDialog />
               <WafWebViewDialog />
               <RemoteVolumeToast />
+              <FirstRunTips />
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched
                 into it. */}

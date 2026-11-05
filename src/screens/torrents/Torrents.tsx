@@ -246,6 +246,11 @@ const remove = (row: TorrentRow, refresh: () => Promise<void>) => {
 
 const showError = (error: any) => ToastAndroid.show(error?.message || 'Torrent action failed', ToastAndroid.LONG);
 
+// Feeds are polled at most every 15 minutes, not on every 2 second refresh.
+const RSS_INTERVAL_MS = 15 * 60 * 1000;
+let lastRssCheck = 0;
+let appliedBlocklist = '';
+
 const applyPolicy = async () => {
   const settings = readTorrentSettings();
   const network = await torrentManager.networkStatus();
@@ -285,8 +290,14 @@ const applyPolicy = async () => {
   });
   await torrentManager.setTransfersAllowed(decision.allowed);
   setTransfersOpen(decision.allowed);
-  if (settings.blocklist) await torrentManager.applyBlocklist(settings.blocklist);
-  for (const feed of settings.rssFeeds) {
+  if (settings.blocklist && settings.blocklist !== appliedBlocklist) {
+    await torrentManager.applyBlocklist(settings.blocklist);
+    appliedBlocklist = settings.blocklist;
+  }
+  const rssDue = Date.now() - lastRssCheck >= RSS_INTERVAL_MS;
+  if (rssDue) lastRssCheck = Date.now();
+  for (const feed of rssDue ? settings.rssFeeds : []) {
+    if (!/^https?:\/\//i.test(feed.url)) continue;
     try {
       const xml = await (await fetch(feed.url)).text();
       const fresh = parseFeedLinks(xml).filter(item => feedItemMatches(item.title, feed.keywords) && !feed.seen.includes(item.link));
@@ -295,12 +306,13 @@ const applyPolicy = async () => {
         const stored: StoredTorrent[] = readStoredTorrents();
         writeStoredTorrents([{infoHash: added.infoHash, source: item.link, name: item.title}, ...stored]);
         feed.seen.push(item.link);
+        feed.seen = feed.seen.slice(-500);
       }
     } catch {
       // A feed that fails waits for the next check.
     }
   }
-  if (settings.rssFeeds.length) writeTorrentSettings(settings);
+  if (rssDue && settings.rssFeeds.length) writeTorrentSettings(settings);
 };
 
 export default Torrents;

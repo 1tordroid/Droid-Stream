@@ -6,7 +6,9 @@ import AppText from './ui/Text';
 
 const CARDS = [
   {title: 'Home', body: 'Home is the Vega catalog. Providers, posters, and playback stay where they were.'},
-  {title: 'Torrents', body: 'Add a magnet or torrent file, then play while it downloads. Seeding stays off until you turn it on.'},
+  {title: 'Torrents', body: 'Search many torrent sites at once, or add a magnet or torrent file, then play while it downloads. Seeding stays off until you turn it on.'},
+  {title: 'Instant playback', body: 'Connect your own TorBox, Real-Debrid, AllDebrid, Premiumize, Offcloud, Debrid-Link, or PikPak account and cached torrents play at once at full speed.'},
+  {title: 'Simple or Advanced', body: 'Everything starts simple. Turn on Advanced mode in Settings, or search any setting by name from the Search tab.'},
   {title: 'Library', body: 'Saved titles, videos on this device, and SMB, WebDAV, Jellyfin, Emby, Plex, and PikPak live here.'},
 ];
 

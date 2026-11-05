@@ -1,0 +1,83 @@
+name: Test APK
+
+# Standalone arm64 release APK with the JS bundle embedded (never a dev
+# client), for device testing. Signed with the debug keystore when release
+# secrets are absent. Download it from the run's Artifacts section.
+on:
+  push:
+    branches: ['claude/**', 'cursor/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit -p tsconfig.json
+      - run: npx jest --ci
+
+  apk:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      PROXY_API_URL: ${{ secrets.PROXY_API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android CMake
+        run: sdkmanager --install 'cmake;3.22.1'
+      - run: npm ci
+      - name: Generate the Android project
+        run: npm run build:sandbox && npx expo prebuild --platform android --clean --no-install
+      - name: Build arm64 release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x android/gradlew
+          cd android
+          ./gradlew :app:assembleRelease -PdroidstreamArm64Only=true -PreactNativeArchitectures=arm64-v8a \
+            --build-cache --no-daemon --max-workers=2 --console=plain --stacktrace \
+            '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=768m -XX:+UseSerialGC' \
+            -Pkotlin.compiler.execution.strategy=in-process
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          APK="$(find android/app/build/outputs/apk/release -name '*.apk' -not -name '*unsigned*' | head -1)"
+          cp "$APK" "dist/DroidStream-test-arm64-${GITHUB_SHA::7}.apk"
+          sha256sum dist/*.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DroidStream-test-arm64-${{ github.sha }}
+          path: dist/*.apk
+          retention-days: 14

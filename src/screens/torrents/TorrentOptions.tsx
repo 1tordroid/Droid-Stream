@@ -29,6 +29,7 @@ const TorrentOptions = ({route}: {route?: {params?: {highlight?: string}}}) => {
     writeTorrentSettings(next);
   };
   const badge = !settingsStorage.isAdvancedMode() && revealed;
+  const [grabber, setGrabber] = useState(() => settingsStorage.clipboardGrabber());
   return (
     <ScrollView style={{flex: 1, backgroundColor: colors.background}} contentContainerStyle={{padding: 16}}>
       <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground}}>Torrent options</AppText>
@@ -65,8 +66,29 @@ const TorrentOptions = ({route}: {route?: {params?: {highlight?: string}}}) => {
         const result = await torrentManager.applyBlocklist(settings.blocklist);
         ToastAndroid.show(result.applied ? `Blocked ${result.ranges} ranges` : result.reason, ToastAndroid.LONG);
       }} style={{minHeight: 48, justifyContent: 'center'}}><AppText style={{color: colors.primary}}>Apply blocklist</AppText></Pressable>
-      <Field highlight={highlight === 'torrent-rss'} label="RSS feed URL" value={settings.rssFeeds[0]?.url || ''} onChange={value => save({...settings, rssFeeds: value ? [{id: '1', url: value, keywords: settings.rssFeeds[0]?.keywords || '', seen: settings.rssFeeds[0]?.seen || []}] : []})} />
-      <Field label="RSS keywords" value={settings.rssFeeds[0]?.keywords || ''} onChange={value => save({...settings, rssFeeds: [{id: '1', url: settings.rssFeeds[0]?.url || '', keywords: value, seen: settings.rssFeeds[0]?.seen || []}]})} />
+      <View style={{borderWidth: highlight === 'torrent-rss' ? 2 : 0, borderColor: colors.primary, borderRadius: 12, marginBottom: 8}}>
+        <AppText role="titleSmall" style={{color: colors.onSurface, marginTop: 8}}>RSS auto-download</AppText>
+        <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>Feeds are checked while the Torrents tab is open. New items whose titles contain every keyword start downloading.</AppText>
+        {settings.rssFeeds.map((feed, index) => (
+          <View key={feed.id} style={{borderTopWidth: index ? 1 : 0, borderColor: colors.outlineVariant, marginTop: 8}}>
+            <Field label={`Feed ${index + 1} URL`} value={feed.url} onChange={value => save({...settings, rssFeeds: settings.rssFeeds.map(item => (item.id === feed.id ? {...item, url: value} : item))})} />
+            <Field label="Keywords (all must match, e.g. 1080p show name)" value={feed.keywords} onChange={value => save({...settings, rssFeeds: settings.rssFeeds.map(item => (item.id === feed.id ? {...item, keywords: value} : item))})} />
+            <Pressable accessibilityLabel={`Remove feed ${index + 1}`} onPress={() => save({...settings, rssFeeds: settings.rssFeeds.filter(item => item.id !== feed.id)})} style={{minHeight: 44, justifyContent: 'center'}}>
+              <AppText style={{color: colors.error}}>Remove feed</AppText>
+            </Pressable>
+          </View>
+        ))}
+        <Pressable accessibilityLabel="Add RSS feed" onPress={() => save({...settings, rssFeeds: [...settings.rssFeeds, {id: String(Date.now()), url: '', keywords: '', seen: []}]})} style={{minHeight: 48, justifyContent: 'center'}}>
+          <AppText style={{color: colors.primary}}>Add a feed</AppText>
+        </Pressable>
+      </View>
+      <Pressable accessibilityLabel="Clipboard magnet grabber" onPress={() => {
+        const next = grabber === 'off' ? 'ask' : 'off';
+        settingsStorage.setClipboardGrabber(next);
+        setGrabber(next);
+      }} style={{minHeight: 48, justifyContent: 'center'}}>
+        <AppText style={{color: colors.onSurface}}>Offer copied magnets and links: {grabber === 'off' ? 'Off' : 'On'}</AppText>
+      </Pressable>
       <Pressable accessibilityLabel="Choose completed folder" onPress={async () => {
         const permission = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
         if (permission.granted) save({...settings, saveTreeUri: permission.directoryUri});
