@@ -1,0 +1,15 @@
+appId: com.tordroid.droidstream
+name: Every tab opens
+tags: [smoke, phone]
+---
+- runFlow: _launch.yaml
+- tapOn: "Search"
+- assertVisible: "Search"
+- tapOn: "Torrents"
+- assertVisible: "Search torrent sites"
+- tapOn: "Library"
+- assertVisible: "Library"
+- tapOn: "Settings"
+- assertVisible: "Watch sync"
+- takeScreenshot: tabs_settings
+- tapOn: "Home"

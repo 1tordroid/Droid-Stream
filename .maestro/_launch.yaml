@@ -1,0 +1,15 @@
+# Shared start: fresh launch, dismiss first-run tips and notices if shown.
+appId: com.tordroid.droidstream
+tags: [util]
+---
+- launchApp:
+    appId: com.tordroid.droidstream
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Skip tips"
+    commands:
+      - tapOn: "Skip tips"

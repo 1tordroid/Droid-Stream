@@ -18,7 +18,10 @@
     "prebuild": "npm run build:sandbox && expo prebuild",
     "prebuild:clean": "npm run build:sandbox && expo prebuild --clean",
     "prebuild:tv": "npm run build:sandbox && cross-env EXPO_TV=1 expo prebuild",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "e2e": "maestro test .maestro",
+    "e2e:phone": "maestro test --include-tags phone .maestro",
+    "e2e:tv": "maestro test --include-tags tv .maestro"
   },
   "dependencies": {
     "@dr.pogodin/react-native-fs": "^2.34.0",

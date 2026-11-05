@@ -1,0 +1,29 @@
+appId: com.tordroid.droidstream
+name: Multi-site torrent search returns results
+tags: [torrents, phone]
+---
+- runFlow: _launch.yaml
+- tapOn: "Torrents"
+- tapOn: "Search torrent sites"
+- runFlow:
+    when:
+      visible: "I understand"
+    commands:
+      - tapOn: "I understand"
+- tapOn: "Search torrent sites"
+- inputText: "ubuntu"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "sites answered.*"
+    timeout: 45000
+- takeScreenshot: torrent_search_results
+- tapOn: "Filters"
+- assertVisible: "Min seeders"
+- tapOn: "Trending"
+- extendedWaitUntil:
+    visible: "sites answered.*"
+    timeout: 45000
+- tapOn: "Torrent sites"
+- assertVisible: "Built-in sites"
+- tapOn: "Test all"
+- takeScreenshot: torrent_sites_test

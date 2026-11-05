@@ -34,6 +34,13 @@ Repo: https://github.com/1tordroid/Droid-Stream (standalone, not a fork) · Deve
 - TorBox, Real-Debrid, AllDebrid, Premiumize, Offcloud, Debrid-Link, PikPak behind one DebridService interface. Cache badges where the API allows (TorBox, Premiumize, Offcloud, Debrid-Link; Real-Debrid retired instant availability). Keys in encrypted MMKV.
 - Stream plays the direct HTTPS link; Download goes through the existing multi-connection downloader (queueLink).
 
+## Streams, add-ons, sync (stage 6)
+- src/lib/stremio: Stremio add-on protocol client + Cinemeta. src/lib/streams/finder.ts ranks add-on streams, site torrents, and debrid caches; play.ts plays one (debrid > phone), picks season-pack episodes, preloads the next episode. Screens: torrents/StreamFinder, torrents/StremioAddons; "Streams" button on Info.
+- src/lib/releaseName.ts parser; src/lib/aniskip.ts (Jikan MAL id → AniSkip); src/lib/watchSync (Trakt device code, Simkl PIN, AniList token; called from Player when isWatched); src/lib/subtitles/hashMatch.ts (OpenSubtitles hash over HTTP ranges, OpenSubtitles v3 add-on). Player gets an optional `meta` param (lib/watchMeta.ts) and guesses it otherwise.
+- Player.tsx split started: screens/home/player/{playerHelpers.ts, SkipButton.tsx, SidebarEpisodeRow.tsx}.
+- Maestro flows in .maestro (npm run e2e / e2e:phone / e2e:tv).
+- Min SDK stays 28 (libtorrent4j native needs Android 9 libc).
+
 ## Remaining work
 - Milestone B done: shared/opened magnet intake + clipboard grabber (lib/linkIntake.ts), multi-feed RSS (15 min polling), checksum verify (downloaded file info button), FirstRunTips mounted. VPN kill switch, proxy, blocklist existed. Still open: queue reorder UI (planner.moveQueueItem exists), HLS quality picker UI (linkGrabber.probeLink returns variants), Android TV focus pass on the new screens, screenshots of every tab.
 - IDM/1DM-class download engine: dynamic segment splitting, queues + scheduler, HLS merge.

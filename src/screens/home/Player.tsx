@@ -20,7 +20,6 @@ import {
   BackHandler,
   FlatList,
   findNodeHandle,
-  Image,
   Pressable,
   ScrollView,
   Text,
@@ -48,7 +47,6 @@ import {RootStackParamList} from '../../App';
 import {
   cacheStorage,
   settingsStorage,
-  watchProgressStorage,
 } from '../../lib/storage';
 import Orientation, {
   OrientationLocker,
@@ -101,7 +99,6 @@ import {
 } from '../../lib/torrentStream';
 import {syncFromSharedFolder} from '../../lib/sync/syncService';
 import {useM3Colors} from '../../theme/M3PaletteContext';
-import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';
 import TVFocusPressable from '../../components/tv/TVFocusPressable';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
 import {findAnimeSkips} from '../../lib/aniskip';
@@ -109,9 +106,7 @@ import {guessWatchMeta} from '../../lib/watchMeta';
 import {syncWatched} from '../../lib/watchSync';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import useLocalVideoStore from '../../lib/zustand/localVideoStore';
-import useDownloadsStore, {
-  type DownloadItem,
-} from '../../lib/zustand/downloadsStore';
+import useDownloadsStore from '../../lib/zustand/downloadsStore';
 import {RemotePlayerScreen} from '../../components/remote-player';
 import {useRemoteStore} from '../../lib/remote/remoteStore';
 import {remotePlaybackManager} from '../../lib/remote/remotePlaybackManager';
@@ -148,9 +143,22 @@ import {extractImageAccent} from '../../lib/imageAccent';
 import {mixHex} from '../../theme/seeds';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {syncParallelStreaming} from '../../lib/parallelStreaming';
-import {EpisodeLink, SkipInterval, Stream} from '../../lib/providers/types';
+import {SkipInterval, Stream} from '../../lib/providers/types';
+import {
+  readCachedProgress,
+  getCachedSkips,
+  cacheSkips,
+  findDownloadForEpisode,
+  getPlaybackRenderKey,
+  getResumePosition,
+  formatTVTimelineTime,
+  readSubtitleStyle,
+  getQualityIconName,
+  isCastableStreamUrl,
+} from './player/playerHelpers';
+import SkipButton from './player/SkipButton';
+import SidebarEpisodeRow from './player/SidebarEpisodeRow';
 import {getValidImageUri} from '../../components/EpisodeRowContent';
-import {Feather} from '@expo/vector-icons';
 import {isTV, usePlayerTVControls} from '../../lib/tv';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import AutoNextOverlay from '../../components/AutoNextOverlay';
@@ -172,200 +180,8 @@ import {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 
-const readCachedProgress = (link?: string) => {
-  if (!link) {
-    return {position: 0, duration: 0};
-  }
-  const progress = watchProgressStorage.getProgress(link);
-  return {
-    position: progress?.position || 0,
-    duration: progress?.duration || 0,
-  };
-};
-
-const getCachedSkips = (keys: (string | undefined)[]): SkipInterval[] => {
-  for (const key of keys) {
-    if (!key) continue;
-    try {
-      const cached = cacheStorage.getString(`skips_${key}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch {}
-  }
-  return [];
-};
-
-const cacheSkips = (keys: (string | undefined)[], skips: SkipInterval[]) => {
-  if (!skips || skips.length === 0) return;
-  const serialized = JSON.stringify(skips);
-  for (const key of keys) {
-    if (!key) continue;
-    try {
-      cacheStorage.setString(`skips_${key}`, serialized);
-    } catch {}
-  }
-};
-
-// Download that holds the file or source of the playing episode, if any.
-const findDownloadForEpisode = (
-  downloads: Record<string, DownloadItem>,
-  activeEpisode: any,
-  selectedStream: any,
-): DownloadItem | undefined =>
-  Object.values(downloads).find(
-    d =>
-      (activeEpisode?.id && d.id === activeEpisode.id) ||
-      (activeEpisode?.link &&
-        (d.filePath === activeEpisode.link ||
-          d.url === activeEpisode.link ||
-          d.sourceLink === activeEpisode.link)) ||
-      (activeEpisode?.sourceLink &&
-        (d.sourceLink === activeEpisode.sourceLink ||
-          d.url === activeEpisode.sourceLink ||
-          d.filePath === activeEpisode.sourceLink)) ||
-      (selectedStream?.link &&
-        (d.filePath === selectedStream.link || d.url === selectedStream.link)),
-  );
-
-// Everything the screen renders from the playback position: the active skip
-// interval and whether the "Next" button shows (past 80% of the video).
-const getPlaybackRenderKey = (
-  time: number,
-  skips: SkipInterval[],
-  duration: number,
-) => {
-  const skipIndex = skips.findIndex(s => time >= s.from && time < s.to);
-  const nearEnd = duration > 0 && time / duration > 0.8;
-  return `${skipIndex}:${nearEnd}`;
-};
-
-const getResumePosition = (position: number, duration: number) => {
-  if (!Number.isFinite(position) || position <= 5) {
-    return 0;
-  }
-
-  // Completed episodes (including the 1/1 and legacy 10000/1 "watched"
-
-  if (isWatched(position, duration)) {
-    return 0;
-  }
-
-  return position;
-};
-
-const formatTVTimelineTime = (time: number): string => {
-  if (!Number.isFinite(time) || time < 0) return '00:00';
-  const seconds = Math.floor(time);
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainder = seconds % 60;
-  const minuteText = minutes.toString().padStart(2, '0');
-  const secondText = remainder.toString().padStart(2, '0');
-  return hours > 0
-    ? `${hours}:${minuteText}:${secondText}`
-    : `${minuteText}:${secondText}`;
-};
-
 const BOTTOM_CONTROL_ICON_COLOR = 'rgba(255,255,255,0.6)';
 const EditControlsButton = isTV ? TVFocusPressable : TouchableOpacity;
-/** "#RGB" / "#RRGGBB" / "#AARRGGBB" to Android "#AARRGGBB" with the given alpha. */
-const withAlpha = (hex: string, opacity: number) => {
-  let rgb = hex.replace('#', '');
-  if (rgb.length === 3)
-    rgb = rgb
-      .split('')
-      .map(c => c + c)
-      .join('');
-  if (rgb.length === 8) rgb = rgb.slice(2);
-  if (!/^[0-9a-f]{6}$/i.test(rgb) || opacity >= 1) return hex;
-  const alpha = Math.round(Math.max(0, opacity) * 255)
-    .toString(16)
-    .padStart(2, '0');
-  return `#${alpha}${rgb}`;
-};
-
-const readSubtitleStyle = () => ({
-  fontSize: settingsStorage.getSubtitleFontSize() ?? 16,
-  opacity: settingsStorage.getSubtitleOpacity() ?? 1,
-  paddingBottom: settingsStorage.getSubtitleBottomPadding() ?? 10,
-  textColor: withAlpha(
-    settingsStorage.getSubtitleTextColor(),
-    settingsStorage.getSubtitleTextOpacity(),
-  ),
-  fontFamily: settingsStorage.getSubtitleFontFamily(),
-  edgeType: settingsStorage.getSubtitleEdgeType(),
-  edgeColor: withAlpha(
-    settingsStorage.getSubtitleEdgeColor(),
-    settingsStorage.getSubtitleTextOpacity(),
-  ),
-  outlineWidth: settingsStorage.getSubtitleOutlineWidth() ?? 2,
-  subtitlesFollowVideo: false,
-});
-
-
-type QualityIconName = '8k' | '4k' | '2k' | 'hd' | 'sd' | 'video-settings';
-
-const getQualityIconName = (
-  height?: number | string,
-  fallbackQuality?: string,
-): QualityIconName => {
-  const normalizedFallback = fallbackQuality?.trim().toLowerCase() || '';
-  const parsedHeight =
-    Number(height) || Number(normalizedFallback.match(/\d+/)?.[0]);
-
-  if (parsedHeight >= 3000 || /(?:8k|4320)/.test(normalizedFallback)) {
-    return '8k';
-  }
-  if (parsedHeight >= 1500 || /(?:4k|2160)/.test(normalizedFallback)) {
-    return '4k';
-  }
-  if (parsedHeight >= 1200 || normalizedFallback.includes('1440')) {
-    return '2k';
-  }
-  if (parsedHeight >= 500 || /(?:1080|720|\bhd\b)/.test(normalizedFallback)) {
-    return 'hd';
-  }
-  if (
-    parsedHeight > 0 ||
-    /(?:480|360|240|144|\bsd\b)/.test(normalizedFallback)
-  ) {
-    return 'sd';
-  }
-
-  return 'video-settings';
-};
-
-// URL of the phone's torrent stream server, which only listens on loopback.
-const TORRENT_STREAM_URL = /^http:\/\/127\.0\.0\.1:\d+\/stream\//i;
-
-const isCastableStreamUrl = (streamUrl: string, streamType?: string) => {
-  // The delivery server relays the torrent stream to the receiver.
-  if (TORRENT_STREAM_URL.test(streamUrl)) {
-    return true;
-  }
-  if (streamType === 'torrent') {
-    return false;
-  }
-  // Downloaded files are served to the receiver by the phone's delivery server.
-  if (/^(content|file):\/\//i.test(streamUrl) || streamUrl.startsWith('/')) {
-    return true;
-  }
-  if (!/^https?:\/\//i.test(streamUrl)) {
-    return false;
-  }
-
-  try {
-    const hostname = new URL(streamUrl).hostname.toLowerCase();
-    return !['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname);
-  } catch {
-    return false;
-  }
-};
-
 const goFullScreen = () => {
   SystemBars.setHidden(true);
   if (Platform.OS === 'android') {
@@ -450,180 +266,6 @@ const reapplyFullscreenMode = (
     }, 150);
   }
 };
-
-type SidebarEpisodeRowProps = {
-  episode: EpisodeLink;
-  index: number;
-  title: string;
-  description?: string;
-  imageUri?: string;
-  isActive: boolean;
-  isFocusable: boolean;
-  primaryColor: string;
-  onSelect: () => void;
-};
-
-const SidebarEpisodeRow = React.memo<SidebarEpisodeRowProps>(
-  ({
-    index,
-    title,
-    description,
-    imageUri,
-    isActive,
-    isFocusable,
-    primaryColor,
-    onSelect,
-  }) => {
-    const [imageFailed, setImageFailed] = useState(false);
-    const [tvFocused, setTvFocused] = useState(false);
-    const focusBorderColor = useTVFocusBorderColor(primaryColor);
-
-    useEffect(() => {
-      setImageFailed(false);
-    }, [imageUri]);
-
-    const content = (
-      <>
-        {/* Thumbnail */}
-        <View
-          style={{
-            width: 80,
-            height: 50,
-            borderRadius: 6,
-            overflow: 'hidden',
-            backgroundColor: '#1C1C1E',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginRight: 10,
-            position: 'relative',
-          }}>
-          {imageUri && !imageFailed ? (
-            <Image
-              source={{uri: imageUri}}
-              style={{width: '100%', height: '100%'}}
-              resizeMode="cover"
-              resizeMethod="resize"
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <View style={{alignItems: 'center', justifyContent: 'center'}}>
-              <MaterialCommunityIcons
-                name="movie-outline"
-                size={20}
-                color="rgba(255,255,255,0.4)"
-              />
-              <Text
-                style={{
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: 10,
-                  fontWeight: '600',
-                  marginTop: 2,
-                }}>
-                EP {index + 1}
-              </Text>
-            </View>
-          )}
-          {isActive && (
-            <View
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0,0,0,0.45)',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-              <MaterialCommunityIcons
-                name="play-circle"
-                size={24}
-                color={primaryColor}
-              />
-            </View>
-          )}
-        </View>
-        <View style={{flex: 1, justifyContent: 'center'}}>
-          <Text
-            numberOfLines={1}
-            style={{
-              fontSize: 13,
-              fontWeight: isActive ? '700' : '600',
-              color: isActive ? primaryColor : '#FFFFFF',
-              marginBottom: description ? 3 : 0,
-            }}>
-            {title}
-          </Text>
-          {Boolean(description) && (
-            <Text
-              numberOfLines={2}
-              style={{
-                fontSize: 11,
-                color: 'rgba(255, 255, 255, 0.55)',
-                lineHeight: 14,
-              }}>
-              {description}
-            </Text>
-          )}
-        </View>
-      </>
-    );
-
-    if (!isTV) {
-      return (
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onSelect}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: 8,
-            marginVertical: 4,
-            borderRadius: 8,
-            backgroundColor: isActive
-              ? 'rgba(255, 255, 255, 0.12)'
-              : 'rgba(255, 255, 255, 0.03)',
-            borderWidth: 1,
-            borderColor: isActive ? primaryColor : 'rgba(255, 255, 255, 0.08)',
-          }}>
-          {content}
-        </TouchableOpacity>
-      );
-    }
-
-    return (
-      <Pressable
-        accessibilityRole="button"
-        focusable={isFocusable}
-        isTVSelectable={isFocusable}
-        hasTVPreferredFocus={isFocusable && isActive}
-        onFocus={() => setTvFocused(true)}
-        onBlur={() => setTvFocused(false)}
-        onPress={onSelect}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          padding: 8,
-          marginVertical: 4,
-          borderRadius: 8,
-          backgroundColor: tvFocused
-            ? 'rgba(255, 255, 255, 0.16)'
-            : isActive
-              ? 'rgba(255, 255, 255, 0.12)'
-              : 'rgba(255, 255, 255, 0.03)',
-          // Fixed width so focus does not shift the row content.
-          borderWidth: 2.5,
-          borderColor: tvFocused
-            ? focusBorderColor
-            : isActive
-              ? primaryColor
-              : 'rgba(255, 255, 255, 0.08)',
-        }}>
-        {content}
-      </Pressable>
-    );
-  },
-);
 
 const Player = ({route}: Props): React.JSX.Element => {
   const [syncReady, setSyncReady] = useState(false);
@@ -1343,7 +985,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     return () => {
       live = false;
     };
-  }, [watchMeta?.title, watchMeta?.episode, watchMeta?.malId, watchMeta?.type]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [watchMeta?.title, watchMeta?.episode, watchMeta?.malId, watchMeta?.type]);
 
   // Combined skip intervals from episode, direct links, stream, downloads, and cache
   const combinedSkips: SkipInterval[] = useMemo(() => {
@@ -4627,65 +4269,6 @@ const Player = ({route}: Props): React.JSX.Element => {
 
 // The pill is styled on an inner View driven by plain state, so its shape
 // does not depend on a Pressable style function being applied.
-const SkipButton = ({
-  label,
-  focusColor,
-  focusable,
-  onPress,
-}: {
-  label: string;
-  focusColor: string;
-  focusable: boolean;
-  onPress: () => void;
-}) => {
-  const [focused, setFocused] = useState(false);
-  const [pressed, setPressed] = useState(false);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      focusable={focusable}
-      isTVSelectable={focusable}
-      onPress={onPress}
-      onPressIn={() => setPressed(true)}
-      onPressOut={() => setPressed(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          alignSelf: 'flex-start',
-          backgroundColor:
-            !isTV && focused ? focusColor : 'rgba(20, 20, 20, 0.55)',
-          borderColor: focused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.28)',
-          borderWidth: focused ? 2 : 1,
-          borderRadius: 24,
-          paddingVertical: 8,
-          paddingHorizontal: 16,
-          gap: 6,
-          transform: [{scale: isTV ? 1 : focused ? 1.08 : pressed ? 0.95 : 1}],
-        }}>
-        <Text
-          numberOfLines={1}
-          style={{
-            color: 'rgba(255, 255, 255, 0.95)',
-            fontWeight: '700',
-            fontSize: 13,
-            letterSpacing: 0.2,
-          }}>
-          {label}
-        </Text>
-        <Feather
-          name="chevrons-right"
-          size={18}
-          color="rgba(255, 255, 255, 0.95)"
-        />
-      </View>
-    </Pressable>
-  );
-};
-
 const PlayerEntry = (props: Props): React.JSX.Element => {
   if (
     settingsStorage.getPlayerEngine() === 'vlc' &&

@@ -1,0 +1,12 @@
+appId: com.tordroid.droidstream
+name: Android TV D-pad reaches the torrent tools
+tags: [tv]
+---
+- runFlow: _launch.yaml
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Center
+- pressKey: Remote Dpad Right
+- pressKey: Remote Dpad Center
+- takeScreenshot: tv_after_dpad
+- pressKey: Back
