@@ -3,6 +3,15 @@
 Continue this project in any AI coding tool (Claude Code, Gemini/Antigravity, Cursor).
 Repo: https://github.com/1tordroid/Droid-Stream (standalone, not a fork) · Developer: Tordroid · https://tordroid.com · Support: https://t.me/Tordroid_admin
 
+## Status (2026-11-05, local PC session)
+Local builds work: expo prebuild --platform android --no-install, then gradlew assembleRelease as below. On Windows, stop KotlinCompileDaemon first or jars stay locked. Install with adb install -r --user 0 only; do not install to the work profile unless the owner says so. The APK is named DroidStream-v5.3.2.apk.
+
+Confirmed on OnePlus 15: magnet playback, Torrentio streams, AMOLED black and Soft dark themes, Credits page, Inter font, poster matches in Find streams, focus tint fix. 9 of the 11 sites on by default work. 1337x and EZTV stay blocked by Cloudflare; do not add a bypass.
+
+Added but not yet tested on a phone: Internet Archive .torrent playback, one-tap first launch, queue reorder, stream quality picker, Nuvio-format plugins, poster row in torrent search, Library links, Info Play button, Top 10 and Because you watched rows, Available providers in the Home menu.
+
+Still to build: quicker player controls, Search tab posters and suggestions, polish, PikPak files in Library, download engine (dynamic segments, scheduler, HLS merge). Dropped by the owner: Light theme, Same as device, CloudStream plugins. yt-dlp downloader: confirm with the owner before building. Release signing needs the owner.
+
 ## Start here (local PC session, 2026-11-05)
 The owner is continuing on their Windows PC with a OnePlus 15 on USB (the OnePlus 12 is busy in another session). Do these in order:
 1. `git fetch origin claude/torrent-search-engine && git checkout claude/torrent-search-engine && git pull`
