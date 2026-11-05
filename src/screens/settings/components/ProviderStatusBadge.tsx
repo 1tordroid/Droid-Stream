@@ -1,6 +1,7 @@
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import React from 'react';
-import {ActivityIndicator, Text, View} from 'react-native';
+import {ActivityIndicator, View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 
 export type ProviderTestStatus = 'untested' | 'testing' | 'working' | 'failed';

@@ -1,14 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  ScrollView,
-  TextInput,
-  View,
-  findNodeHandle,
-  UIManager,
-} from 'react-native';
+import {ActivityIndicator, FlatList, Image, ScrollView, View, findNodeHandle, UIManager} from 'react-native';
+import {RawTextInput as TextInput} from '../ui/Text';
 import AppText from '../ui/Text';
 import DropdownField from '../ui/DropdownField';
 import {TVFocusable, TVFocusGuide} from '../tv';

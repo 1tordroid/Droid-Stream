@@ -1,5 +1,6 @@
 import React, {useMemo, useState} from 'react';
-import {ScrollView, Switch, TextInput, View} from 'react-native';
+import {ScrollView, Switch, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {

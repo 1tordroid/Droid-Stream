@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {ActivityIndicator, Linking, Pressable, ScrollView, Switch, TextInput, ToastAndroid, View} from 'react-native';
+import {ActivityIndicator, Linking, Pressable, ScrollView, Switch, ToastAndroid, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {

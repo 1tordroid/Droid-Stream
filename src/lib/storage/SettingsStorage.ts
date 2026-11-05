@@ -16,6 +16,7 @@ export type VerificationWindowPolicy = 'ask' | 'allow' | 'block';
 export enum SettingsKeys {
   // UI preferences
   PRIMARY_COLOR = 'primaryColor',
+  THEME_MODE = 'themeMode',
   IS_CUSTOM_THEME = 'isCustomTheme',
   SHOW_TAB_BAR_LABELS = 'showTabBarLabels',
   HIDE_DOWNLOADS_TAB = 'hideDownloadsTab',
@@ -256,7 +257,7 @@ export class SettingsStorage {
 
   // Theme settings
   getPrimaryColor(): string {
-    return mainStorage.getString(SettingsKeys.PRIMARY_COLOR) || '#FFFFFF';
+    return mainStorage.getString(SettingsKeys.PRIMARY_COLOR) || '#F5B82E';
   }
 
   setPrimaryColor(color: string): void {
@@ -283,6 +284,14 @@ export class SettingsStorage {
    * Accent source for the Material 3 palette. `wallpaper` follows Material You
    * (Android 12+), `custom` derives the palette from the stored seed color.
    */
+  getThemeMode(): 'amoled' | 'dark' {
+    return mainStorage.getString(SettingsKeys.THEME_MODE) === 'dark' ? 'dark' : 'amoled';
+  }
+
+  setThemeMode(mode: 'amoled' | 'dark'): void {
+    mainStorage.setString(SettingsKeys.THEME_MODE, mode);
+  }
+
   getAccentSource(): 'wallpaper' | 'custom' {
     return mainStorage.getString(SettingsKeys.ACCENT_SOURCE) === 'wallpaper'
       ? 'wallpaper'

@@ -1,18 +1,7 @@
 import {usesExternalApp} from '../lib/externalApps';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import {
-  Text,
-  TouchableOpacity,
-  ToastAndroid,
-  View,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  UIManager,
-  findNodeHandle,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import {TouchableOpacity, ToastAndroid, View, Modal, ScrollView, StyleSheet, UIManager, findNodeHandle, type StyleProp, type ViewStyle} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import React, { useEffect, useRef } from 'react';
 import { Stream } from '../lib/providers/types';
 import BottomSheet, {

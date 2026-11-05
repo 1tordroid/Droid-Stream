@@ -5,7 +5,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {Text, View} from 'react-native';
+import {View} from 'react-native';
+import {RawText as Text} from '../../../ui/Text';
 import Animated, {
   Easing,
   useAnimatedStyle,

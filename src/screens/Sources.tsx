@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useState} from 'react';
-import {FlatList, Pressable, TextInput, ToastAndroid, View} from 'react-native';
+import {FlatList, Pressable, ToastAndroid, View} from 'react-native';
+import {RawTextInput as TextInput} from '../components/ui/Text';
 import AppText from '../components/ui/Text';
 import {listEmby, listJellyfin, listPlex, signInEmby, signInJellyfin, signInPlex, type LibraryItem} from '../lib/sources/mediaServers';
 import {listSmbShare} from '../lib/sources/smb';

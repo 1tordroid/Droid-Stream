@@ -1,8 +1,10 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {ActivityIndicator, Clipboard, Image, Linking, ScrollView, Switch, TextInput, View} from 'react-native';
+import {ActivityIndicator, Clipboard, Image, Linking, ScrollView, Switch, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
+import {installRepo, readPlugins, removeRepo, runPlugin, setPluginEnabled, type ScriptPlugin} from '../../lib/jsPlugins';
 import {fetchStreams, installAddon, readAddons, removeAddon, setAddonEnabled, SUGGESTED_ADDONS, type InstalledAddon} from '../../lib/stremio';
 import {toast} from '../../lib/torrentSearch/actions';
 import {useM3Colors} from '../../theme/M3PaletteContext';
@@ -13,6 +15,39 @@ const StremioAddons = () => {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [tests, setTests] = useState<Record<string, string>>({});
+  const [plugins, setPlugins] = useState<ScriptPlugin[]>(readPlugins);
+  const [repoUrl, setRepoUrl] = useState('');
+
+  const addRepo = async (value: string) => {
+    if (!value.trim()) return;
+    setBusy(true);
+    try {
+      const added = await installRepo(value);
+      setPlugins(readPlugins());
+      setRepoUrl('');
+      toast(`Added ${added.length} ${added.length === 1 ? 'plugin' : 'plugins'}. Turn on the ones you want.`);
+    } catch (error: any) {
+      toast(error?.message || 'Could not add that repository');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const testPlugin = async (plugin: ScriptPlugin) => {
+    const key = `${plugin.repoUrl}:${plugin.id}`;
+    setTests(current => ({...current, [key]: 'Testing…'}));
+    const started = Date.now();
+    try {
+      // The Matrix on TMDB, or Game of Thrones S1:E1 for series-only plugins.
+      const request = plugin.types.includes('movie') ? {tmdbId: 603, mediaType: 'movie' as const} : {tmdbId: 1399, mediaType: 'tv' as const, season: 1, episode: 1};
+      const streams = await runPlugin(plugin, request);
+      setTests(current => ({...current, [key]: `OK, ${streams.length} ${streams.length === 1 ? 'stream' : 'streams'} in ${((Date.now() - started) / 1000).toFixed(1)}s`}));
+    } catch (error: any) {
+      setTests(current => ({...current, [key]: `Failed: ${error?.message || error}`}));
+    }
+  };
+
+  const repos = Array.from(new Set(plugins.map(plugin => plugin.repoUrl)));
 
   const add = async (value: string) => {
     if (!value.trim()) return;
@@ -41,7 +76,7 @@ const StremioAddons = () => {
 
   return (
     <ScrollView style={{flex: 1, backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
-      <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground}}>Stremio add-ons</AppText>
+      <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground}}>Add-ons and plugins</AppText>
       <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 4}}>
         Droid Stream speaks the open Stremio add-on protocol, so add-ons like Torrentio, Comet, and MediaFusion add streams to Find streams. Configured add-ons often include your debrid key and return links that play at once. Add-on URLs stay encrypted on this phone.
       </AppText>
@@ -92,6 +127,47 @@ const StremioAddons = () => {
             {addon.manifest.behaviorHints?.configurable ? <Chip label="Configure" icon="cog" onPress={() => Linking.openURL(`${addon.base}/configure`)} /> : null}
             <Chip label="Remove" icon="delete-outline" tone="warn" onPress={() => { removeAddon(addon.base); setAddons(readAddons()); }} />
           </View>
+        </View>
+      ))}
+
+      <AppText role="titleMedium" style={{color: colors.primary, marginTop: 20}}>Script plugins</AppText>
+      <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 2, marginBottom: 8}}>
+        Add a plugin repository in the Nuvio format and its plugins add streams to Find streams. Plugins are code from the repository you add. They run in the app's sandbox and start switched off, so only add repositories you trust.
+      </AppText>
+      <View style={{backgroundColor: colors.surfaceContainer, borderRadius: 20, padding: 12}}>
+        <TextInput accessibilityLabel="Plugin repository URL" value={repoUrl} onChangeText={setRepoUrl} placeholder="https://…/manifest.json" placeholderTextColor={colors.outline}
+          autoCapitalize="none" autoCorrect={false} style={{color: colors.onSurface, minHeight: 48, borderBottomWidth: 1, borderColor: colors.outlineVariant}} />
+        <View style={{flexDirection: 'row', gap: 8, marginTop: 8}}>
+          <Chip label="Paste" icon="clipboard-text" accessibilityLabel="Paste repository URL" onPress={async () => setRepoUrl(await Clipboard.getString())} />
+          <Chip label="Add repository" icon="plus" onPress={() => addRepo(repoUrl)} />
+          {busy ? <ActivityIndicator color={colors.primary} /> : null}
+        </View>
+      </View>
+      {repos.map(repo => (
+        <View key={repo} style={{backgroundColor: colors.surfaceContainer, borderRadius: 20, padding: 12, marginTop: 8}}>
+          <AppText role="bodySmall" numberOfLines={2} style={{color: colors.onSurfaceVariant}}>{repo}</AppText>
+          <View style={{flexDirection: 'row', gap: 8, marginTop: 8, marginBottom: 4}}>
+            <Chip label="Refresh" icon="refresh" onPress={() => addRepo(repo)} />
+            <Chip label="Remove" icon="delete-outline" tone="warn" accessibilityLabel="Remove repository" onPress={() => { removeRepo(repo); setPlugins(readPlugins()); }} />
+          </View>
+          {plugins.filter(plugin => plugin.repoUrl === repo).map(plugin => {
+            const key = `${plugin.repoUrl}:${plugin.id}`;
+            return (
+              <View key={key} style={{paddingVertical: 8, borderTopWidth: 1, borderColor: colors.outlineVariant, marginTop: 4}}>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <View style={{flex: 1}}>
+                    <AppText role="bodyLarge" style={{color: colors.onSurface}}>{plugin.name}{plugin.version ? ` · v${plugin.version}` : ''}</AppText>
+                    {plugin.description ? <AppText role="bodySmall" numberOfLines={2} style={{color: colors.onSurfaceVariant}}>{plugin.description}</AppText> : null}
+                  </View>
+                  <Switch accessibilityLabel={`Use ${plugin.name}`} value={plugin.enabled} onValueChange={value => { setPluginEnabled(plugin, value); setPlugins(readPlugins()); }} thumbColor={plugin.enabled ? colors.primary : undefined} />
+                </View>
+                {tests[key] ? <AppText role="bodySmall" style={{color: colors.onSurface, marginTop: 4}}>{tests[key]}</AppText> : null}
+                <View style={{flexDirection: 'row', marginTop: 6}}>
+                  <Chip label="Test" icon="play-circle-outline" accessibilityLabel={`Test ${plugin.name}`} onPress={() => testPlugin(plugin)} />
+                </View>
+              </View>
+            );
+          })}
         </View>
       ))}
     </ScrollView>

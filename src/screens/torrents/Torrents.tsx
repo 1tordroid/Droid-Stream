@@ -1,9 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {FlatList, Pressable, TextInput, ToastAndroid, View} from 'react-native';
+import {FlatList, Pressable, ToastAndroid, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import MoreOptions from '../../components/MoreOptions';
+import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {TVFocusable} from '../../components/tv';
 import {showUndo} from '../../components/UndoSnackbar';
@@ -23,6 +25,15 @@ const tap = () => {
     ReactNativeHapticFeedback.trigger('effectTick', {enableVibrateFallback: true, ignoreAndroidSystemSettings: false});
   }
 };
+
+const FILTER_LABELS = {all: 'All', downloading: 'Downloading', paused: 'Paused', done: 'Done'} as const;
+
+const TOOLS = [
+  {label: 'Find streams', title: 'Find streams', note: 'Best source for a title', icon: 'play-network-outline', screen: 'StreamFinder'},
+  {label: 'Debrid and cloud services', title: 'Debrid & cloud', note: 'TorBox, Real-Debrid, PikPak…', icon: 'cloud-outline', screen: 'DebridSettings'},
+  {label: 'Stremio add-ons', title: 'Add-ons', note: 'Torrentio and more', icon: 'puzzle-outline', screen: 'StremioAddons'},
+  {label: 'Torrent sites', title: 'Sites', note: 'Turn on, test, add sites', icon: 'web', screen: 'TorrentSources'},
+] as const;
 
 const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {highlight?: string}}}) => {
   const colors = useM3Colors();
@@ -76,74 +87,99 @@ const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {high
   };
 
   return (
-    <View style={{flex: 1, backgroundColor: colors.background, padding: 16}}>
-      <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
-        <AppText role="headlineSmallEmphasized" style={{color: highlight ? colors.primary : colors.onBackground}}>Torrents</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel="Add torrent" onPress={() => setAdding(true)} style={{minHeight: 48, justifyContent: 'center'}}>
-          <AppText style={{color: colors.primary}}>Add</AppText>
-        </Pressable>
-      </View>
-      {notice ? (
-        <View style={{backgroundColor: colors.surfaceContainerHigh, borderRadius: 16, padding: 12, marginVertical: 8}}>
-          <AppText role="bodyMedium" style={{color: colors.onSurface}}>Your IP is visible to peers unless you use a VPN. Only download files you have the rights to.</AppText>
-          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss torrent notice" onPress={() => { writeTorrentSettings({...readTorrentSettings(), acknowledged: true}); setNotice(false); }} style={{minHeight: 44, justifyContent: 'center'}}>
-            <AppText style={{color: colors.primary}}>I understand</AppText>
-          </Pressable>
-        </View>
-      ) : null}
-      <TVFocusable
-        accessibilityRole="button"
-        accessibilityLabel="Search torrent sites"
-        onPress={() => navigation.navigate('TorrentSearch')}
-        borderRadius={28}
-        style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 52, paddingHorizontal: 16, marginVertical: 8}}>
-        <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
-        <AppText role="bodyLarge" style={{color: colors.onSurfaceVariant, marginLeft: 12, flex: 1}}>Search movies, shows, anime on every site</AppText>
-        <MaterialCommunityIcons name="lightning-bolt" size={20} color={colors.primary} />
-      </TVFocusable>
-      <View style={{flexDirection: 'row', gap: 16, marginBottom: 4}}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Debrid and cloud services" onPress={() => navigation.navigate('DebridSettings')} style={{minHeight: 44, justifyContent: 'center'}}>
-          <AppText style={{color: colors.primary}}>TorBox, Real-Debrid, PikPak…</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Find streams" onPress={() => navigation.navigate('StreamFinder')} style={{minHeight: 44, justifyContent: 'center'}}>
-          <AppText style={{color: colors.primary}}>Find streams</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Stremio add-ons" onPress={() => navigation.navigate('StremioAddons')} style={{minHeight: 44, justifyContent: 'center'}}>
-          <AppText style={{color: colors.primary}}>Add-ons</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Torrent sites" onPress={() => navigation.navigate('TorrentSources')} style={{minHeight: 44, justifyContent: 'center'}}>
-          <AppText style={{color: colors.primary}}>Sites</AppText>
-        </Pressable>
-      </View>
-      <TextInput value={query} onChangeText={setQuery} placeholder="Filter my torrents" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Filter my torrents" style={{color: colors.onSurface, minHeight: 48, marginBottom: 8}} />
-      <View style={{flexDirection: 'row', gap: 12, marginBottom: 8}}>
-        {(['all', 'downloading', 'paused', 'done'] as const).map(item => (
-          <Pressable key={item} accessibilityRole="button" accessibilityLabel={`Filter ${item}`} onPress={() => setFilter(item)} style={{minHeight: 44, justifyContent: 'center'}}>
-            <AppText style={{color: filter === item ? colors.primary : colors.onSurfaceVariant}}>{item}</AppText>
-          </Pressable>
-        ))}
-      </View>
+    <View style={{flex: 1, backgroundColor: colors.background, paddingHorizontal: 16, paddingTop: 16}}>
       <FlatList
         data={visible}
         keyExtractor={item => item.infoHash}
-        ListEmptyComponent={<AppText style={{color: colors.onSurfaceVariant}}>No torrents yet. Add a magnet or a .torrent file.</AppText>}
+        contentContainerStyle={{paddingBottom: 24}}
+        ListHeaderComponent={
+          <View>
+            <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+              <AppText role="headlineSmallEmphasized" style={{color: highlight ? colors.primary : colors.onBackground}}>Torrents</AppText>
+              <Pressable accessibilityRole="button" accessibilityLabel="Add torrent" onPress={() => setAdding(true)} style={{flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: colors.primary}}>
+                <MaterialCommunityIcons name="plus" size={20} color={colors.onPrimary} />
+                <AppText role="labelLarge" style={{color: colors.onPrimary, marginLeft: 6}}>Add</AppText>
+              </Pressable>
+            </View>
+            {notice ? (
+              <View style={{flexDirection: 'row', backgroundColor: colors.surfaceContainerHigh, borderRadius: 16, padding: 14, marginTop: 12}}>
+                <MaterialCommunityIcons name="shield-alert-outline" size={22} color={colors.primary} style={{marginRight: 12, marginTop: 2}} />
+                <View style={{flex: 1}}>
+                  <AppText role="bodyMedium" style={{color: colors.onSurface}}>Your IP is visible to peers unless you use a VPN. Only download files you have the rights to.</AppText>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Dismiss torrent notice" onPress={() => { writeTorrentSettings({...readTorrentSettings(), acknowledged: true}); setNotice(false); }} style={{minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start'}}>
+                    <AppText role="labelLarge" style={{color: colors.primary}}>I understand</AppText>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel="Search torrent sites"
+              onPress={() => navigation.navigate('TorrentSearch')}
+              borderRadius={28}
+              style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 56, paddingHorizontal: 16, marginTop: 12}}>
+              <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
+              <AppText role="bodyLarge" numberOfLines={1} style={{color: colors.onSurfaceVariant, marginLeft: 12, flex: 1}}>Search movies, shows, anime</AppText>
+              <MaterialCommunityIcons name="lightning-bolt" size={20} color={colors.primary} />
+            </TVFocusable>
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12}}>
+              {TOOLS.map(tool => (
+                <TVFocusable
+                  key={tool.screen}
+                  accessibilityRole="button"
+                  accessibilityLabel={tool.label}
+                  onPress={() => navigation.navigate(tool.screen)}
+                  borderRadius={16}
+                  style={{flexBasis: '48%', flexGrow: 1, minHeight: 92, padding: 14, borderRadius: 16, backgroundColor: colors.surfaceContainer}}>
+                  <MaterialCommunityIcons name={tool.icon} size={24} color={colors.primary} />
+                  <AppText role="titleSmall" numberOfLines={1} style={{color: colors.onSurface, marginTop: 8}}>{tool.title}</AppText>
+                  <AppText role="bodySmall" numberOfLines={1} style={{color: colors.onSurfaceVariant}}>{tool.note}</AppText>
+                </TVFocusable>
+              ))}
+            </View>
+            {adding ? <AddSheet onClose={() => setAdding(false)} onAdd={add} /> : null}
+            <AppText role="titleMedium" style={{color: colors.onSurface, marginTop: 20}}>My torrents</AppText>
+            {rows.length ? (
+              <>
+                <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainer, borderRadius: 24, minHeight: 48, paddingHorizontal: 14, marginTop: 8}}>
+                  <MaterialCommunityIcons name="filter-variant" size={20} color={colors.onSurfaceVariant} />
+                  <TextInput value={query} onChangeText={setQuery} placeholder="Filter my torrents" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Filter my torrents" style={{flex: 1, color: colors.onSurface, marginLeft: 8}} />
+                </View>
+                <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 4}}>
+                  {(['all', 'downloading', 'paused', 'done'] as const).map(item => (
+                    <Chip key={item} label={FILTER_LABELS[item]} accessibilityLabel={`Filter ${item}`} selected={filter === item} onPress={() => setFilter(item)} />
+                  ))}
+                </View>
+              </>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={{alignItems: 'center', paddingVertical: 32}}>
+            <MaterialCommunityIcons name={rows.length ? 'filter-off-outline' : 'tray-arrow-down'} size={40} color={colors.onSurfaceVariant} />
+            <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 8, textAlign: 'center'}}>
+              {rows.length ? 'No torrents match.' : 'No torrents yet. Add a magnet or a .torrent file.'}
+            </AppText>
+          </View>
+        }
         renderItem={({item}) => (
           <TVFocusable
             accessibilityRole="button"
             accessibilityLabel={`${item.name}, ${Math.round(item.progress * 100)} percent`}
             onPress={() => navigation.navigate('TorrentDetails', {infoHash: item.infoHash})}
             onLongPress={() => setMenu(menu === item.infoHash ? undefined : item.infoHash)}
-            style={{paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.outlineVariant, ...(highlight === 'torrents' && revealed ? {borderColor: colors.primary, borderWidth: 1} : {})}}>
-            <AppText style={{color: colors.onSurface}}>{item.name}</AppText>
-            <AppText style={{color: colors.onSurfaceVariant}}>{Math.round(item.progress * 100)}% · {Math.round(item.downloadRate / 1024)} KB/s · {item.paused ? 'Paused' : item.state}</AppText>
-            <View style={{height: 4, backgroundColor: colors.surfaceContainerHighest, borderRadius: 4, marginTop: 6}}>
+            borderRadius={16}
+            style={{padding: 14, marginTop: 8, borderRadius: 16, backgroundColor: colors.surfaceContainer, ...(highlight === 'torrents' && revealed ? {borderColor: colors.primary, borderWidth: 1} : {})}}>
+            <AppText role="titleSmall" numberOfLines={2} style={{color: colors.onSurface}}>{item.name}</AppText>
+            <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 2}}>{Math.round(item.progress * 100)}% · {Math.round(item.downloadRate / 1024)} KB/s · {item.paused ? 'Paused' : item.state}</AppText>
+            <View style={{height: 4, backgroundColor: colors.surfaceContainerHighest, borderRadius: 4, marginTop: 8}}>
               <View style={{width: `${Math.min(100, item.progress * 100)}%`, height: 4, backgroundColor: colors.primary, borderRadius: 4}} />
             </View>
-            <View style={{flexDirection: 'row', gap: 16, marginTop: 8}}>
-              <Pressable accessibilityLabel={item.paused ? 'Resume torrent' : 'Pause torrent'} onPress={() => act(item, item.paused ? 'resume' : 'pause', refresh)} style={{minHeight: 44, justifyContent: 'center'}}><AppText style={{color: colors.primary}}>{item.paused ? 'Resume' : 'Pause'}</AppText></Pressable>
-              <Pressable accessibilityLabel="Play torrent" onPress={() => play(item, navigation)} style={{minHeight: 44, justifyContent: 'center'}}><AppText style={{color: colors.primary}}>Play</AppText></Pressable>
-              <Pressable accessibilityLabel="Delete torrent" onPress={() => remove(item, refresh)} style={{minHeight: 44, justifyContent: 'center'}}><AppText style={{color: colors.error}}>Delete</AppText></Pressable>
-              <Pressable accessibilityLabel="More torrent actions" onPress={() => setMenu(menu === item.infoHash ? undefined : item.infoHash)} style={{minHeight: 44, justifyContent: 'center'}}><MaterialCommunityIcons name="dots-vertical" size={22} color={colors.onSurfaceVariant} /></Pressable>
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10}}>
+              <Chip label="Play" icon="play" accessibilityLabel="Play torrent" onPress={() => play(item, navigation)} />
+              <Chip label={item.paused ? 'Resume' : 'Pause'} icon={item.paused ? 'play-outline' : 'pause'} accessibilityLabel={item.paused ? 'Resume torrent' : 'Pause torrent'} onPress={() => act(item, item.paused ? 'resume' : 'pause', refresh)} />
+              <Chip label="Delete" icon="delete-outline" tone="warn" accessibilityLabel="Delete torrent" onPress={() => remove(item, refresh)} />
+              <Pressable accessibilityLabel="More torrent actions" onPress={() => setMenu(menu === item.infoHash ? undefined : item.infoHash)} style={{minHeight: 40, minWidth: 40, alignItems: 'center', justifyContent: 'center'}}><MaterialCommunityIcons name="dots-vertical" size={22} color={colors.onSurfaceVariant} /></Pressable>
             </View>
             {menu === item.infoHash ? (
               <Pressable accessibilityLabel="Torrent speed limit" onPress={() => navigation.navigate('TorrentOptions', {highlight: 'torrent-speed'})} style={{minHeight: 44, justifyContent: 'center'}}>
@@ -153,7 +189,6 @@ const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {high
           </TVFocusable>
         )}
       />
-      {adding ? <AddSheet onClose={() => setAdding(false)} onAdd={add} /> : null}
       <MoreOptions id="torrent-list" forceOpen={Boolean(highlight && highlight !== 'torrents')}>
         <Pressable accessibilityLabel="Torrent options" onPress={() => navigation.navigate('TorrentOptions', {highlight})} style={{minHeight: 48, justifyContent: 'center'}}>
           <AppText style={{color: colors.primary}}>Speed, schedule, proxy, VPN, RSS, and create torrent</AppText>

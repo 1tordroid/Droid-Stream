@@ -1,14 +1,5 @@
-import {
-  View,
-  Pressable,
-  Modal,
-  TextInput,
-  ActivityIndicator,
-  ToastAndroid,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import {View, Pressable, Modal, ActivityIndicator, ToastAndroid, ScrollView, KeyboardAvoidingView, Platform} from 'react-native';
+import {RawTextInput as TextInput} from './ui/Text';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, {useState} from 'react';

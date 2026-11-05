@@ -1,11 +1,6 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Dimensions,
-  Clipboard,
-} from 'react-native';
+import {View, ScrollView, Dimensions, Clipboard} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import useThemeStore from '../lib/zustand/themeStore';
 import TVTouchable from './tv/TVTouchable';
 import Ionicons from '@expo/vector-icons/Ionicons';

@@ -11,27 +11,8 @@ import {languageLabel, shortLanguageLabel} from '../../lib/player/languageLabel'
 import {usePlayerControlAnimations} from '../../components/media-console/hooks/usePlayerControlAnimations';
 import {isRemotePlaybackCanceled} from '../../lib/remote/remotePlaybackErrors';
 import React, {useEffect, useState, useRef, useCallback, useMemo} from 'react';
-import {
-  Animated as NativeAnimated,
-  AppState,
-  NativeModules,
-  DeviceEventEmitter,
-  AppStateStatus,
-  BackHandler,
-  FlatList,
-  findNodeHandle,
-  Pressable,
-  ScrollView,
-  Text,
-  ToastAndroid,
-  TouchableOpacity,
-  View,
-  Platform,
-  TouchableNativeFeedback,
-  Modal,
-  UIManager,
-  useWindowDimensions,
-} from 'react-native';
+import {Animated as NativeAnimated, AppState, NativeModules, DeviceEventEmitter, AppStateStatus, BackHandler, FlatList, findNodeHandle, Pressable, ScrollView, ToastAndroid, TouchableOpacity, View, Platform, TouchableNativeFeedback, Modal, UIManager, useWindowDimensions} from 'react-native';
+import {RawText as Text} from '../../components/ui/Text';
 import Animated, {
   FadeIn,
   FadeOut,

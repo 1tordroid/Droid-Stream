@@ -5,15 +5,8 @@ import type {CompositeScreenProps} from '@react-navigation/native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useFocusEffect} from '@react-navigation/native';
-import {
-  BackHandler,
-  ScrollView,
-  StatusBar,
-  Text,
-  View,
-  findNodeHandle,
-  UIManager,
-} from 'react-native';
+import {BackHandler, ScrollView, StatusBar, View, findNodeHandle, UIManager} from 'react-native';
+import {RawText as Text} from '../../components/ui/Text';
 import type {DownloadsStackParamList, RootStackParamList} from '../../App';
 import ManagedEpisodeSelectionBar from '../../components/ManagedEpisodeSelectionBar';
 import AppDialog from '../../components/AppDialog';

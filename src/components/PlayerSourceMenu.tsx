@@ -1,5 +1,6 @@
 import React, {memo, useCallback, useMemo} from 'react';
-import {FlatList, ScrollView, Text, View} from 'react-native';
+import {FlatList, ScrollView, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import type {Stream} from '../lib/providers/types';
 import {isTV} from '../lib/tv/constants';
 import PlayerMenuRow from './PlayerMenuRow';

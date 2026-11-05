@@ -48,7 +48,7 @@ export const playCandidate = async (
     openPlayer(navigation, want, candidate.url, candidate.origin, candidate.title, candidate.headers);
   } else {
     const result = candidateToResult(candidate);
-    const service = options.forcePhone ? undefined : debridFor(candidate);
+    const service = options.forcePhone || !candidate.magnet ? undefined : debridFor(candidate);
     if (service) {
       status(`Asking ${getService(service).name}…`);
       const resolution = await resolveDebrid(result, service, progress => status(`${getService(service).name}: ${progress.percent}% · ${progress.status}`));
@@ -57,7 +57,7 @@ export const playCandidate = async (
       openPlayer(navigation, want, await directLink(resolution, file), resolution.service.name, file.name);
     } else {
       status('Starting the torrent on this phone…');
-      const source = candidate.magnet || result.magnet || '';
+      const source = candidate.magnet || result.magnet || candidate.torrentUrl || '';
       const added = await torrentManager.addTorrent(source);
       const files = added.files?.length ? added.files : await torrentManager.getFiles(added.infoHash);
       const byIndex = candidate.fileIdx !== undefined ? files.find((file: any) => file.index === candidate.fileIdx) : undefined;

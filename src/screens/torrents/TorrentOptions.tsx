@@ -1,7 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, {useState} from 'react';
-import {Pressable, ScrollView, TextInput, ToastAndroid, View} from 'react-native';
+import {Pressable, ScrollView, ToastAndroid, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import AppText from '../../components/ui/Text';
 import {alwaysShowAdvanced, useFeatureVisible} from '../../lib/advancedReveal';
 import {settingsStorage} from '../../lib/storage';

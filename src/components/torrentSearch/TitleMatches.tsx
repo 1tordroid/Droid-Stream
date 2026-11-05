@@ -1,0 +1,92 @@
+import React, {useEffect, useState} from 'react';
+import {Image, Pressable, ScrollView, View} from 'react-native';
+import {searchCinemeta, type StremioMeta} from '../../lib/stremio';
+import {useM3Colors} from '../../theme/M3PaletteContext';
+import AppText from '../ui/Text';
+
+export interface TitleMatch {
+  meta: StremioMeta;
+  type: 'movie' | 'series';
+}
+
+const MAX_MATCHES = 12;
+
+const rank = (query: string, name: string): number => {
+  const clean = (value: string) => value.trim().toLowerCase().replace(/^(the|a|an)\s+/, '');
+  const want = clean(query);
+  const text = clean(name);
+  return text === want ? 0 : text.startsWith(want) ? 1 : text.includes(want) ? 2 : 3;
+};
+
+/** Poster row that lets people confirm the title before looking for sources. */
+const TitleMatches = ({
+  query,
+  selectedId,
+  onPick,
+}: {
+  query: string;
+  selectedId?: string;
+  onPick: (match: TitleMatch) => void;
+}) => {
+  const colors = useM3Colors();
+  const [matches, setMatches] = useState<TitleMatch[]>([]);
+
+  useEffect(() => {
+    const text = query.trim();
+    if (!text) {
+      setMatches([]);
+      return;
+    }
+    let current = true;
+    Promise.all(
+      (['movie', 'series'] as const).map(type =>
+        searchCinemeta(text, type)
+          .then(metas => metas.map(meta => ({meta, type})))
+          .catch(() => [] as TitleMatch[]),
+      ),
+    ).then(([movies, series]) => {
+      if (!current) return;
+      const found = [...movies, ...series]
+        .filter(item => item.meta.poster)
+        .sort((left, right) => rank(text, left.meta.name) - rank(text, right.meta.name))
+        .slice(0, MAX_MATCHES);
+      setMatches(found);
+    });
+    return () => {
+      current = false;
+    };
+  }, [query]);
+
+  if (!matches.length) return null;
+
+  return (
+    <View style={{marginTop: 12}}>
+      <AppText role="labelLarge" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>Pick the right title</AppText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 10}}>
+        {matches.map(match => {
+          const selected = match.meta.id === selectedId;
+          const year = String(match.meta.releaseInfo || match.meta.year || '').slice(0, 4);
+          return (
+            <Pressable
+              key={`${match.type}:${match.meta.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${match.meta.name}${year ? `, ${year}` : ''}, ${match.type}`}
+              accessibilityState={{selected}}
+              onPress={() => onPick(match)}
+              style={{width: 96}}>
+              <Image
+                source={{uri: match.meta.poster}}
+                accessibilityIgnoresInvertColors
+                style={{width: 96, height: 142, borderRadius: 12, backgroundColor: colors.surfaceContainerHigh, borderWidth: selected ? 2 : 0, borderColor: colors.primary}}
+              />
+              <AppText role="labelMedium" numberOfLines={2} style={{color: selected ? colors.primary : colors.onSurface, marginTop: 4}}>{match.meta.name}</AppText>
+              <AppText role="labelSmall" numberOfLines={1} style={{color: colors.onSurfaceVariant}}>{[year, match.type === 'series' ? 'Series' : 'Movie'].filter(Boolean).join(' · ')}</AppText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
+
+export default TitleMatches;

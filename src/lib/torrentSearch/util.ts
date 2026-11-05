@@ -189,6 +189,15 @@ export const fetchJson = async <T = any>(url: string, signal: AbortSignal, init:
 };
 
 /** Detects Cloudflare and similar walls so the UI can say so. */
+/** Turns a site's raw failure into words a person can act on. */
+export const engineErrorText = (error?: string): string => {
+  const text = error || 'no results';
+  if (/HTTP 403|browser check/i.test(text)) return 'this site blocks apps with a browser check. Try another mirror, or use the other sites';
+  if (/UnknownHost|resolve host/i.test(text)) return 'site not found. Try another mirror or change DNS';
+  if (/HTTP 5\d\d/.test(text)) return 'the site is down right now';
+  return text;
+};
+
 export const assertNotBlocked = (html: string): void => {
   // Cloudflare also injects a /challenge-platform/ script into normal pages, so
   // that path alone does not mean the page is blocked.

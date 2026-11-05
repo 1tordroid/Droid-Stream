@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
 import {reconcileCompletedDownloadOutputs} from '../../../lib/downloadReconciliation';
-import {Text, View} from 'react-native';
+import {View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import {TVFocusable} from '../../../components/tv';
 import {useTVFocusBorderColor} from '../../../lib/tv/useTVFocusBorderColor';
 import useDownloadsStore, {

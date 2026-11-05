@@ -1,23 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  BackHandler,
-  Easing,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  TextInput,
-  ToastAndroid,
-  View,
-  findNodeHandle,
-  useWindowDimensions,
-} from 'react-native';
+import {ActivityIndicator, Animated, BackHandler, Easing, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, ToastAndroid, View, findNodeHandle, useWindowDimensions} from 'react-native';
+import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { providerManager } from '../../../lib/services/ProviderManager';
 import { providerKvStorage } from '../../../lib/storage/StorageService';

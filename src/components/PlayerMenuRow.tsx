@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, {useState} from 'react';
-import {Pressable, Text, TouchableOpacity, View} from 'react-native';
+import {Pressable, TouchableOpacity, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 import {isTV} from '../lib/tv/constants';
 

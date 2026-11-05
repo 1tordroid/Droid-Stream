@@ -1,7 +1,9 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {ActivityIndicator, Clipboard, FlatList, Image, Pressable, ScrollView, Switch, TextInput, View} from 'react-native';
+import {ActivityIndicator, Clipboard, FlatList, Image, Pressable, ScrollView, Switch, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
+import TitleMatches from '../../components/torrentSearch/TitleMatches';
 import {TVFocusable} from '../../components/tv';
 import AppText from '../../components/ui/Text';
 import {getService} from '../../lib/debrid';
@@ -138,6 +140,16 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
               <Chip label="Series" icon="television-classic" selected={kind === 'series'} onPress={() => setKind('series')} />
             </View>
 
+            <TitleMatches
+              query={want?.title || ''}
+              selectedId={want?.imdbId}
+              onPick={({meta: picked, type}) => {
+                setKind(type);
+                setQuery(picked.name);
+                identify({title: picked.name, type, imdbId: picked.id, poster: picked.poster, year: Number(String(picked.releaseInfo || picked.year || '').slice(0, 4)) || undefined});
+              }}
+            />
+
             {showPrefs ? (
               <View style={{backgroundColor: colors.surfaceContainer, borderRadius: 16, padding: 12, marginTop: 12, gap: 8}}>
                 <AppText role="labelLarge" style={{color: colors.onSurfaceVariant}}>Best quality to pick</AppText>
@@ -199,12 +211,6 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
               </>
             ) : null}
 
-            {busy ? (
-              <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 12}}>
-                <ActivityIndicator color={colors.primary} />
-                <AppText role="bodyMedium" style={{color: colors.onSurface, marginLeft: 12}}>{busy}</AppText>
-              </View>
-            ) : null}
             {states.length ? (
               <AppText role="labelLarge" style={{color: colors.onSurfaceVariant, marginTop: 12}}>
                 {states.map(item => `${item.label}: ${item.state === 'loading' ? '…' : item.state === 'error' ? 'failed' : item.count}`).join(' · ')}
@@ -220,7 +226,8 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
         }
         renderItem={({item, index}) => (
           <TVFocusable accessibilityRole="button" accessibilityLabel={`Play ${item.title}`} onPress={() => play(item)} onLongPress={() => play(item, true)} borderRadius={16}
-            style={{backgroundColor: index === 0 ? colors.secondaryContainer : colors.surfaceContainer, borderRadius: 16, padding: 12, marginTop: 8}}>
+            style={{backgroundColor: colors.surfaceContainer, borderRadius: 16, padding: 14, marginTop: 8, borderWidth: index === 0 ? 1.5 : 0, borderColor: colors.primary}}>
+            {index === 0 ? <AppText role="labelMedium" style={{color: colors.primary, marginBottom: 4}}>BEST MATCH</AppText> : null}
             <AppText role="titleSmall" numberOfLines={2} style={{color: colors.onSurface}}>{item.title}</AppText>
             <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6}}>
               {item.debridDirect ? <Chip label="Debrid ready" icon="lightning-bolt" tone="good" /> : null}
@@ -230,22 +237,16 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
               {item.languages.slice(0, 2).map(lang => <Chip key={lang} label={lang} />)}
             </View>
             <AppText role="labelMedium" style={{color: colors.onSurfaceVariant, marginTop: 6}}>
-              {[item.kind === 'torrent' ? `${item.seeders} seeders` : 'Direct link', item.sizeBytes ? formatBytes(item.sizeBytes) : '', item.origin].filter(Boolean).join(' · ')}
+              {[item.kind !== 'torrent' ? 'Direct link' : item.torrentUrl && !item.seeders ? 'Web seeded' : `${item.seeders} seeders`, item.sizeBytes ? formatBytes(item.sizeBytes) : '', item.origin].filter(Boolean).join(' · ')}
             </AppText>
-            <View style={{flexDirection: 'row', gap: 16, marginTop: 4}}>
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10}}>
               {item.kind === 'torrent' ? (
                 <>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Play on this phone" onPress={() => play(item, true)} style={{minHeight: 40, justifyContent: 'center'}}>
-                    <AppText style={{color: colors.primary}}>On phone</AppText>
-                  </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Download torrent" onPress={() => downloadWithClient(candidateToResult(item)).catch(error => toast(error.message))} style={{minHeight: 40, justifyContent: 'center'}}>
-                    <AppText style={{color: colors.primary}}>Download</AppText>
-                  </Pressable>
+                  <Chip label="On phone" icon="cellphone-play" accessibilityLabel="Play on this phone" onPress={() => play(item, true)} />
+                  <Chip label="Download" icon="download" accessibilityLabel="Download torrent" onPress={() => downloadWithClient(candidateToResult(item)).catch(error => toast(error.message))} />
                 </>
               ) : null}
-              <Pressable accessibilityRole="button" accessibilityLabel="Copy link" onPress={() => { Clipboard.setString(item.url || item.magnet || ''); toast('Copied'); }} style={{minHeight: 40, justifyContent: 'center'}}>
-                <AppText style={{color: colors.primary}}>Copy</AppText>
-              </Pressable>
+              <Chip label="Copy" icon="content-copy" accessibilityLabel="Copy link" onPress={() => { Clipboard.setString(item.url || item.magnet || item.torrentUrl || ''); toast('Copied'); }} />
             </View>
           </TVFocusable>
         )}
@@ -253,6 +254,12 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
           <AppText role="bodyLarge" style={{color: colors.onSurfaceVariant, textAlign: 'center', marginTop: 32}}>No sources found. Add Stremio add-ons or turn on more torrent sites.</AppText>
         ) : null}
       />
+      {busy ? (
+        <View accessibilityLiveRegion="polite" style={{position: 'absolute', left: 16, right: 16, bottom: 16, flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, backgroundColor: colors.surfaceContainerHigh, borderWidth: 1, borderColor: colors.primary}}>
+          <ActivityIndicator color={colors.primary} />
+          <AppText role="bodyMedium" style={{color: colors.onSurface, marginLeft: 12, flex: 1}}>{busy}</AppText>
+        </View>
+      ) : null}
     </View>
   );
 };

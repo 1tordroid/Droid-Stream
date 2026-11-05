@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useState} from 'react';
-import {Image, Pressable, Text, TouchableOpacity, View} from 'react-native';
+import {Image, Pressable, TouchableOpacity, View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import type {EpisodeLink} from '../../../lib/providers/types';
 import {isTV} from '../../../lib/tv';
 import {useTVFocusBorderColor} from '../../../lib/tv/useTVFocusBorderColor';

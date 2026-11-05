@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Clipboard, Linking, ScrollView, Switch, TextInput, View} from 'react-native';
+import {Clipboard, Linking, ScrollView, Switch, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {isAniSkipEnabled, setAniSkipEnabled} from '../../lib/aniskip';

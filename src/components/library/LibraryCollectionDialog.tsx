@@ -1,15 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useMemo, useState} from 'react';
-import {
-  Keyboard,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import {Keyboard, Modal, Platform, Pressable, ScrollView, useWindowDimensions, View} from 'react-native';
+import {RawTextInput as TextInput} from '../ui/Text';
 import {
   LIBRARY_COLORS,
   LIBRARY_EMOJIS,

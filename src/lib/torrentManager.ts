@@ -1,3 +1,4 @@
+import * as RNFS from '@dr.pogodin/react-native-fs';
 import {NativeModules, Platform} from 'react-native';
 
 const {TorrentModule, TorrentClientModule, HttpDownloadModule} = NativeModules;
@@ -64,6 +65,17 @@ export function base32ToHex(input: string): string {
  * The native module only recognizes 40-char hex info hashes, so base32
  * btih magnets are rewritten to hex. Anything else is returned unchanged.
  */
+/** The native client reads magnets and local files, so a .torrent link is saved first. */
+export async function localTorrentSource(source: string): Promise<string> {
+  if (!source) throw new Error('This result has no magnet or torrent file');
+  if (!/^https?:\/\//i.test(source)) return source;
+  const name = source.replace(/[^a-z0-9]+/gi, '_').slice(-80);
+  const path = `${RNFS.CachesDirectoryPath}/${name}.torrent`;
+  const {statusCode} = await RNFS.downloadFile({fromUrl: source, toFile: path}).promise;
+  if (statusCode < 200 || statusCode >= 300) throw new Error(`Could not get the torrent file (HTTP ${statusCode})`);
+  return path;
+}
+
 export function normalizeMagnetLink(magnetOrUrl: string): string {
   if (!/^magnet:/i.test(magnetOrUrl)) {
     return magnetOrUrl;
@@ -108,7 +120,7 @@ class TorrentManager {
   ): Promise<TorrentAddResult> {
     await this.init();
     return await TorrentModule.addTorrent(
-      normalizeMagnetLink(magnetOrUrl),
+      normalizeMagnetLink(await localTorrentSource(magnetOrUrl)),
       options?.output_folder || null,
       options?.file_name || null,
     );
@@ -185,7 +197,7 @@ class TorrentManager {
 
   async enqueue(source: string, savePath?: string): Promise<{infoHash: string; name?: string; hasMetadata: boolean}> {
     await this.init();
-    return TorrentClientModule.enqueue(source, savePath || null);
+    return TorrentClientModule.enqueue(await localTorrentSource(source), savePath || null);
   }
 
   async listTorrents(): Promise<TorrentRow[]> {

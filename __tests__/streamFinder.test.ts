@@ -1,5 +1,6 @@
 jest.mock('../src/lib/sources/vault', () => ({readPikPakAccount: () => undefined}));
-import {defaultPrefs, fromStremio, pickEpisodeFile, rankCandidates, scoreCandidate, searchQueryFor, type Candidate} from '../src/lib/streams/finder';
+jest.mock('../src/lib/jsPlugins', () => ({readPlugins: () => [], runPlugin: jest.fn()}));
+import {defaultPrefs, fromPlugin, fromStremio, pickEpisodeFile, rankCandidates, scoreCandidate, searchQueryFor, type Candidate} from '../src/lib/streams/finder';
 import {normalizeAddonUrl, supports, videoId} from '../src/lib/stremio';
 import {guessWatchMeta} from '../src/lib/watchMeta';
 import {dominantTitle} from '../src/lib/torrentSearch/identify';
@@ -68,5 +69,19 @@ describe('identity', () => {
   it('finds the title most search results agree on', () => {
     const rows = ['Dune.Part.Two.2024.1080p', 'Dune Part Two 2024 2160p', 'Dune.Part.Two.2024.720p', 'Other 2020'].map((title, index) => makeResult({engine: 'x', title, seeders: 50, infoHash: String(index).repeat(40)}));
     expect(dominantTitle(rows)).toMatchObject({title: 'Dune Part Two', year: 2024, type: 'movie'});
+  });
+});
+
+describe('script plugin streams', () => {
+  it('maps a direct stream', () => {
+    const candidate = fromPlugin({title: 'Movie 1080p', url: 'https://a.test/v.mp4', size: '1.5 GB', headers: {Referer: 'https://a.test'}}, 'Plugin');
+    expect(candidate).toMatchObject({kind: 'direct', url: 'https://a.test/v.mp4', origin: 'Plugin', resolution: '1080p', headers: {Referer: 'https://a.test'}});
+    expect(candidate.sizeBytes).toBeGreaterThan(0);
+  });
+
+  it('maps a magnet to a torrent and reads 4K', () => {
+    const candidate = fromPlugin({name: 'Plugin', quality: '4K', url: `magnet:?xt=urn:btih:${HASH}`}, 'Plugin');
+    expect(candidate).toMatchObject({kind: 'torrent', infoHash: HASH, resolution: '2160p'});
+    expect(candidate.url).toBeUndefined();
   });
 });

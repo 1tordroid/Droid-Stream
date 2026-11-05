@@ -1,5 +1,7 @@
-import React from 'react';
-import {Text, View} from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import React, {useState} from 'react';
+import {Pressable, View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import {
   cancelDownload,
   pauseDownload,
@@ -15,6 +17,8 @@ import {useNavigation} from '@react-navigation/native';
 import {getDownloadPlayerParams} from '../../../lib/downloadPlayback';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import CurrentDownloadRow from './CurrentDownloadRow';
+import {compareQueue, moveQueueItem} from '../../../lib/downloadEngine/planner';
+import {readQueueMeta, setQueueOrder} from '../../../lib/downloadEngine/queueStore';
 
 const CurrentDownloadsSection = ({
   primary,
@@ -29,7 +33,16 @@ const CurrentDownloadsSection = ({
 }) => {
   const colors = useM3Colors();
   const navigation = useNavigation<any>();
-  const downloads = useDownloadsStore(useShallow(selectCurrentDownloads)).filter(item => !include || include(item));
+  const current = useDownloadsStore(useShallow(selectCurrentDownloads)).filter(item => !include || include(item));
+  const [, setOrderVersion] = useState(0);
+  const meta = readQueueMeta();
+  // Waiting downloads show in the order they will start.
+  const queued = current.filter(item => item.status === 'queued').sort((left, right) => compareQueue(left, right, meta));
+  const downloads = [...current.filter(item => item.status !== 'queued'), ...queued];
+  const moveQueued = (id: string, direction: -1 | 1) => {
+    setQueueOrder(moveQueueItem(queued.map(item => item.id), id, direction));
+    setOrderVersion(version => version + 1);
+  };
 
 
   if (downloads.length === 0) {
@@ -58,8 +71,8 @@ const CurrentDownloadsSection = ({
         </View>
       </View>
       {downloads.map((item, index) => (
+        <View key={item.id}>
         <CurrentDownloadRow
-          key={item.id}
           item={item}
           primary={primary}
           firstActionRef={index === 0 ? firstActionRef : undefined}
@@ -76,6 +89,27 @@ const CurrentDownloadsSection = ({
             startQueuedDownloadNow(item.id).catch(console.error)
           }
         />
+        {item.status === 'queued' && queued.length > 1 ? (
+          <View style={{flexDirection: 'row', justifyContent: 'flex-end', marginTop: -4, marginBottom: 8}}>
+            {([[-1, 'arrow-up', 'earlier'], [1, 'arrow-down', 'later']] as const).map(([direction, icon, word]) => {
+              const position = queued.findIndex(entry => entry.id === item.id);
+              const disabled = direction === -1 ? position === 0 : position === queued.length - 1;
+              return (
+                <Pressable
+                  key={icon}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Start ${item.title} ${word}`}
+                  accessibilityState={{disabled}}
+                  disabled={disabled}
+                  onPress={() => moveQueued(item.id, direction)}
+                  style={{minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.35 : 1}}>
+                  <MaterialCommunityIcons name={icon} size={22} color={colors.onSurfaceVariant} />
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+        </View>
       ))}
     </View>
   );

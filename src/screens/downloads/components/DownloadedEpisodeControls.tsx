@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import {TextInput, View} from 'react-native';
+import {View} from 'react-native';
+import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import {TVFocusable} from '../../../components/tv';
 import {useTVFocusBorderColor} from '../../../lib/tv/useTVFocusBorderColor';
 import {useM3Colors} from '../../../theme/M3PaletteContext';

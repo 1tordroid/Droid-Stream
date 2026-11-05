@@ -4,7 +4,7 @@ import {parseTorznab} from '../src/lib/torrentSearch/engines/torznab';
 import {applyFilters, dedupe, qualityOf, sortResults, suggestions, titleMatch} from '../src/lib/torrentSearch/rank';
 import {searchAll} from '../src/lib/torrentSearch/search';
 import {defaultFilters, type TorrentEngine} from '../src/lib/torrentSearch/types';
-import {assertNotBlocked, buildMagnet, formatBytes, infoHashFrom, makeResult, parseDate, parseSize} from '../src/lib/torrentSearch/util';
+import {assertNotBlocked, engineErrorText, buildMagnet, formatBytes, infoHashFrom, makeResult, parseDate, parseSize} from '../src/lib/torrentSearch/util';
 
 const HASH = 'a'.repeat(40);
 const HASH2 = 'b'.repeat(40);
@@ -50,6 +50,15 @@ describe('blocked page detection', () => {
   it('rejects real browser check pages', () => {
     expect(() => assertNotBlocked('<html><head><title>Just a moment...</title></head></html>')).toThrow('browser check');
     expect(() => assertNotBlocked('<script>window._cf_chl_opt={}</script>')).toThrow('browser check');
+  });
+});
+
+describe('site error text', () => {
+  it('explains blocks, missing sites, and outages', () => {
+    expect(engineErrorText('HTTP 403')).toContain('browser check');
+    expect(engineErrorText('fetch failed: java.net.UnknownHostException: Unable to resolve host')).toContain('site not found');
+    expect(engineErrorText('HTTP 522')).toContain('down');
+    expect(engineErrorText('Timed out')).toBe('Timed out');
   });
 });
 

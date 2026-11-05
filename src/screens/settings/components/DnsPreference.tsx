@@ -1,15 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import {
-  Pressable,
-  Switch,
-  ToastAndroid,
-  TouchableOpacity,
-  View,
-  TextInput,
-  Keyboard,
-  BackHandler,
-} from 'react-native';
+import {Pressable, Switch, ToastAndroid, TouchableOpacity, View, Keyboard, BackHandler} from 'react-native';
+import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import { settingsStorage } from '../../../lib/storage';
 import {
   DOH_PROVIDERS,

@@ -74,6 +74,7 @@ export interface StremioMeta {
   year?: number;
   description?: string;
   imdbRating?: string;
+  moviedb_id?: number;
   videos?: {id: string; title?: string; name?: string; season?: number; episode?: number; released?: string; thumbnail?: string}[];
 }
 
@@ -223,18 +224,22 @@ export const fetchMeta = async (type: 'movie' | 'series', id: string): Promise<S
 
 const norm = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
 
+const withoutArticle = (value: string) => value.replace(/^(the|a|an)\s+/, '');
+
 /** Best Cinemeta match for a title and optional year. */
 export const findImdb = async (title: string, type: 'movie' | 'series', year?: number): Promise<StremioMeta | undefined> => {
   const metas = await searchCinemeta(title, type);
   const want = norm(title);
   const scored = metas.map(meta => {
     const metaYear = Number(String(meta.releaseInfo || meta.year || '').slice(0, 4)) || undefined;
-    let score = norm(meta.name) === want ? 3 : norm(meta.name).startsWith(want) ? 1 : 0;
+    const name = withoutArticle(norm(meta.name));
+    let score = name === withoutArticle(want) ? 3 : name.startsWith(withoutArticle(want)) ? 1 : 0;
     if (year && metaYear) score += metaYear === year ? 2 : Math.abs(metaYear - year) <= 1 ? 1 : -2;
     return {meta, score};
   });
   scored.sort((a, b) => b.score - a.score);
-  return scored[0] && scored[0].score > 0 ? scored[0].meta : metas[0];
+  // No match is better than the wrong title, because add-ons would answer for that title.
+  return scored[0] && scored[0].score > 0 ? scored[0].meta : undefined;
 };
 
 /** Well-known public add-ons offered on the add-on screen. Each one is the user's choice. */

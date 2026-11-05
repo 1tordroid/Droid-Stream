@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, Text} from 'react-native';
+import {View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import TVTouchable from './tv/TVTouchable';
 import useThemeStore from '../lib/zustand/themeStore';
 

@@ -5,6 +5,11 @@ import {useM3Colors} from '../../theme/M3PaletteContext';
 
 const LICENSES = [
   {
+    name: 'Inter font',
+    license: 'OFL-1.1',
+    note: 'The app font, by The Inter Project Authors. The license ships with the font files.',
+  },
+  {
     name: 'libVLC',
     license: 'LGPL-2.1',
     note: 'Linked dynamically through react-native-vlc-media-player for the optional VLC engine. Droid Stream does not modify libVLC.',

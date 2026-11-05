@@ -1,14 +1,6 @@
 import ScreenSafeArea from '../../components/ui/ScreenSafeArea';
-import {
-  View,
-  ScrollView,
-  findNodeHandle,
-  Keyboard,
-  TextInput,
-  BackHandler,
-  Linking,
-  Pressable,
-} from 'react-native';
+import {View, ScrollView, findNodeHandle, Keyboard, BackHandler, Linking, Pressable} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 
 interface ProviderItemProps {
   item: ProviderExtension;
@@ -396,6 +388,12 @@ const Settings = ({navigation}: Props) => {
                   title="About Droid Stream"
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
+                />
+                <SettingsRow
+                  title="Credits"
+                  description="Projects behind Droid Stream"
+                  icon="heart-outline"
+                  onPress={() => navigation.navigate('Credits')}
                 />
                 <SettingsRow
                   title="Support"

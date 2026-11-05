@@ -1,5 +1,6 @@
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {View, Text, BackHandler, findNodeHandle} from 'react-native';
+import {View, BackHandler, findNodeHandle} from 'react-native';
+import {RawText as Text} from './ui/Text';
 // The gesture handler ScrollView lets a held row take over from scrolling.
 import {ScrollView} from 'react-native-gesture-handler';
 import React, {useEffect} from 'react';

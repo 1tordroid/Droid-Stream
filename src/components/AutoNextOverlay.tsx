@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {BackHandler, Pressable, Text, View} from 'react-native';
+import {BackHandler, Pressable, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import {isTV} from '../lib/tv/constants';
 import {TVFocusGuide} from './tv';
 import {readableOnColor} from '../theme/seeds';

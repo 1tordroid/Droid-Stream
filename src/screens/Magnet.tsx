@@ -1,6 +1,7 @@
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import React, {useState} from 'react';
-import {Pressable, TextInput, ToastAndroid, View} from 'react-native';
+import {Pressable, ToastAndroid, View} from 'react-native';
+import {RawTextInput as TextInput} from '../components/ui/Text';
 import AppText from '../components/ui/Text';
 import {
   addMagnetTask,

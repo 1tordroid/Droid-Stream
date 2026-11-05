@@ -1,13 +1,6 @@
 import React, {useCallback} from 'react';
-import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-  StyleProp,
-  ViewStyle,
-  findNodeHandle,
-} from 'react-native';
+import {ScrollView, TouchableOpacity, View, StyleProp, ViewStyle, findNodeHandle} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {isTV} from '../lib/tv/constants';

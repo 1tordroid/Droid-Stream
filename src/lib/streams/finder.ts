@@ -7,7 +7,8 @@ import {MMKVLoader} from 'react-native-mmkv-storage';
 import {checkAllCaches, connectedServices, getService, pickVideo, readDebridSettings, sendToDebrid, type DebridFile, type DebridId} from '../debrid';
 import {readLanguagePrefs, normalizeLanguage} from '../languagePrefs';
 import {episodeTag, parseRelease, releaseMatches} from '../releaseName';
-import {fetchStreams, videoId, type StremioStream} from '../stremio';
+import {readPlugins, runPlugin, type ScriptPluginStream} from '../jsPlugins';
+import {fetchMeta, fetchStreams, videoId, type StremioStream} from '../stremio';
 import {searchAll} from '../torrentSearch/search';
 import type {TorrentResult} from '../torrentSearch/types';
 import {buildMagnet, infoHashFrom, makeResult, parseSize} from '../torrentSearch/util';
@@ -35,6 +36,8 @@ export interface Candidate {
   headers?: Record<string, string>;
   infoHash?: string;
   magnet?: string;
+  /** Sites like Internet Archive offer a .torrent file and no magnet. */
+  torrentUrl?: string;
   fileIdx?: number;
   resolution?: string;
   sizeBytes: number;
@@ -120,6 +123,31 @@ export const fromStremio = (stream: StremioStream, origin: string): Candidate | 
   return undefined;
 };
 
+/** A stream from a script plugin, in the same shape as every other source. */
+export const fromPlugin = (stream: ScriptPluginStream, origin: string): Candidate => {
+  const url = stream.url!;
+  const text = [stream.title, stream.name, stream.quality].filter(Boolean).join(' ');
+  const parsed = parseRelease(text);
+  const isMagnet = /^magnet:/i.test(url);
+  const hash = isMagnet ? infoHashFrom(url) : undefined;
+  return {
+    id: isMagnet ? `hash:${hash || url}:` : `url:${url}`,
+    kind: isMagnet ? 'torrent' : 'direct',
+    title: stream.title || stream.name || origin,
+    origin,
+    url: isMagnet ? undefined : url,
+    magnet: isMagnet ? url : undefined,
+    infoHash: hash,
+    headers: stream.headers,
+    resolution: parsed.resolution || (/\b4k\b/i.test(text) ? '2160p' : undefined),
+    sizeBytes: parseSize(stream.size || ''),
+    seeders: 0,
+    cachedOn: [],
+    lowQuality: /\b(cam|hdcam|ts|telesync|hdts)\b/i.test(text),
+    languages: parsed.language || [],
+  };
+};
+
 export const fromSearch = (row: TorrentResult): Candidate => {
   const parsed = parseRelease(row.title);
   return {
@@ -129,6 +157,7 @@ export const fromSearch = (row: TorrentResult): Candidate => {
     origin: row.engines.join(', '),
     infoHash: row.infoHash,
     magnet: row.magnet || (row.infoHash ? buildMagnet(row.infoHash, row.title) : undefined),
+    torrentUrl: row.torrentUrl,
     resolution: parsed.resolution,
     sizeBytes: row.sizeBytes,
     seeders: row.seeders,
@@ -227,7 +256,28 @@ export const findSources = async (
       })()
     : Promise.resolve();
 
-  await Promise.all([addonTask, siteTask]);
+  const plugins = readPlugins().filter(plugin => plugin.enabled && plugin.types.includes(want.type === 'series' ? 'tv' : 'movie'));
+  const pluginTask = plugins.length && want.imdbId
+    ? (async () => {
+        const tmdbId = (await fetchMeta(want.type, want.imdbId!).catch(() => undefined))?.moviedb_id;
+        await Promise.all(plugins.map(async plugin => {
+          const key = `plugin:${plugin.repoUrl}:${plugin.id}`;
+          status[key] = {label: plugin.name, state: 'loading', count: 0};
+          emit();
+          try {
+            if (!tmdbId) throw new Error('No TMDB id for this title');
+            const streams = await runPlugin(plugin, {tmdbId, mediaType: want.type === 'series' ? 'tv' : 'movie', season: want.season, episode: want.episode});
+            all = [...all, ...streams.map(stream => fromPlugin(stream, plugin.name))];
+            status[key] = {label: plugin.name, state: 'done', count: streams.length};
+          } catch (error: any) {
+            status[key] = {label: plugin.name, state: 'error', count: 0, error: error?.message || String(error)};
+          }
+          emit();
+        }));
+      })()
+    : Promise.resolve();
+
+  await Promise.all([addonTask, siteTask, pluginTask]);
 
   const hashes = all.map(candidate => candidate.infoHash).filter(Boolean) as string[];
   if (hashes.length && connectedServices().some(service => service.canCheckCache)) {
@@ -266,7 +316,7 @@ export const debridFor = (candidate: Candidate, prefs = readPrefs()): DebridId |
 };
 
 export const candidateToResult = (candidate: Candidate): TorrentResult =>
-  makeResult({engine: 'finder', title: candidate.title, magnet: candidate.magnet, infoHash: candidate.infoHash || infoHashFrom(candidate.magnet), sizeBytes: candidate.sizeBytes, seeders: candidate.seeders});
+  makeResult({engine: 'finder', title: candidate.title, magnet: candidate.magnet, torrentUrl: candidate.torrentUrl, infoHash: candidate.infoHash || infoHashFrom(candidate.magnet), sizeBytes: candidate.sizeBytes, seeders: candidate.seeders});
 
 /**
  * After an episode starts, quietly finds the next one and, when a debrid is

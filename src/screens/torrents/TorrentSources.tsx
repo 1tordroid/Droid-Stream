@@ -1,10 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {Clipboard, Pressable, ScrollView, Share, Switch, TextInput, ToastAndroid, View} from 'react-native';
+import {Clipboard, Pressable, ScrollView, Share, Switch, ToastAndroid, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {ADAPTER_CATALOG, exportAdapters, importAdapters, validateAdapter, type AdapterType, type SiteAdapter} from '../../lib/torrentSearch/engines/custom';
 import {BUILT_IN_ENGINES, customEngine, torznabEngine} from '../../lib/torrentSearch/engines';
+import {engineErrorText} from '../../lib/torrentSearch/util';
 import {engineBaseUrl, engineEnabled, testEngine} from '../../lib/torrentSearch/search';
 import {readSearchSettings, writeSearchSettings, type TorrentSearchSettings} from '../../lib/torrentSearch/store';
 import type {EngineStatus, TorrentEngine} from '../../lib/torrentSearch/types';
@@ -65,7 +67,7 @@ const TorrentSources = () => {
             <AppText role="bodyLarge" style={{color: colors.onSurface}}>{engine.name}</AppText>
             <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>
               {engine.description}
-              {test ? ` · ${test.state === 'loading' ? 'testing…' : test.state === 'done' ? `OK, ${test.count} results in ${(test.ms / 1000).toFixed(1)}s` : `failed: ${test.error || 'no results'}`}` : ''}
+              {test ? ` · ${test.state === 'loading' ? 'testing…' : test.state === 'done' ? `OK, ${test.count} ${test.count === 1 ? 'result' : 'results'} in ${(test.ms / 1000).toFixed(1)}s` : `failed: ${engineErrorText(test.error)}`}` : ''}
             </AppText>
           </Pressable>
           <Switch accessibilityLabel={`Use ${engine.name}`} value={on} onValueChange={value => setEngine(engine.id, {enabled: value})} thumbColor={on ? colors.primary : undefined} />

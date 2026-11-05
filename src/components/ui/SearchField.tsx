@@ -11,7 +11,8 @@ import {
 } from '@expo/ui/jetpack-compose';
 import {fillMaxWidth} from '@expo/ui/jetpack-compose/modifiers';
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState} from 'react';
-import {View, TextInput, Keyboard, Pressable, BackHandler, Text as RNText, findNodeHandle, UIManager} from 'react-native';
+import {View, Keyboard, Pressable, BackHandler, Text as RNText, findNodeHandle, UIManager} from 'react-native';
+import {RawTextInput as TextInput} from './Text';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
 import {isTV} from '../../lib/tv';
 import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';

@@ -1,4 +1,5 @@
-import {Pressable, ScrollView, View, TextInput, StyleSheet} from 'react-native';
+import {Pressable, ScrollView, View, StyleSheet} from 'react-native';
+import {RawTextInput as TextInput} from '../components/ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Slider from '../components/Slider';
 import ScreenSafeArea from '../components/ui/ScreenSafeArea';

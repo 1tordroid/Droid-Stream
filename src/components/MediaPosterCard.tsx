@@ -1,3 +1,4 @@
+import {displayTitle} from '../lib/displayTitle';
 import {NavigationContext} from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
@@ -404,8 +405,8 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                       : colors.onSurface,
                     marginTop: selected ? 4 : 7,
                     marginHorizontal: selected ? 4 : 0,
-                  }}>
-                  {title}
+                  }}>
+                  {displayTitle(title)}
                 </AppText>
                 {subtitle ? (
                   <AppText

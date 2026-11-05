@@ -1,4 +1,5 @@
-import {View, Text, StatusBar, TouchableOpacity, UIManager, findNodeHandle} from 'react-native';
+import {ActivityIndicator, Image, View, StatusBar, ToastAndroid, UIManager, findNodeHandle} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import React from 'react';
 import {useState} from 'react';
 import useContentStore from '../lib/zustand/contentStore';
@@ -16,13 +17,18 @@ import {useM3Colors} from '../theme/M3PaletteContext';
 import * as DocumentPicker from 'expo-document-picker';
 import {TVFocusable} from './tv';
 import {isTV} from '../lib/tv/constants';
+import {extensionManager} from '../lib/services/ExtensionManager';
+import {extensionStorage} from '../lib/storage/extensionStorage';
+
+const STARTER_PROVIDERS = 3;
 
 const Tutorial = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const colors = useM3Colors();
-  const {provider: currentProvider, installedProviders} = useContentStore(
+  const {provider: currentProvider, installedProviders, setInstalledProviders, setProvider} = useContentStore(
     state => state,
   );
+  const [settingUp, setSettingUp] = useState(false);
   const hasNoProvider =
     !currentProvider ||
     !currentProvider.value ||
@@ -73,6 +79,25 @@ const Tutorial = () => {
       };
     }, []),
   );
+
+  // One tap from a fresh install to a Home screen full of posters.
+  const handleQuickStart = async () => {
+    if (settingUp) return;
+    setSettingUp(true);
+    try {
+      const available = await extensionManager.fetchManifest(true);
+      const starters = available.filter(item => item && !item.disabled).slice(0, STARTER_PROVIDERS);
+      await Promise.allSettled(starters.map(item => extensionManager.installProvider(item)));
+      const installed = extensionStorage.getInstalledProviders() || [];
+      if (!installed.length) throw new Error('No provider could be installed');
+      setInstalledProviders(installed);
+      setProvider(installed[0]);
+    } catch {
+      ToastAndroid.show('Could not set up providers. Check your connection or choose them yourself.', ToastAndroid.LONG);
+    } finally {
+      setSettingUp(false);
+    }
+  };
 
   const handleGoToExtensions = () => {
     // Add haptic feedback
@@ -137,21 +162,20 @@ const Tutorial = () => {
       <Animated.View
         entering={FadeInRight.duration(500)}
         className="rounded-2xl p-6 w-full max-w-sm items-center">
-        <MaterialCommunityIcons
-          name="package-variant-closed"
-          size={64}
-          color={colors.onSurfaceVariant}
-          style={{marginBottom: 16}}
+        <Image
+          source={require('../../assets/icon.png')}
+          accessibilityLabel="Droid Stream logo"
+          style={{width: 112, height: 112, borderRadius: 24, marginBottom: 16}}
         />
         <Text
           style={{
             color: colors.onSurface,
-            fontSize: 24,
+            fontSize: 26,
             fontWeight: '700',
             textAlign: 'center',
-            marginBottom: 16,
+            marginBottom: 8,
           }}>
-          No Provider Installed
+          Welcome to Droid Stream
         </Text>
         <Text
           style={{
@@ -161,34 +185,42 @@ const Tutorial = () => {
             marginBottom: 24,
             lineHeight: 24,
           }}>
-          Connect your cloud provider to play network streams or play local
-          content.
+          One tap adds starter providers from the official Vega list, so your Home fills up with movies and shows.
         </Text>
         <TVFocusable
           ref={installButtonRef}
-          onPress={handleGoToExtensions}
+          onPress={handleQuickStart}
           hasTVPreferredFocus={true}
-          accessibilityLabel="Install Cloud Providers"
+          accessibilityLabel="Get started"
           accessibilityRole="button"
           borderRadius={12}
           focusBorderColor={colors.onPrimary}
           style={{width: '100%'}}>
           <View
-            className="px-6 py-3 rounded-xl w-full flex-row items-center justify-center"
+            className="px-6 py-4 rounded-xl w-full flex-row items-center justify-center"
             style={{backgroundColor: colors.primary}}>
-            <MaterialCommunityIcons
-              name="download"
-              size={20}
-              color={colors.onPrimary}
-            />
-            <Text
-              style={{
-                color: colors.onPrimary,
-                fontSize: 16,
-                fontWeight: '600',
-                marginLeft: 8,
-              }}>
-              Install Cloud Providers
+            {settingUp ? (
+              <ActivityIndicator color={colors.onPrimary} />
+            ) : (
+              <MaterialCommunityIcons name="rocket-launch-outline" size={20} color={colors.onPrimary} />
+            )}
+            <Text style={{color: colors.onPrimary, fontSize: 16, fontWeight: '700', marginLeft: 8}}>
+              {settingUp ? 'Setting up…' : 'Get started'}
+            </Text>
+          </View>
+        </TVFocusable>
+        <TVFocusable
+          onPress={handleGoToExtensions}
+          accessibilityLabel="Choose providers myself"
+          accessibilityRole="button"
+          borderRadius={12}
+          style={{width: '100%', marginTop: 12}}>
+          <View
+            className="px-6 py-3 rounded-xl w-full flex-row items-center justify-center"
+            style={{backgroundColor: colors.surfaceContainerHigh}}>
+            <MaterialCommunityIcons name="format-list-checks" size={20} color={colors.onSurface} />
+            <Text style={{color: colors.onSurface, fontSize: 16, fontWeight: '500', marginLeft: 8}}>
+              Choose providers myself
             </Text>
           </View>
         </TVFocusable>
@@ -201,20 +233,18 @@ const Tutorial = () => {
           <View
             className="px-6 py-3 rounded-xl w-full flex-row items-center justify-center"
             style={{
-              backgroundColor: colors.secondaryContainer,
-              borderColor: colors.outline,
-              borderWidth: 1,
+              backgroundColor: colors.surfaceContainerHigh,
             }}>
             <MaterialCommunityIcons
               name="play-circle-outline"
               size={20}
-              color={colors.onSecondaryContainer}
+              color={colors.onSurface}
             />
             <Text
               style={{
-                color: colors.onSecondaryContainer,
+                color: colors.onSurface,
                 fontSize: 16,
-                fontWeight: '600',
+                fontWeight: '500',
                 marginLeft: 8,
               }}>
               Play local file

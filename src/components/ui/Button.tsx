@@ -174,7 +174,7 @@ const Button = React.forwardRef<View, ButtonProps>(({
           ]}>
           <Text
             color={String(buttonColors.contentColor)}
-            style={{typography: 'labelLarge', fontWeight: '700'}}>
+            style={{typography: 'labelLarge', fontWeight: '700', fontFamily: 'Inter_700Bold'}}>
             {children}
           </Text>
         </ButtonComponent>

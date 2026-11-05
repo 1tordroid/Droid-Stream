@@ -1,5 +1,6 @@
 import React, {memo, useCallback, useLayoutEffect, useState} from 'react';
-import {LayoutChangeEvent, Text, View} from 'react-native';
+import {LayoutChangeEvent, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,

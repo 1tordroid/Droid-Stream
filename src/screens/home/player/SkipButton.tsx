@@ -1,6 +1,7 @@
 import {Feather} from '@expo/vector-icons';
 import React, {useState} from 'react';
-import {Pressable, Text, View} from 'react-native';
+import {Pressable, View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import {isTV} from '../../../lib/tv';
 
 /** "Skip intro" style pill shown over the video. */

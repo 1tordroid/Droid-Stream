@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import {Text, View} from 'react-native';
+import {View} from 'react-native';
+import {RawText as Text} from '../ui/Text';
 import {isLibraryIconKey, LIBRARY_ICONS} from '../../lib/library/libraryIcons';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {readableOnColor} from '../../theme/seeds';

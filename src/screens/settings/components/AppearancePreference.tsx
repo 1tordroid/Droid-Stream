@@ -4,6 +4,7 @@ import {isDynamicColorAvailable} from '@expo/ui/jetpack-compose';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import useThemeStore from '../../../lib/zustand/themeStore';
 import {M3_SEEDS} from '../../../theme/seeds';
+import {THEME_MODES} from '../../../theme/themeMode';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import AppText from '../../../components/ui/Text';
 import Surface from '../../../components/ui/Surface';
@@ -28,6 +29,8 @@ const AppearancePreference = () => {
   const primary = useThemeStore(state => state.primary);
   const setPrimary = useThemeStore(state => state.setPrimary);
   const colors = useM3Colors();
+  const mode = useThemeStore(state => state.mode);
+  const setMode = useThemeStore(state => state.setMode);
   const [launcherIcon, setSelectedLauncherIcon] = useState<LauncherIcon>(() =>
     settingsStorage.getLauncherIcon(),
   );
@@ -39,6 +42,38 @@ const AppearancePreference = () => {
 
   return (
     <View className="mb-6">
+      <AppText role="labelLarge" className="mb-3 text-m3-on-surface-variant">
+        Theme
+      </AppText>
+      <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24}}>
+        {THEME_MODES.map(item => {
+          const selected = mode === item.id;
+          return (
+            <TVFocusable
+              key={item.id}
+              testID={`theme-mode-${item.id}`}
+              accessibilityRole="radio"
+              accessibilityLabel={item.label}
+              accessibilityState={{selected}}
+              onPress={() => setMode(item.id)}
+              borderRadius={16}
+              style={{
+                flexBasis: '48%',
+                flexGrow: 1,
+                minHeight: 96,
+                padding: 14,
+                borderRadius: 16,
+                backgroundColor: colors.surfaceContainer,
+                borderWidth: selected ? 2 : 1,
+                borderColor: selected ? colors.primary : colors.outlineVariant,
+              }}>
+              <MaterialCommunityIcons name={item.icon} size={24} color={selected ? colors.primary : colors.onSurfaceVariant} />
+              <AppText role="titleSmall" style={{color: colors.onSurface, marginTop: 8}}>{item.label}</AppText>
+              <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>{item.note}</AppText>
+            </TVFocusable>
+          );
+        })}
+      </View>
       <AppText role="labelLarge" className="mb-3 text-m3-on-surface-variant">
         Appearance
       </AppText>

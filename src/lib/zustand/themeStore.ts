@@ -2,6 +2,7 @@ import {create} from 'zustand';
 import {persist, createJSONStorage} from 'zustand/middleware';
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {settingsStorage} from '../storage';
+import type {ThemeMode} from '../../theme/themeMode';
 
 const storage = new MMKVLoader().initialize();
 
@@ -12,6 +13,8 @@ export interface Theme {
   isCustom: boolean;
   /** Where the Material 3 palette comes from: the device wallpaper or a curated seed. */
   source: AccentSource;
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
   setPrimary: (type: Theme['primary']) => void;
   setCustom: (isCustom: boolean) => void;
   setSource: (source: AccentSource) => void;
@@ -23,6 +26,12 @@ const useThemeStore = create<Theme>()(
       primary: settingsStorage.getPrimaryColor(),
       isCustom: settingsStorage.isCustomTheme(),
       source: settingsStorage.getAccentSource(),
+      mode: settingsStorage.getThemeMode(),
+
+      setMode: (mode: ThemeMode) => {
+        set({mode});
+        settingsStorage.setThemeMode(mode);
+      },
 
       setPrimary: (primary: Theme['primary']) => {
         set({primary});

@@ -70,13 +70,12 @@ const BrandLinkButtons = () => {
       <LinkCard
         label="tordroid.com"
         accessibilityLabel="Visit tordroid.com"
-        borderColor="#E2B340"
         onPress={() => Linking.openURL(socialLinks.website)}>
         <Image
-          source={require('../../../../assets/brand/website-button.png')}
+          source={require('../../../../assets/brand/website-icon.png')}
           accessibilityIgnoresInvertColors
-          resizeMode="cover"
-          style={{borderRadius: 28, height: 56, width: 56}}
+          resizeMode="contain"
+          style={{height: 36, width: 36}}
         />
       </LinkCard>
     </View>

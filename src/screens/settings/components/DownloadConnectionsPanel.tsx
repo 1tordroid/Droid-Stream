@@ -1,5 +1,6 @@
 import React, {useMemo, useState} from 'react';
-import {Text, View} from 'react-native';
+import {View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import {buildSegmentCells} from '../../../lib/downloadSegmentMap';
 import {
   formatDownloadBytes,

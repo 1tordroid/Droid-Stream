@@ -137,10 +137,15 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     fun addTorrent(magnetOrUrl: String, outputFolder: String?, fileName: String?, promise: Promise) {
         Thread {
             try {
+                val isRemote = magnetOrUrl.startsWith("magnet:") ||
+                    magnetOrUrl.startsWith("http://") ||
+                    magnetOrUrl.startsWith("https://")
+                // A local .torrent file already holds its metadata and info hash.
+                val fileInfo = if (isRemote) null else TorrentInfo(File(magnetOrUrl))
                 val expectedHash = if (magnetOrUrl.startsWith("magnet:")) {
                     Regex("btih:([a-fA-F0-9]{40})", RegexOption.IGNORE_CASE)
                         .find(magnetOrUrl)?.groupValues?.get(1)?.lowercase()
-                } else null
+                } else fileInfo?.infoHash()?.toHex()?.lowercase()
 
                 val sm = ensureSession()
                 val server = ensureServer()
@@ -229,14 +234,12 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 sm.addListener(listener)
 
                 VegaLog.d(TAG, "Starting download: $magnetOrUrl -> $downloadDir")
-                if (magnetOrUrl.startsWith("magnet:") ||
-                    magnetOrUrl.startsWith("http://") ||
-                    magnetOrUrl.startsWith("https://")) {
+                if (fileInfo == null) {
                     val source = if (magnetOrUrl.startsWith("magnet:")) withPublicTrackers(magnetOrUrl) else magnetOrUrl
                     sm.download(source, File(downloadDir), TorrentFlags.AUTO_MANAGED)
                 } else {
-                    val ti = TorrentInfo(File(magnetOrUrl))
-                    sm.download(ti, File(downloadDir))
+                    sm.download(fileInfo, File(downloadDir))
+                    metadataLatch.countDown()
                 }
 
                 VegaLog.d(TAG, "Waiting for metadata (45s timeout)...")

@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useMemo, useState} from 'react';
-import {Pressable, TextInput, View} from 'react-native';
+import {Pressable, View} from 'react-native';
+import {RawTextInput as TextInput} from './ui/Text';
 import {alwaysShowAdvanced, useFeatureVisible} from '../lib/advancedReveal';
 import {searchFeatures, type FeatureHit} from '../lib/featureRegistry';
 import {openFeature} from '../lib/openFeature';

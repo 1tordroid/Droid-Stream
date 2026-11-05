@@ -40,6 +40,7 @@ module.exports = () => {
     './plugins/with-saf-copy-module.js',
     './plugins/with-uri-permission-module.js',
     './plugins/with-proguard-rules.js',
+    './plugins/with-no-focus-highlight.js',
     './plugins/with-jvm-args.js',
     './plugins/with-android-notification-icons.js',
     './plugins/with-notifee-service.js',
@@ -132,7 +133,10 @@ module.exports = () => {
         launchMode: 'most-recent',
       },
     ],
-    'expo-font',
+    [
+      'expo-font',
+      {fonts: ['./assets/fonts/Inter_400Regular.ttf', './assets/fonts/Inter_500Medium.ttf', './assets/fonts/Inter_700Bold.ttf', './assets/fonts/Inter_800ExtraBold.ttf', './assets/fonts/Inter_400Regular_bold.ttf', './assets/fonts/Inter_500Medium_bold.ttf', './assets/fonts/Inter_700Bold_bold.ttf', './assets/fonts/Inter_800ExtraBold_bold.ttf', './assets/fonts/Inter_400Regular_italic.ttf', './assets/fonts/Inter_400Regular_bold_italic.ttf']},
+    ],
     'expo-status-bar',
     ...(IS_TV
       ? [

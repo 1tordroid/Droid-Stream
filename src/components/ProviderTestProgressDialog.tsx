@@ -1,6 +1,7 @@
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import React from 'react';
-import {ActivityIndicator, Text, TouchableOpacity, View} from 'react-native';
+import {ActivityIndicator, TouchableOpacity, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import type {
   ProviderDiagnosticProgressStage,
   ProviderDiagnosticProgress,

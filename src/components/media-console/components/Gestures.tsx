@@ -1,4 +1,5 @@
-import { View, Text, Dimensions } from 'react-native';
+import {View, Dimensions} from 'react-native';
+import {RawText as Text} from '../../ui/Text';
 import type { LayoutChangeEvent } from 'react-native';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Animated, {

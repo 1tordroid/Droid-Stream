@@ -6,6 +6,9 @@ import {
   scheduleWhenIdle,
 } from './lib/performance/idleWork';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {M3ThemeProvider} from './theme/M3ThemeProvider';
+import {THEME_ROLES} from './theme/themeMode';
+import useThemeStore from './lib/zustand/themeStore';
 import './global.css';
 import Home from './screens/home/Home';
 import Info from './screens/home/Info';
@@ -16,6 +19,7 @@ import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
+import Credits from './screens/settings/Credits';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
 import Torrents from './screens/torrents/Torrents';
@@ -56,7 +60,6 @@ import PlayerSettings from './screens/settings/PlayerSettings';
 import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
 import DataManagement from './screens/settings/DataManagement';
-import {M3ThemeProvider} from './theme/M3ThemeProvider';
 import {AppState, Linking, LogBox, useWindowDimensions} from 'react-native';
 import {vegaCastService} from './lib/remote/vegaCastService';
 import {EpisodeLink, Stream} from './lib/providers/types';
@@ -205,6 +208,7 @@ export type SettingsStackParamList = {
   DataManagement: undefined;
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
+  Credits: undefined;
   WatchSync: undefined;
   Languages: undefined;
 };
@@ -532,6 +536,7 @@ function SettingsStackScreen() {
         options={subpageOptions}
       />
       <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
+      <SettingsStack.Screen name="Credits" component={Credits} options={subpageOptions} />
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
@@ -814,6 +819,15 @@ const App = () => {
     }
   }, [hasFirebase]);
 
+  const themeMode = useThemeStore(state => state.mode);
+  const themedNavigation = useMemo(() => {
+    const background = THEME_ROLES[themeMode].background;
+    return {
+      ...navigationTheme,
+      colors: {...navigationTheme.colors, card: background, border: background},
+    };
+  }, [themeMode]);
+
   const handleNavigationStateChange = useCallback(async () => {
     if (hasFirebase) {
       await logScreenView();
@@ -827,13 +841,13 @@ const App = () => {
         <AppDialogHost />
         <GlobalErrorBoundary>
           <QueryClientProvider client={queryClient}>
-            <GestureHandlerRootView style={{flex: 1, backgroundColor: 'black'}}>
+            <GestureHandlerRootView style={{flex: 1, backgroundColor: THEME_ROLES[themeMode].background}}>
               <UndoSnackbar />
               <NavigationContainer
                 ref={navigationRef}
                 onReady={handleNavigationReady}
                 onStateChange={handleNavigationStateChange}
-                theme={navigationTheme}>
+                theme={themedNavigation}>
                 <Stack.Navigator
                   screenListeners={navigationWorkListeners}
                   screenOptions={rootStackScreenOptions}>

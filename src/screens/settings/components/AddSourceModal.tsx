@@ -1,15 +1,7 @@
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import React, {useEffect, useState} from 'react';
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  TextInput,
-  View,
-} from 'react-native';
+import {Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import Text from '../../../components/ui/Text';
 import {TVFocusable} from '../../../components/tv';
 import {socialLinks} from '../../../lib/constants';

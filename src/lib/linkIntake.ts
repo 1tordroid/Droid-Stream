@@ -5,7 +5,7 @@
 import {AppState, type AppStateStatus} from 'react-native';
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {connectedServices} from './debrid';
-import {queueLink} from './linkGrabber';
+import {probeLink, qualityChoices, queueLink} from './linkGrabber';
 import {settingsStorage} from './storage';
 import {downloadWithClient, quickDebridPlay, streamOnDevice, toast} from './torrentSearch/actions';
 import {makeResult, infoHashFrom} from './torrentSearch/util';
@@ -38,6 +38,37 @@ const nameOf = (value: string): string => {
   return value.split('/').pop()?.split('?')[0] || 'Torrent';
 };
 
+const queueWithToast = (url: string, name?: string) =>
+  queueLink(url, name)
+    .then(state => toast(state === 'queued' ? 'Added to Downloads' : 'Already in Downloads'))
+    .catch(error => toast(error.message));
+
+/** Asks which quality to save when a stream offers more than one. */
+const downloadLink = async (url: string): Promise<void> => {
+  if (!/\.(m3u8|mpd)(\?|$)/i.test(url)) {
+    await queueWithToast(url);
+    return;
+  }
+  const probed = await probeLink(url).catch(() => undefined);
+  const choices = qualityChoices(probed?.variants || []);
+  if (choices.length < 2) {
+    await queueWithToast(choices[0]?.url || url, probed?.fileName);
+    return;
+  }
+  showAppDialog({
+    title: 'Choose a quality',
+    message: probed?.fileName || url,
+    actions: [
+      {label: 'Not now'},
+      ...choices.map((choice, index) => ({
+        label: choice.label,
+        variant: index === 0 ? ('primary' as const) : undefined,
+        onPress: () => queueWithToast(choice.url, `${(probed?.fileName || 'video').replace(/\.[^.]+$/, '')} ${choice.label}.m3u8`),
+      })),
+    ],
+  });
+};
+
 export const offerLink = (value: string, navigate: (screen: string, params?: object) => void, origin: 'shared' | 'clipboard'): void => {
   const kind = classifyLink(value);
   if (!kind) return;
@@ -48,7 +79,7 @@ export const offerLink = (value: string, navigate: (screen: string, params?: obj
       message: value,
       actions: [
         {label: 'Not now'},
-        {label: 'Download', variant: 'primary', onPress: () => queueLink(value).then(state => toast(state === 'queued' ? 'Added to Downloads' : 'Already in Downloads')).catch(error => toast(error.message))},
+        {label: 'Download', variant: 'primary', onPress: () => downloadLink(value)},
       ],
     });
     return;

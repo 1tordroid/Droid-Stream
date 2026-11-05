@@ -1,12 +1,6 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import {
-  ImageBackground,
-  LayoutChangeEvent,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ImageBackground, LayoutChangeEvent, Pressable, TouchableOpacity, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import GoogleCast, {
   CastButton,

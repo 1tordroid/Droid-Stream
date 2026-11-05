@@ -44,6 +44,15 @@ export const probeLink = async (url: string): Promise<ProbedLink> => {
   };
 };
 
+/** Streams with several qualities: the choices, best first, with duplicates removed. */
+export const qualityChoices = (variants: ProbedLink['variants'], limit = 4): ProbedLink['variants'] => {
+  const seen = new Set<string>();
+  return variants
+    .filter(item => item.kind !== 'audio' && item.kind !== 'subtitle')
+    .filter(item => !seen.has(item.label) && Boolean(seen.add(item.label)))
+    .slice(0, limit);
+};
+
 export const queueLink = async (url: string, fileName?: string): Promise<'queued' | 'duplicate'> => {
   const name = fileName || url.split('/').pop()?.split('?')[0] || 'download';
   const existing = Object.values(useDownloadsStore.getState().downloads).map(item => ({

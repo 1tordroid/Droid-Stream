@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
-import {Image, Text, View} from 'react-native';
+import {Image, View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';

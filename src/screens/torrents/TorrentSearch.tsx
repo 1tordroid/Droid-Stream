@@ -1,6 +1,8 @@
+import TitleMatches from '../../components/torrentSearch/TitleMatches';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {FlatList, Image, Keyboard, Pressable, ScrollView, TextInput, View} from 'react-native';
+import {FlatList, Image, Keyboard, Pressable, ScrollView, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import ResultActions from '../../components/torrentSearch/ResultActions';
 import ResultRow, {engineName} from '../../components/torrentSearch/ResultRow';
@@ -251,6 +253,18 @@ const TorrentSearch = ({navigation, route}: {navigation: any; route?: {params?: 
           <MaterialCommunityIcons name="web" size={24} color={colors.onSurfaceVariant} />
         </Pressable>
       </View>
+      {!focused && submitted ? (
+        <TitleMatches
+          query={submitted}
+          onPick={({meta, type}) => navigation.navigate('StreamFinder', {
+            title: meta.name,
+            type,
+            imdbId: meta.id,
+            poster: meta.poster,
+            year: Number(String(meta.releaseInfo || meta.year || '').slice(0, 4)) || undefined,
+          })}
+        />
+      ) : null}
       {focused ? (
         <View style={{backgroundColor: colors.surfaceContainer, borderRadius: 16, marginTop: 8, paddingVertical: 4}}>
           {suggestions(query, history).map(item => (
