@@ -105,6 +105,12 @@ const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {high
         <Pressable accessibilityRole="button" accessibilityLabel="Debrid and cloud services" onPress={() => navigation.navigate('DebridSettings')} style={{minHeight: 44, justifyContent: 'center'}}>
           <AppText style={{color: colors.primary}}>TorBox, Real-Debrid, PikPak…</AppText>
         </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Find streams" onPress={() => navigation.navigate('StreamFinder')} style={{minHeight: 44, justifyContent: 'center'}}>
+          <AppText style={{color: colors.primary}}>Find streams</AppText>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Stremio add-ons" onPress={() => navigation.navigate('StremioAddons')} style={{minHeight: 44, justifyContent: 'center'}}>
+          <AppText style={{color: colors.primary}}>Add-ons</AppText>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Torrent sites" onPress={() => navigation.navigate('TorrentSources')} style={{minHeight: 44, justifyContent: 'center'}}>
           <AppText style={{color: colors.primary}}>Sites</AppText>
         </Pressable>

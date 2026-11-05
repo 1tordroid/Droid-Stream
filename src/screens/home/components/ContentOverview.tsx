@@ -26,6 +26,8 @@ interface ContentOverviewProps {
   exploreRef?: React.RefObject<View | null>;
   onOpenWeb?: () => void;
   onSearchTitle: () => void;
+  /** Opens Find streams: Stremio add-ons, torrent sites, and debrid caches. */
+  onFindStreams?: () => void;
   onToggleLibrary: () => void;
   onToggleSynopsis: () => void;
   providerName: string;
@@ -165,6 +167,7 @@ const ContentOverview = ({
   exploreRef,
   onOpenWeb,
   onSearchTitle,
+  onFindStreams,
   onToggleLibrary,
   onToggleSynopsis,
   providerName,
@@ -386,6 +389,9 @@ const ContentOverview = ({
             marginTop: 18,
           }}>
           <InfoAction icon="magnify" label="Search" onPress={onSearchTitle} />
+          {onFindStreams ? (
+            <InfoAction icon="magnet" label="Streams" onPress={onFindStreams} />
+          ) : null}
           {onOpenWeb ? (
             <InfoAction icon="web" label="Web" onPress={onOpenWeb} />
           ) : null}

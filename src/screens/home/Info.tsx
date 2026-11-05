@@ -254,6 +254,23 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     } as never);
   }, [displayTitle, searchNavigation]);
 
+  const findStreams = useCallback(() => {
+    if (!displayTitle) {
+      return;
+    }
+    const year = Number(String(meta?.year || '').slice(0, 4)) || undefined;
+    searchNavigation.navigate('TorrentsStack', {
+      screen: 'StreamFinder',
+      params: {
+        title: displayTitle,
+        type: info?.type === 'movie' ? 'movie' : 'series',
+        year,
+        imdbId: info?.imdbId && /^tt\d+$/.test(info.imdbId) ? info.imdbId : undefined,
+        poster: posterImage,
+      },
+    } as never);
+  }, [displayTitle, info?.imdbId, info?.type, meta?.year, posterImage, searchNavigation]);
+
   const handleOpenWeb = useCallback(() => {
     if (!webUrl) {
       return;
@@ -376,6 +393,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   exploreRef={exploreRef}
                   onOpenWeb={webUrl ? handleOpenWeb : undefined}
                   onSearchTitle={searchTitle}
+                  onFindStreams={findStreams}
                   onToggleLibrary={toggleLibrary}
                   onToggleSynopsis={() => setReadMore(value => !value)}
                   providerName={contentProviderName}

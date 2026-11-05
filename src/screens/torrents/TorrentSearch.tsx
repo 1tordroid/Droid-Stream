@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {FlatList, Keyboard, Pressable, ScrollView, TextInput, View} from 'react-native';
+import {FlatList, Image, Keyboard, Pressable, ScrollView, TextInput, View} from 'react-native';
 import Chip from '../../components/torrentSearch/Chip';
 import ResultActions from '../../components/torrentSearch/ResultActions';
 import ResultRow, {engineName} from '../../components/torrentSearch/ResultRow';
 import {TVFocusable} from '../../components/tv';
 import AppText from '../../components/ui/Text';
+import {identifyResults, type Identified} from '../../lib/torrentSearch/identify';
 import {checkAllCaches, connectedServices, readDebridSettings, type DebridId} from '../../lib/debrid';
 import {applyFilters, sortResults, suggestions} from '../../lib/torrentSearch/rank';
 import {activeEngines, searchAll, type SearchRun} from '../../lib/torrentSearch/search';
@@ -63,6 +64,7 @@ const TorrentSearch = ({navigation, route}: {navigation: any; route?: {params?: 
   const [bookmarks, setBookmarks] = useState(readBookmarks);
   const [selected, setSelected] = useState<TorrentResult>();
   const [notice, setNotice] = useState(!initial.acknowledged);
+  const [identified, setIdentified] = useState<Identified>();
   const runRef = useRef<SearchRun | undefined>(undefined);
   const cacheTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -105,6 +107,19 @@ const TorrentSearch = ({navigation, route}: {navigation: any; route?: {params?: 
     if (route?.params?.query) start(route.params.query, 'results', category);
     return () => runRef.current?.cancel();
   }, [route?.params?.query]);
+
+  const loadingNow = Object.values(status).some(item => item.state === 'loading');
+  useEffect(() => {
+    if (mode !== 'results' || loadingNow || rows.length < 3) {
+      if (!rows.length) setIdentified(undefined);
+      return;
+    }
+    let live = true;
+    identifyResults(rows).then(found => live && setIdentified(found)).catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [rows, loadingNow, mode]);
 
   const source = mode === 'saved' ? bookmarks : rows;
   const visible = useMemo(() => {
@@ -163,6 +178,18 @@ const TorrentSearch = ({navigation, route}: {navigation: any; route?: {params?: 
         ))}
       </ScrollView>
       {showFilters ? <FilterPanel filters={filters} onChange={saveFilters} /> : null}
+      {identified?.meta && mode === 'results' ? (
+        <TVFocusable accessibilityRole="button" accessibilityLabel={`Find streams for ${identified.meta.name}`}
+          onPress={() => navigation.navigate('StreamFinder', {title: identified.meta!.name, type: identified.type, year: identified.year, imdbId: identified.meta!.id, poster: identified.meta!.poster})}
+          borderRadius={16} style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 16, padding: 10, marginBottom: 8}}>
+          {identified.meta.poster ? <Image source={{uri: identified.meta.poster}} style={{width: 44, height: 64, borderRadius: 8, marginRight: 12}} /> : null}
+          <View style={{flex: 1}}>
+            <AppText role="titleSmall" style={{color: colors.onSurface}}>{identified.meta.name}{identified.meta.releaseInfo ? ` (${identified.meta.releaseInfo})` : ''}</AppText>
+            <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>{identified.type === 'series' ? 'Pick an episode and play the best source' : 'Play the best source from add-ons, sites, and caches'}</AppText>
+          </View>
+          <MaterialCommunityIcons name="play-circle" size={32} color={colors.primary} />
+        </TVFocusable>
+      ) : null}
       {states.length && mode !== 'saved' ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Show site status" onPress={() => setShowStatus(value => !value)} style={{minHeight: 40, flexDirection: 'row', alignItems: 'center'}}>
           <AppText role="labelLarge" style={{color: colors.onSurfaceVariant, flex: 1}}>

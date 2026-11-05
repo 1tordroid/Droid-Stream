@@ -24,6 +24,9 @@ import TorrentOptions from './screens/torrents/TorrentOptions';
 import TorrentSearch from './screens/torrents/TorrentSearch';
 import TorrentSources from './screens/torrents/TorrentSources';
 import DebridSettings from './screens/torrents/DebridSettings';
+import StreamFinder from './screens/torrents/StreamFinder';
+import StremioAddons from './screens/torrents/StremioAddons';
+import WatchSync from './screens/settings/WatchSync';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
@@ -150,6 +153,8 @@ export type RootStackParamList = {
     alwaysCast?: boolean;
     // Plays first, before online servers load (an unfinished download).
     initialStream?: Stream;
+    /** What is playing, when known: used for Trakt/Simkl/AniList, AniSkip, and subtitles. */
+    meta?: import('./lib/watchMeta').WatchMeta;
   };
 };
 
@@ -181,6 +186,8 @@ export type TorrentsStackParamList = {
   TorrentSearch: {query?: string; category?: import('./lib/torrentSearch/types').TorrentCategory} | undefined;
   TorrentSources: undefined;
   DebridSettings: undefined;
+  StreamFinder: import('./lib/streams/finder').WantedVideo | undefined;
+  StremioAddons: undefined;
 };
 
 export type SettingsStackParamList = {
@@ -197,6 +204,7 @@ export type SettingsStackParamList = {
   DataManagement: undefined;
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
+  WatchSync: undefined;
 };
 
 export type DownloadsStackParamList = {
@@ -439,6 +447,8 @@ function TorrentsStackScreen() {
       <TorrentsStack.Screen name="TorrentSearch" component={TorrentSearch} />
       <TorrentsStack.Screen name="TorrentSources" component={TorrentSources} />
       <TorrentsStack.Screen name="DebridSettings" component={DebridSettings} />
+      <TorrentsStack.Screen name="StreamFinder" component={StreamFinder} />
+      <TorrentsStack.Screen name="StremioAddons" component={StremioAddons} />
     </TorrentsStack.Navigator>
   );
 }
@@ -508,6 +518,7 @@ function SettingsStackScreen() {
       />
       <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
+      <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }

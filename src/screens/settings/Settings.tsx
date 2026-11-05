@@ -344,6 +344,12 @@ const Settings = ({navigation}: Props) => {
                   onPress={() => navigation.navigate('PlayerSettings')}
                 />
                 <SettingsRow
+                  title="Watch sync"
+                  description="Trakt, Simkl, AniList, and AniSkip"
+                  icon="sync"
+                  onPress={() => navigation.navigate('WatchSync')}
+                />
+                <SettingsRow
                   title="Downloads"
                   description="Search, filter, and open saved files"
                   icon="download-circle-outline"

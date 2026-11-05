@@ -104,6 +104,10 @@ import {useM3Colors} from '../../theme/M3PaletteContext';
 import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';
 import TVFocusPressable from '../../components/tv/TVFocusPressable';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
+import {findAnimeSkips} from '../../lib/aniskip';
+import {guessWatchMeta} from '../../lib/watchMeta';
+import {syncWatched} from '../../lib/watchSync';
+import MatchedSubtitles from '../../components/MatchedSubtitles';
 import useLocalVideoStore from '../../lib/zustand/localVideoStore';
 import useDownloadsStore, {
   type DownloadItem,
@@ -995,6 +999,8 @@ const Player = ({route}: Props): React.JSX.Element => {
         );
         // Up next: once watched, the entry moves on to the next episode.
         if (activeEpisode && isWatched(position, duration)) {
+          // Trakt, Simkl, AniList. Deduplicated, so repeated progress ticks are cheap.
+          syncWatched(watchMetaRef.current).catch(() => undefined);
           const next = getNextEpisode(route.params.episodeList, activeEpisode);
           if (
             finishContinueWatchingEpisode(
@@ -1306,6 +1312,39 @@ const Player = ({route}: Props): React.JSX.Element => {
         ?.skip,
   );
 
+  // What is playing, for watch sync and AniSkip: given by the caller, or
+  // guessed from the show and episode titles the provider supplied.
+  const watchMeta = useMemo(() => {
+    const given = route.params.meta;
+    const guessed = guessWatchMeta({
+      primaryTitle: route.params.primaryTitle,
+      secondaryTitle: route.params.secondaryTitle,
+      episodeTitle: activeEpisode?.title,
+      type: route.params.type,
+    });
+    if (!given) return guessed;
+    // A caller's episode applies to the episode it opened, not later ones.
+    return route.params.episodeList.length > 1 ? {...given, season: guessed?.season ?? given.season, episode: guessed?.episode ?? given.episode} : given;
+  }, [route.params.meta, route.params.primaryTitle, route.params.secondaryTitle, route.params.type, route.params.episodeList.length, activeEpisode?.title]);
+  const watchMetaRef = useRef(watchMeta);
+  watchMetaRef.current = watchMeta;
+
+  // Crowd-sourced anime intro and credits times, used when nothing else has skips.
+  const [aniSkips, setAniSkips] = useState<SkipInterval[]>([]);
+  useEffect(() => {
+    setAniSkips([]);
+    if (!watchMeta || watchMeta.type !== 'series' || !watchMeta.episode) return;
+    let live = true;
+    findAnimeSkips({title: watchMeta.title, episode: watchMeta.episode, malId: watchMeta.malId})
+      .then(found => {
+        if (live) setAniSkips(found);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [watchMeta?.title, watchMeta?.episode, watchMeta?.malId, watchMeta?.type]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Combined skip intervals from episode, direct links, stream, downloads, and cache
   const combinedSkips: SkipInterval[] = useMemo(() => {
     const list: SkipInterval[] = [];
@@ -1375,6 +1414,8 @@ const Player = ({route}: Props): React.JSX.Element => {
       addSkips(cached);
     }
 
+    if (list.length === 0) addSkips(aniSkips);
+
     const sorted = list.sort((a, b) => a.from - b.from);
 
     // Save to cache for future offline / download playback if skips exist
@@ -1395,6 +1436,7 @@ const Player = ({route}: Props): React.JSX.Element => {
   }, [
     activeEpisode,
     activeEpisodeKey,
+    aniSkips,
     continueWatchingId,
     matchedDownloadSkip,
     selectedStream,
@@ -4265,6 +4307,14 @@ const Player = ({route}: Props): React.JSX.Element => {
                             } catch (err) {
                               setToast(err instanceof Error ? err.message : 'Could not save subtitle', 4000);
                             }
+                          }}
+                        />
+                        <MatchedSubtitles
+                          url={String(videoPlayerProps.source?.uri || '') || undefined}
+                          headers={selectedStream?.headers}
+                          meta={watchMeta}
+                          onAddSubtitle={track => {
+                            void saveSubtitle(track, 'search').catch(error => setToast(error.message || 'Could not save subtitle', 4000));
                           }}
                         />
                         <SearchSubtitles
