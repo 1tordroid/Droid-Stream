@@ -96,6 +96,17 @@ export function normalizeMagnetLink(magnetOrUrl: string): string {
 class TorrentManager {
   private streamPort: number | null = null;
   private isInitialized = false;
+  private initializing?: Promise<void>;
+  private beforeFirstTorrent?: () => Promise<void>;
+
+  get engineRunning(): boolean {
+    return this.isInitialized;
+  }
+
+  /** Runs once when the engine starts, before any caller can add a torrent. */
+  setBeforeFirstTorrent(prepare?: () => Promise<void>): void {
+    this.beforeFirstTorrent = prepare;
+  }
 
   async isOnWifi(): Promise<boolean> {
     if (Platform.OS !== 'android' || !TorrentModule?.isOnWifi) return true;
@@ -106,10 +117,18 @@ class TorrentManager {
     if (Platform.OS !== 'android') {
       throw new Error('Torrent streaming is only supported on Android');
     }
-    if (this.isInitialized) {
+    if (this.isInitialized && !this.initializing) {
       return;
     }
+    if (!this.initializing) {
+      this.initializing = this.startEngine().finally(() => {
+        this.initializing = undefined;
+      });
+    }
+    await this.initializing;
+  }
 
+  private async startEngine(): Promise<void> {
     try {
       const result = await TorrentModule.initEngine();
       this.streamPort = result.streamPort;
@@ -118,6 +137,11 @@ class TorrentManager {
     } catch (error) {
       console.error('Failed to init TorrentModule:', error);
       throw error;
+    }
+    try {
+      await this.beforeFirstTorrent?.();
+    } catch (error) {
+      console.warn('Could not apply torrent rules:', error);
     }
   }
 
@@ -198,7 +222,8 @@ class TorrentManager {
   }
 
   async applySettings(settings: Record<string, string | number | boolean>): Promise<void> {
-    await this.init();
+    // The engine's prepare step calls this while init is still waiting for it.
+    if (!this.isInitialized) await this.init();
     await TorrentClientModule.applySettings(settings);
   }
 
@@ -253,13 +278,13 @@ class TorrentManager {
   }
 
   async applyBlocklist(text: string): Promise<{applied: boolean; ranges: number; reason: string}> {
-    await this.init();
+    if (!this.isInitialized) await this.init();
     return TorrentClientModule.applyBlocklist(text);
   }
 
+  /** Safe before the engine starts: the first torrent then follows this value. */
   async setTransfersAllowed(allowed: boolean): Promise<void> {
-    await this.init();
-    await TorrentClientModule.setTransfersAllowed(allowed);
+    await TorrentClientModule?.setTransfersAllowed?.(allowed);
   }
 
   async networkStatus(): Promise<NetworkStatus> {

@@ -9,6 +9,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {M3ThemeProvider} from './theme/M3ThemeProvider';
 import {THEME_ROLES} from './theme/themeMode';
 import useThemeStore from './lib/zustand/themeStore';
+import {startTransferRules} from './lib/torrent/transferPolicy';
 import './global.css';
 import Home from './screens/home/Home';
 import Info from './screens/home/Info';
@@ -655,6 +656,8 @@ const App = () => {
     }
     return useDownloadsStore.persist.onFinishHydration(reconcile);
   }, []);
+
+  useEffect(() => startTransferRules(), []);
 
   // One AppState listener and one timer. They were registered twice, so every
   // foreground, background and 30 s tick ran the sync twice.

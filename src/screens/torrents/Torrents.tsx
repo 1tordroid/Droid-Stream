@@ -9,11 +9,8 @@ import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {TVFocusable} from '../../components/tv';
 import {showUndo} from '../../components/UndoSnackbar';
-import {transferAllowed} from '../../lib/downloadEngine/planner';
-import {setTransfersOpen} from '../../lib/downloadEngine/queueStore';
 import {settingsStorage} from '../../lib/storage';
-import {feedItemMatches, parseFeedLinks} from '../../lib/torrent/rss';
-import {readStoredTorrents, readTorrentSettings, writeStoredTorrents, writeTorrentSettings, type StoredTorrent} from '../../lib/torrent/settings';
+import {readStoredTorrents, readTorrentSettings, writeStoredTorrents, writeTorrentSettings} from '../../lib/torrent/settings';
 import {torrentManager, type TorrentRow} from '../../lib/torrentManager';
 import {extensionStorage} from '../../lib/storage/extensionStorage';
 import {providerManager} from '../../lib/services/ProviderManager';
@@ -61,7 +58,6 @@ const Torrents = ({navigation, route}: {navigation: any; route?: {params?: {high
     });
     const timer = setInterval(() => {
       refresh().catch(() => undefined);
-      applyPolicy().catch(() => undefined);
     }, 2000);
     refresh().catch(() => undefined);
     return () => clearInterval(timer);
@@ -286,74 +282,5 @@ const remove = (row: TorrentRow, refresh: () => Promise<void>) => {
 };
 
 const showError = (error: any) => ToastAndroid.show(error?.message || 'Torrent action failed', ToastAndroid.LONG);
-
-// Feeds are polled at most every 15 minutes, not on every 2 second refresh.
-const RSS_INTERVAL_MS = 15 * 60 * 1000;
-let lastRssCheck = 0;
-let appliedBlocklist = '';
-
-const applyPolicy = async () => {
-  const settings = readTorrentSettings();
-  const network = await torrentManager.networkStatus();
-  const decision = transferAllowed({
-    wifiOnly: settings.wifiOnly,
-    onWifi: network.wifi,
-    chargingOnly: settings.chargingOnly,
-    charging: network.charging,
-    pauseOnBatterySaver: settings.pauseOnBatterySaver,
-    powerSave: network.powerSave,
-    requireVpn: settings.requireVpn,
-    vpnConnected: network.vpn,
-    scheduleEnabled: settings.scheduleEnabled,
-    windows: settings.windows,
-    now: new Date(),
-  });
-  await torrentManager.applySettings({
-    downloadRateLimit: settings.downloadRateLimit,
-    uploadRateLimit: settings.uploadRateLimit,
-    maxActiveDownloads: settings.maxActiveDownloads,
-    maxActiveSeeds: settings.maxActiveSeeds,
-    seedingEnabled: settings.seedingEnabled,
-    seedTimeLimitSeconds: settings.seedTimeLimitSeconds,
-    shareRatioPercent: settings.shareRatioPercent,
-    dht: settings.dht,
-    lsd: settings.lsd,
-    pex: settings.pex,
-    utp: settings.utp,
-    encryption: settings.encryption,
-    proxyType: settings.proxyType,
-    proxyHost: settings.proxyHost,
-    proxyPort: settings.proxyPort,
-    proxyUsername: settings.proxyUsername,
-    proxyPassword: settings.proxyPassword,
-    publicTrackers: settings.publicTrackers,
-    bindAddress: settings.requireVpn ? network.vpnAddress : '',
-  });
-  await torrentManager.setTransfersAllowed(decision.allowed);
-  setTransfersOpen(decision.allowed);
-  if (settings.blocklist && settings.blocklist !== appliedBlocklist) {
-    await torrentManager.applyBlocklist(settings.blocklist);
-    appliedBlocklist = settings.blocklist;
-  }
-  const rssDue = Date.now() - lastRssCheck >= RSS_INTERVAL_MS;
-  if (rssDue) lastRssCheck = Date.now();
-  for (const feed of rssDue ? settings.rssFeeds : []) {
-    if (!/^https?:\/\//i.test(feed.url)) continue;
-    try {
-      const xml = await (await fetch(feed.url)).text();
-      const fresh = parseFeedLinks(xml).filter(item => feedItemMatches(item.title, feed.keywords) && !feed.seen.includes(item.link));
-      for (const item of fresh) {
-        const added = await torrentManager.enqueue(item.link);
-        const stored: StoredTorrent[] = readStoredTorrents();
-        writeStoredTorrents([{infoHash: added.infoHash, source: item.link, name: item.title}, ...stored]);
-        feed.seen.push(item.link);
-        feed.seen = feed.seen.slice(-500);
-      }
-    } catch {
-      // A feed that fails waits for the next check.
-    }
-  }
-  if (rssDue && settings.rssFeeds.length) writeTorrentSettings(settings);
-};
 
 export default Torrents;
