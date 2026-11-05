@@ -24,6 +24,22 @@ module.exports = function withAndroidSigning(config) {
 
       // Create signing gradle that extends signingConfigs during android block
       const signingContent = `// Auto-applied by with-android-signing config plugin
+// Test builds without release secrets: sign "release" with the debug key so
+// packageRelease works. Real releases set the four MYAPP_UPLOAD_* variables.
+def useDebugKeyFor = { config ->
+    def candidates = [file('debug.keystore'), rootProject.file('../debug.keystore'), file("\${System.getProperty('user.home')}/.android/debug.keystore")]
+    def debugStore = candidates.find { it.exists() }
+    if (debugStore) {
+        config.storeFile = debugStore
+        config.storePassword = 'android'
+        config.keyAlias = 'androiddebugkey'
+        config.keyPassword = 'android'
+        println "Release build signed with the debug key: \${debugStore}"
+    } else {
+        println "No debug.keystore found; the release build cannot be signed"
+    }
+}
+
 android {
     signingConfigs {
         release {
@@ -45,6 +61,7 @@ android {
                     println "Release signing config configured successfully"
                 } else {
                     println "Keystore file not found: \${envStoreFile}"
+                    useDebugKeyFor(delegate)
                 }
             } else {
                 println "Missing signing environment variables:"
@@ -52,6 +69,7 @@ android {
                 println "  MYAPP_UPLOAD_STORE_PASSWORD: \${envStorePassword ? '***' : 'null'}"
                 println "  MYAPP_UPLOAD_KEY_ALIAS: \${envKeyAlias}"
                 println "  MYAPP_UPLOAD_KEY_PASSWORD: \${envKeyPassword ? '***' : 'null'}"
+                useDebugKeyFor(delegate)
             }
         }
     }
@@ -70,9 +88,6 @@ afterEvaluate {
         println "✅ Applied release signing config: \${releaseSigningConfig.storeFile.absolutePath}"
         println "  Final release buildType signingConfig: \${android.buildTypes.release.signingConfig?.name}"
     } else {
-        // Test builds without release secrets: actually sign with the debug
-        // key, or packageRelease fails on the empty release config.
-        android.buildTypes.release.signingConfig = android.signingConfigs.debug
         println "❌ Release signing config not applied, using debug keystore"
         if (releaseSigningConfig.storeFile) {
             println "   Keystore file does not exist: \${releaseSigningConfig.storeFile.absolutePath}"
