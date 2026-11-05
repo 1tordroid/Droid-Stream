@@ -242,7 +242,8 @@ export const findImdb = async (title: string, type: 'movie' | 'series', year?: n
     const metaYear = Number(String(meta.releaseInfo || meta.year || '').slice(0, 4)) || undefined;
     const name = withoutArticle(norm(meta.name));
     let score = name === withoutArticle(want) ? 3 : name.startsWith(withoutArticle(want)) ? 1 : 0;
-    if (year && metaYear) score += metaYear === year ? 2 : Math.abs(metaYear - year) <= 1 ? 1 : -2;
+    // A matching year only helps a title whose name already matches.
+    if (score && year && metaYear) score += metaYear === year ? 2 : Math.abs(metaYear - year) <= 1 ? 1 : -2;
     return {meta, score};
   });
   scored.sort((a, b) => b.score - a.score);

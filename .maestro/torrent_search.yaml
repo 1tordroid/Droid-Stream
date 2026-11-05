@@ -14,14 +14,14 @@ tags: [torrents, phone]
 - inputText: "ubuntu"
 - pressKey: Enter
 - extendedWaitUntil:
-    visible: "sites answered.*"
+    visible: ".*sites answered.*"
     timeout: 45000
 - takeScreenshot: torrent_search_results
 - tapOn: "Filters"
 - assertVisible: "Min seeders"
 - tapOn: "Trending"
 - extendedWaitUntil:
-    visible: "sites answered.*"
+    visible: ".*sites answered.*"
     timeout: 45000
 - tapOn: "Torrent sites"
 - assertVisible: "Built-in sites"

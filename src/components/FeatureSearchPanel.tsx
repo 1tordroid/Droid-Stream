@@ -16,15 +16,18 @@ const FeatureSearchPanel = ({initialQuery = '', autoFocus = false}: {initialQuer
   const hits = useMemo(() => searchFeatures(query).slice(0, 30), [query]);
   return (
     <View>
-      <TextInput
-        value={query}
-        onChangeText={setQuery}
-        autoFocus={autoFocus}
-        placeholder="Search settings and features"
-        placeholderTextColor={colors.onSurfaceVariant}
-        accessibilityLabel="Search settings and features"
-        style={{color: colors.onSurface, backgroundColor: colors.surfaceContainerHigh, borderRadius: 16, minHeight: 52, paddingHorizontal: 16, marginBottom: 12}}
-      />
+      <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 52, paddingHorizontal: 16, marginBottom: 12}}>
+        <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          autoFocus={autoFocus}
+          placeholder="Search settings and features"
+          placeholderTextColor={colors.onSurfaceVariant}
+          accessibilityLabel="Search settings and features"
+          style={{flex: 1, color: colors.onSurface, marginLeft: 8, fontSize: 16}}
+        />
+      </View>
       {query.trim().length > 0 && hits.length === 0 ? (
         <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant}}>No matching setting. Try vpn, subtitles, or smb.</AppText>
       ) : null}

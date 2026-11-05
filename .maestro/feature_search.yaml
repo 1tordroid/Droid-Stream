@@ -4,9 +4,7 @@ tags: [settings, phone]
 ---
 - runFlow: _launch.yaml
 - tapOn: "Search"
-- tapOn:
-    text: ".*settings.*"
-    optional: true
+- tapOn: "Settings & features"
 - inputText: "torbox"
 - assertVisible: "Debrid and cloud"
 - tapOn: "Debrid and cloud"

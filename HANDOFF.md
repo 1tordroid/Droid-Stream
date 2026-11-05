@@ -3,14 +3,14 @@
 Continue this project in any AI coding tool (Claude Code, Gemini/Antigravity, Cursor).
 Repo: https://github.com/1tordroid/Droid-Stream (standalone, not a fork) · Developer: Tordroid · https://tordroid.com · Support: https://t.me/Tordroid_admin
 
-## Status (2026-11-05, local PC session)
+## Status (2026-11-06, local PC session)
 Local builds work: expo prebuild --platform android --no-install, then gradlew assembleRelease as below. On Windows, stop KotlinCompileDaemon first or jars stay locked. Install with adb install -r --user 0 only; do not install to the work profile unless the owner says so. The APK is named DroidStream-v5.3.2.apk.
 
-Confirmed on OnePlus 15: magnet playback, Torrentio streams, AMOLED black and Soft dark themes, Credits page, Inter font, poster matches in Find streams, focus tint fix. 9 of the 11 sites on by default work. 1337x and EZTV stay blocked by Cloudflare; do not add a bypass.
+Confirmed on OnePlus 15: magnet and Internet Archive playback (Archive streams directly), first launch Get started, Top 10 rows, Info Play button, Available providers in the Home menu, Search posters, poster matches, shared links (also while the app runs), stream quality picker, HLS download and playback of the merged file, queue reorder, Nuvio-format plugins (StreamFlix returned streams), Library back navigation, themes, Credits, Inter font everywhere. All five Maestro phone flows pass (Maestro 2.12.1, maestro --device <serial> test --include-tags phone .maestro).
 
-Added but not yet tested on a phone: Internet Archive .torrent playback, one-tap first launch, queue reorder, stream quality picker, Nuvio-format plugins, poster row in torrent search, Library links, Info Play button, Top 10 and Because you watched rows, Available providers in the Home menu.
+Known: 1337x and EZTV are blocked by Cloudflare (no bypass). Vixsrc answers HTTP 403. The Apple BipBop test stream uses byte-range HLS, which the downloader does not support. A FORTIFY mutex abort shows in logcat when the app process is killed by a reinstall; not seen during use.
 
-Still to build: quicker player controls, Search tab posters and suggestions, polish, PikPak files in Library, download engine (dynamic segments, scheduler, HLS merge). Dropped by the owner: Light theme, Same as device, CloudStream plugins. yt-dlp downloader: confirm with the owner before building. Release signing needs the owner.
+Still to do: Android TV focus pass and TV flow, smoother transitions and loading placeholders, PikPak files listed in Library (needs an account to test), release signing (owner sets the password), extra.eas.projectId (needs the owner's Expo account), PR merge order (confirm with owner). yt-dlp downloader: confirm with the owner before building. Dropped: Light theme, Same as device, CloudStream plugins.
 
 ## Start here (local PC session, 2026-11-05)
 The owner is continuing on their Windows PC with a OnePlus 15 on USB (the OnePlus 12 is busy in another session). Do these in order:

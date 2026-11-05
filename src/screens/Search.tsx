@@ -1,3 +1,4 @@
+import Chip from '../components/torrentSearch/Chip';
 import {View, FlatList, Keyboard, Pressable} from 'react-native';
 import React, {useState, useEffect, useCallback, memo, useRef} from 'react';
 import {useNavigation} from '@react-navigation/native';
@@ -341,20 +342,17 @@ const Search = () => {
       <HeaderContainer
         {...(!isTV ? {entering: FadeInDown.duration(300)} : {})}
         className="px-4 pt-5">
-        <View style={{flexDirection: 'row', gap: 16, marginBottom: 12}}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Search content" onPress={() => setSearchMode('content')} style={{minHeight: 44, justifyContent: 'center'}}>
-            <AppText style={{color: searchMode === 'content' ? colors.primary : colors.onSurfaceVariant}}>Content</AppText>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Search settings and features" onPress={() => setSearchMode('features')} style={{minHeight: 44, justifyContent: 'center'}}>
-            <AppText style={{color: searchMode === 'features' ? colors.primary : colors.onSurfaceVariant}}>Settings & features</AppText>
-          </Pressable>
+        <View style={{flexDirection: 'row', gap: 8, marginBottom: 12}}>
+          <Chip label="Movies & shows" icon="movie-open-outline" accessibilityLabel="Search content" selected={searchMode === 'content'} onPress={() => setSearchMode('content')} />
+          <Chip label="Settings & features" icon="cog-outline" accessibilityLabel="Search settings and features tab" selected={searchMode === 'features'} onPress={() => setSearchMode('features')} />
         </View>
         <AppText
           role="bodyLarge"
           style={{color: colors.onSurfaceVariant, marginBottom: 18}}>
           {searchMode === 'features' ? 'Jump to any setting, including advanced ones' : 'Search across all providers'}
         </AppText>
-        <View className="flex-row items-center space-x-3 mb-3">
+        {/* The settings tab has its own field, so only one search box shows at a time. */}
+        <View className="flex-row items-center space-x-3 mb-3" style={searchMode === 'features' ? {display: 'none'} : undefined}>
           <View className="flex-1">
             <SearchField
               ref={searchFieldRef}
@@ -362,7 +360,7 @@ const Search = () => {
               onChangeText={handleTextChange}
               onSubmit={handleSearch}
               onClear={handleClear}
-              placeholder="Search anime..."
+              placeholder="Search movies, shows, anime"
               nextFocusDown={firstItemNode}
               nextFocusRight={isTV && searchText.length > 0 ? clearBtnNode : undefined}
               onNodeHandle={setSearchFieldNode}
@@ -384,7 +382,7 @@ const Search = () => {
 
       {searchMode === 'features' ? (
         <View style={{flex: 1, paddingHorizontal: 16}}>
-          <FeatureSearchPanel initialQuery={searchText} />
+          <FeatureSearchPanel initialQuery={searchText} autoFocus />
         </View>
       ) : null}
       {/* Search Content */}

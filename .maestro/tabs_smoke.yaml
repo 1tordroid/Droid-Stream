@@ -10,6 +10,9 @@ tags: [smoke, phone]
 - tapOn: "Library"
 - assertVisible: "Library"
 - tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Watch sync"
+    direction: DOWN
 - assertVisible: "Watch sync"
 - takeScreenshot: tabs_settings
 - tapOn: "Home"
