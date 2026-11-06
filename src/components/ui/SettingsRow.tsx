@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {ReactNode} from 'react';
-import {findNodeHandle, Platform, Pressable, View} from 'react-native';
+import {Platform, Pressable, View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {isTV} from '../../lib/tv';
 import {TVFocusable} from '../tv';
@@ -21,7 +22,7 @@ interface SettingsRowProps {
   hasTVPreferredFocus?: boolean;
 }
 
-const SettingsRow = React.forwardRef<View, SettingsRowProps>(({
+const SettingsRow = React.forwardRef<HostInstance, SettingsRowProps>(({
   title,
   description,
   icon,
@@ -32,14 +33,14 @@ const SettingsRow = React.forwardRef<View, SettingsRowProps>(({
   hasTVPreferredFocus,
 }: SettingsRowProps, ref) => {
   const colors = useM3Colors();
-  const internalRowRef = React.useRef<View>(null);
-  const rowRef = (ref as React.RefObject<View>) || internalRowRef;
+  const internalRowRef = React.useRef<HostInstance>(null);
+  const rowRef = (ref as React.RefObject<HostInstance | null>) || internalRowRef;
   const [rowHandle, setRowHandle] = React.useState<number | null>(null);
   const isNavFocused = useSafeIsNavFocused();
 
   const onLayout = React.useCallback(() => {
     if (rowRef.current) {
-      const handle = findNodeHandle(rowRef.current);
+      const handle = getNodeHandle(rowRef.current);
       setRowHandle(handle);
       if (hasTVPreferredFocus && handle && isNavFocused) {
         useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
@@ -49,7 +50,7 @@ const SettingsRow = React.forwardRef<View, SettingsRowProps>(({
 
   const handleFocus = React.useCallback(() => {
     if (rowRef.current) {
-      const handle = findNodeHandle(rowRef.current);
+      const handle = getNodeHandle(rowRef.current);
       if (handle) {
         useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
       }

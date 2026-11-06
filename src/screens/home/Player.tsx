@@ -11,7 +11,8 @@ import {languageLabel, shortLanguageLabel} from '../../lib/player/languageLabel'
 import {usePlayerControlAnimations} from '../../components/media-console/hooks/usePlayerControlAnimations';
 import {isRemotePlaybackCanceled} from '../../lib/remote/remotePlaybackErrors';
 import React, {useEffect, useState, useRef, useCallback, useMemo} from 'react';
-import {Animated as NativeAnimated, AppState, NativeModules, DeviceEventEmitter, AppStateStatus, BackHandler, FlatList, findNodeHandle, Pressable, ScrollView, ToastAndroid, TouchableOpacity, View, Platform, TouchableNativeFeedback, Modal, UIManager, useWindowDimensions} from 'react-native';
+import {Animated as NativeAnimated, AppState, NativeModules, DeviceEventEmitter, AppStateStatus, BackHandler, FlatList, Pressable, ScrollView, ToastAndroid, TouchableOpacity, View, Platform, TouchableNativeFeedback, Modal, useWindowDimensions, type HostInstance, type StyleProp, type ViewStyle} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {RawText as Text} from '../../components/ui/Text';
 import Animated, {
   FadeIn,
@@ -36,7 +37,6 @@ import Orientation, {
 } from 'react-native-orientation-locker';
 import {SystemBars} from 'react-native-edge-to-edge';
 import VideoPlayer from '../../components/media-console';
-import {playPauseRef} from '../../components/media-console/components/PlayPause/PlayPause';
 import {Back} from '../../components/media-console/components/Back';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -671,21 +671,21 @@ const Player = ({route}: Props): React.JSX.Element => {
     setCurrentPlaybackTime(0);
   }, [activeEpisodeKey]);
   const [settingsCloseFocused, setSettingsCloseFocused] = useState(false);
-  const timelineRef = useRef<View>(null);
+  const timelineRef = useRef<HostInstance>(null);
   const [timelineFocusHandle, setTimelineFocusHandle] = useState<number | null>(
     null,
   );
-  const playPauseTVRef = useRef<View>(null);
+  const playPauseTVRef = useRef<HostInstance>(null);
   const [playPauseTVHandle, setPlayPauseTVHandle] = useState<number | null>(
     null,
   );
-  const videoSurfaceTVRef = useRef<View>(null);
+  const videoSurfaceTVRef = useRef<HostInstance>(null);
   const [topControlTVHandle, setTopControlTVHandle] = useState<number | null>(null);
   const [bottomControlTVHandle, setBottomControlTVHandle] = useState<number | null>(null);
-  const preferredMenuRowRef = useRef<View>(null);
+  const preferredMenuRowRef = useRef<HostInstance>(null);
   const [editingControls, setEditingControls] = useState(false);
   const [showMoreControls, setShowMoreControls] = useState(false);
-  const nativeVideoViewRef = useRef<View>(null);
+  const nativeVideoViewRef = useRef<HostInstance>(null);
   const [hdrWidth, setHdrWidth] = useState(0);
   const [decoderMode, setDecoderMode] = useState<'hardware' | 'software'>('hardware');
   const decoderRestartRef = useRef(false);
@@ -694,7 +694,7 @@ const Player = ({route}: Props): React.JSX.Element => {
   useEffect(() => { manualDecoderModeRef.current = null; }, [selectedStream?.link]);
   useEffect(() => {
     const listener = DeviceEventEmitter.addListener('VegaVideoDecoderFallback', (event: {viewTags?: number[]}) => {
-      const tag = findNodeHandle(nativeVideoViewRef.current);
+      const tag = getNodeHandle(nativeVideoViewRef.current);
       if (tag && event.viewTags?.includes(tag)) {
         decoderRestartRef.current = true;
         if (manualDecoderModeRef.current) {
@@ -707,7 +707,7 @@ const Player = ({route}: Props): React.JSX.Element => {
   }, [setToast]);
 
   const refreshDecoderStatus = useCallback(() => {
-    const tag = findNodeHandle(nativeVideoViewRef.current);
+    const tag = getNodeHandle(nativeVideoViewRef.current);
     if (tag && NativeModules.VideoDecoder) NativeModules.VideoDecoder.getStatus(tag).then((status: {mode?: string} | null) => {
       if (status?.mode === 'software' || status?.mode === 'hardware') {
         setDecoderMode(status.mode);
@@ -741,9 +741,9 @@ const Player = ({route}: Props): React.JSX.Element => {
   useEffect(() => {
     if (!isTV || !showSettings || editingControls) return;
     const timer = setTimeout(() => {
-      const handle = findNodeHandle(preferredMenuRowRef.current);
+      const handle = getNodeHandle(preferredMenuRowRef.current);
       if (handle)
-        UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+        requestTVFocusByHandle(handle);
     }, 400);
     return () => clearTimeout(timer);
   }, [
@@ -767,9 +767,9 @@ const Player = ({route}: Props): React.JSX.Element => {
     )
       return;
     const timer = setTimeout(() => {
-      const handle = findNodeHandle(videoSurfaceTVRef.current);
+      const handle = getNodeHandle(videoSurfaceTVRef.current);
       if (handle)
-        UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+        requestTVFocusByHandle(handle);
     }, 100);
     return () => clearTimeout(timer);
   }, [
@@ -811,16 +811,10 @@ const Player = ({route}: Props): React.JSX.Element => {
       3000,
     );
   });
+  // Button refs are native views without props, so the old path that called
+  // the play/pause button's onPress through its ref never ran; toggle directly.
   const handleTogglePlayPause = useCallback(() => {
-    if (isTV) {
-      setIsPaused(prev => !prev);
-      return;
-    }
-    if (playPauseRef.current?.props?.onPress) {
-      playPauseRef.current.props.onPress();
-    } else {
-      setIsPaused(prev => !prev);
-    }
+    setIsPaused(prev => !prev);
   }, []);
 
   const handleSeekNotification = useCallback(
@@ -3009,7 +3003,7 @@ const Player = ({route}: Props): React.JSX.Element => {
   };
   const changeVideoDecoder = async () => {
     if (decoderSwitchBusyRef.current) return;
-    const tag = findNodeHandle(nativeVideoViewRef.current);
+    const tag = getNodeHandle(nativeVideoViewRef.current);
     if (!tag || !NativeModules.VideoDecoder) return;
     decoderSwitchBusyRef.current = true;
     decoderRestartRef.current = true;
@@ -3189,7 +3183,7 @@ const Player = ({route}: Props): React.JSX.Element => {
         edges={{right: 'off', top: 'off', left: 'off', bottom: 'off'}}
         className="bg-black flex-1 justify-center items-center">
         <SystemBars hidden={true} />
-        <StatusBar translucent={true} hidden={true} />
+        <StatusBar hidden={true} />
         <OrientationLocker orientation={LANDSCAPE} />
         {/* Same back arrow as the main player's top-left control */}
         <SafeAreaView
@@ -3261,7 +3255,7 @@ const Player = ({route}: Props): React.JSX.Element => {
         edges={{right: 'off', top: 'off', left: 'off', bottom: 'off'}}
         className="bg-black flex-1 justify-center items-center">
         <SystemBars hidden={true} />
-        <StatusBar translucent={true} hidden={true} />
+        <StatusBar hidden={true} />
         <OrientationLocker orientation={LANDSCAPE} />
         {/* create ripple effect */}
         <TouchableNativeFeedback
@@ -3294,7 +3288,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     return (
       <SafeAreaView className="bg-black flex-1 justify-center items-center">
         <SystemBars hidden={true} />
-        <StatusBar translucent={true} hidden={true} />
+        <StatusBar hidden={true} />
         <OrientationLocker orientation={LANDSCAPE} />
         <Text className="text-red-500 text-lg text-center mb-4">
           Failed to load stream. Please try again.
@@ -3332,7 +3326,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       }}
       className="bg-black flex-1 relative">
       <SystemBars hidden={!isRemoteActive && isFullScreen} />
-      <StatusBar translucent={true} hidden={!isRemoteActive} />
+      <StatusBar hidden={!isRemoteActive} />
       {isRemoteActive ? (
         <OrientationLocker orientation={PORTRAIT} />
       ) : (
@@ -3514,7 +3508,7 @@ const Player = ({route}: Props): React.JSX.Element => {
               focusRadius={40 * controlStyle.scale}
               focusWidth={3}
               onLayout={() =>
-                setPlayPauseTVHandle(findNodeHandle(playPauseTVRef.current))
+                setPlayPauseTVHandle(getNodeHandle(playPauseTVRef.current))
               }
               nextFocusLeft={playPauseTVHandle ?? undefined}
               nextFocusRight={playPauseTVHandle ?? undefined}
@@ -3549,7 +3543,7 @@ const Player = ({route}: Props): React.JSX.Element => {
               ref={timelineRef}
               focusWidth={2}
               onLayout={() =>
-                setTimelineFocusHandle(findNodeHandle(timelineRef.current))
+                setTimelineFocusHandle(getNodeHandle(timelineRef.current))
               }
               nextFocusLeft={timelineFocusHandle ?? undefined}
               nextFocusRight={timelineFocusHandle ?? undefined}
@@ -3633,7 +3627,9 @@ const Player = ({route}: Props): React.JSX.Element => {
       {/* Configurable toolbar controls. Drag handlers exist only in the editor. */}
       {!isCasting && (
         <LockAnimatedView
-          style={[isPlayerLocked ? lockButtonStyle : [controlsTopStyle, controlsOpacityStyle],
+          // LockAnimatedView switches between Reanimated and React Native
+          // Animated views, so its style is one of two animated shapes.
+          style={[(isPlayerLocked ? lockButtonStyle : [controlsTopStyle, controlsOpacityStyle]) as unknown as StyleProp<ViewStyle>,
             (streamLoading || editingControls) && {display: 'none'}]}
           className="absolute top-3 right-5 z-50"
           pointerEvents={!streamLoading && !editingControls && (isPlayerLocked ? showUnlockButton : showControls) && !showSettings && !showEpisodeSidebar ? 'box-none' : 'none'}>

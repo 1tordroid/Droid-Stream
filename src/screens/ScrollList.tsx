@@ -1,5 +1,5 @@
 import ScreenSafeArea from '../components/ui/ScreenSafeArea';
-import { View, Pressable, useWindowDimensions } from 'react-native';
+import {View, Pressable, useWindowDimensions, type HostInstance} from 'react-native';
 import React, { useEffect, useState, useRef, useMemo, useCallback, memo } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList, SearchStackParamList } from '../App';
@@ -29,13 +29,10 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'ScrollList'>;
 type ListItem = Post | { id: string; isSkeleton: true };
 
 const GRID_POSTER_WIDTH = 100;
-const GRID_POSTER_HEIGHT = 150;
 const LIST_POSTER_WIDTH = 70;
-const LIST_POSTER_HEIGHT = 100;
 // Screen container uses p-4 and each grid cell uses m-3 on both sides.
 const GRID_SCREEN_PADDING = 16;
 const GRID_ITEM_MARGIN = 12;
-const GRID_POSTER_ASPECT_RATIO = GRID_POSTER_HEIGHT / GRID_POSTER_WIDTH;
 
 const ScrollListCard = memo(({
   item,
@@ -57,7 +54,7 @@ const ScrollListCard = memo(({
   const colors = useM3Colors();
   const focusBorderColor = useTVFocusBorderColor();
   const [isFocused, setIsFocused] = useState(false);
-  const pressableRef = useRef<View>(null);
+  const pressableRef = useRef<HostInstance>(null);
   const isNavFocused = useSafeIsNavFocused();
   const {
     preferredFocus,
@@ -217,7 +214,6 @@ const ScrollListCard = memo(({
 });
 
 const ScrollList = ({ route }: Props): React.ReactElement => {
-  const colors = useM3Colors();
   const { width: windowWidth } = useWindowDimensions();
   const navigation =
     useNavigation<NativeStackNavigationProp<SearchStackParamList>>();

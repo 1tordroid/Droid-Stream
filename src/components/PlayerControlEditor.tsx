@@ -1,5 +1,6 @@
 import React, {memo, useEffect, useRef, useState} from 'react';
-import {Modal, ScrollView, View, findNodeHandle, useWindowDimensions} from 'react-native';
+import {Modal, ScrollView, View, useWindowDimensions, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../lib/tv/focus';
 import {RawText as Text} from './ui/Text';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {settingsStorage} from '../lib/storage';
@@ -26,7 +27,7 @@ type Props = {
 function PlayerControlEditor({layout, controls, color, hiddenControls, appearance,
   onClose, onSave, onHaptic}: Props) {
   const {width, height} = useWindowDimensions();
-  const arrangeTabRef = useRef<View>(null);
+  const arrangeTabRef = useRef<HostInstance>(null);
   const [arrangeTabHandle, setArrangeTabHandle] = useState<number>();
   const [entryHandle, setEntryHandle] = useState<number>();
   const [tab, setTab] = useState<'arrange' | 'style' | 'subtitles'>('arrange');
@@ -70,7 +71,7 @@ function PlayerControlEditor({layout, controls, color, hiddenControls, appearanc
           <View style={{flexDirection: 'row', gap: 8, marginBottom: 10}}>
             {(['arrange', 'style', 'subtitles'] as const).map(item => (
               <TVFocusable key={item} ref={item === 'arrange' ? arrangeTabRef : undefined}
-                onLayout={item === 'arrange' ? () => { const handle = findNodeHandle(arrangeTabRef.current); if (handle) setArrangeTabHandle(handle); } : undefined}
+                onLayout={item === 'arrange' ? () => { const handle = getNodeHandle(arrangeTabRef.current); if (handle) setArrangeTabHandle(handle); } : undefined}
                 nextFocusDown={tab === 'arrange' ? entryHandle : undefined}
                 registerScreenFocus={false} accessibilityRole="tab"
                 accessibilityLabel={item === 'arrange' ? 'Arrange' : item === 'style' ? 'Style' : 'Subtitles'}

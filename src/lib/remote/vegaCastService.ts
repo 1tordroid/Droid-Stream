@@ -158,7 +158,7 @@ class VegaCastService {
       try {
         const result=await this.request(record.serviceUrl,{op:'poll',auth:this.auth()},this.pollAbort.signal);
         for(const message of result.messages)this.receive(message);
-      } catch(error){
+      } catch {
         if(!this.polling||this.current!==record)return;
         useRemoteStore.getState().setErrorMessage('Receiver connection interrupted. Playback may still be running.');
         await new Promise(resolve=>setTimeout(resolve,2000));

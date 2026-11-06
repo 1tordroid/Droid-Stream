@@ -144,7 +144,8 @@ class AmbientVideoModule(context: ReactApplicationContext) : ReactContextBaseJav
                     promise.resolve(null)
                     return@runOnUiThread
                 }
-                val supported = display.hdrCapabilities.supportedHdrTypes
+                // Nullable since compileSdk 36: no capabilities means no HDR types.
+                val supported = display.hdrCapabilities?.supportedHdrTypes ?: IntArray(0)
                 val dolby = format.sampleMimeType == "video/dolby-vision"
                 val decoder = findVideoView(root)?.videoDecoderStatus
                 val decoderName = decoder?.getString("name").orEmpty()

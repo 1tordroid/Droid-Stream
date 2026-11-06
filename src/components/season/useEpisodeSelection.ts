@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {BackHandler, Clipboard, ToastAndroid} from 'react-native';
+import {BackHandler, ToastAndroid} from 'react-native';
+import {copyText} from '../../lib/clipboard';
 import {
   EpisodeLinkTarget,
   FetchEpisodeStreams,
@@ -127,7 +128,7 @@ export const useEpisodeSelection = ({
       ToastAndroid.show('No downloadable links found', ToastAndroid.SHORT);
       return;
     }
-    Clipboard.setString(result.links.join('\n'));
+    copyText(result.links.join('\n'));
     ToastAndroid.show(
       copiedLinksMessage(result.links.length, result.skipped.length),
       ToastAndroid.LONG,

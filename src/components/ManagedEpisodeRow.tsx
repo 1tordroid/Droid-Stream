@@ -1,6 +1,6 @@
 import {NavigationContext} from '@react-navigation/native';
 import React, {useContext, useRef, useState} from 'react';
-import {ActivityIndicator, View} from 'react-native';
+import {ActivityIndicator, View, type HostInstance} from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {TVFocusable} from './tv';
 import EpisodeRowContent from './EpisodeRowContent';
@@ -21,7 +21,7 @@ interface Props {
   onLongPress: () => void;
   onDelete: () => void;
   onShowDetails?: () => void;
-  controlRef?: React.Ref<View>;
+  controlRef?: React.Ref<HostInstance>;
 }
 export default function ManagedEpisodeRow({
   title,

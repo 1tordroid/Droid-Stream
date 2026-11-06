@@ -4,7 +4,8 @@ import {
   View,
   BackHandler,
 } from 'react-native';
-import {WebView, WebViewMessageEvent} from 'react-native-webview';
+import type {WebViewMessageEvent} from 'react-native-webview';
+import {WebView} from '../lib/webview';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {useWafStore, WafRequest} from '../lib/zustand/wafStore';
 import {headers as commonHeaders} from '../lib/providers/headers';

@@ -15,8 +15,10 @@ export function usePlayerControlAnimations(visible: boolean, duration = 350) {
     const opacityStyle = {opacity: progress};
     const bottomStyle = {opacity: progress, transform: [{translateY: progress.interpolate({inputRange: [0, 1], outputRange: [150, 0]})}]};
     const topStyle = {transform: [{translateY: progress.interpolate({inputRange: [0, 1], outputRange: [-150, 0]})}]};
+    // React Native Animated styles. VideoAnimations is typed for Reanimated
+    // styles too (see useAnimations.ts), so the two shapes need a cast.
     const animations = {AnimatedView: Animated.View, bottomControl: bottomStyle, topControl: topStyle,
-      controlsOpacity: opacityStyle, showControlAnimation: managedByParent, hideControlAnimation: managedByParent} as VideoAnimations;
+      controlsOpacity: opacityStyle, showControlAnimation: managedByParent, hideControlAnimation: managedByParent} as unknown as VideoAnimations;
     return {progress, bottomStyle, topStyle, opacityStyle, animations};
   }, [progress]);
 }

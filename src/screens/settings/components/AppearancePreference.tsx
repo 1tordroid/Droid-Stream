@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Platform, Pressable, ToastAndroid, View} from 'react-native';
+import {Platform, ToastAndroid, View} from 'react-native';
 import {isDynamicColorAvailable} from '@expo/ui/jetpack-compose';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import useThemeStore from '../../../lib/zustand/themeStore';

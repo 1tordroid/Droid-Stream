@@ -5,8 +5,9 @@ import {
   Platform,
   StyleSheet,
   View,
-  findNodeHandle,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import NativeAmbientGlow from './NativeAmbientGlow';
 import {
   AmbientBars,
@@ -20,7 +21,7 @@ import {
 const EMPTY: AmbientBars = {top: 0, bottom: 0, left: 0, right: 0};
 const BLACK: AmbientColors = ['#000000', '#000000', '#000000', '#000000'];
 type Props = {
-  videoView: React.RefObject<View | null>;
+  videoView: React.RefObject<HostInstance | null>;
   bars: AmbientBars;
   paused: boolean;
   intensity: number;
@@ -62,7 +63,7 @@ function AmbientBackground({videoView, bars, paused, intensity, spread, response
     previousSample.current = null;
     const sample = async () => {
       try {
-        const tag = findNodeHandle(videoView.current);
+        const tag = getNodeHandle(videoView.current);
         const started = Date.now();
         const result = tag ? await native.sample(tag) : null;
         if (cancelled) return;

@@ -6,6 +6,7 @@ import {
   ScrollView,
   View,
   useWindowDimensions,
+  type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -53,7 +54,7 @@ const InfoStoryModal = ({
   const insets = useSafeAreaInsets();
   const [pageIndex, setPageIndex] = useState(0);
   const storyListRef = useRef<FlatList<StoryPage>>(null);
-  const scrollRefs = useRef<Record<number, ScrollView | null>>({});
+  const scrollRefs = useRef<Record<number, ScrollViewInstance | null>>({});
   const scrollOffsets = useRef<Record<number, number>>({});
   const touchStart = useRef<{ time: number; x: number; y: number } | undefined>(
     undefined,

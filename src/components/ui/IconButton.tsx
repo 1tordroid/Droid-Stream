@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState, useRef, useEffect} from 'react';
-import {ColorValue, Pressable, View, findNodeHandle} from 'react-native';
+import {ColorValue, Pressable, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {isTV, useTVRemote} from '../../lib/tv';
 import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';
@@ -47,11 +48,11 @@ const IconButton = ({
   const colors = useM3Colors();
   const focusBorderColor = useTVFocusBorderColor();
   const [isFocused, setIsFocused] = useState(false);
-  const buttonRef = useRef<View>(null);
+  const buttonRef = useRef<HostInstance>(null);
 
   useEffect(() => {
     if (isTV && buttonRef.current && onNodeHandle) {
-      const handle = findNodeHandle(buttonRef.current);
+      const handle = getNodeHandle(buttonRef.current);
       onNodeHandle(handle);
     }
   }, [onNodeHandle]);
@@ -136,7 +137,7 @@ const IconButton = ({
       <MaterialCommunityIcons
         name={icon}
         size={size}
-        color={resolvedContentColor}
+        color={resolvedContentColor as string}
         pointerEvents="none"
       />
     </Pressable>

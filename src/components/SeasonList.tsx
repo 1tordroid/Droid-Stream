@@ -15,9 +15,9 @@ import {
   FlatList,
   ScrollView,
   BackHandler,
-  findNodeHandle,
-  UIManager,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../lib/tv/focus';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -175,8 +175,8 @@ interface EpisodeCardRowProps {
   isCompleted: boolean;
   isSticky: boolean;
   onPress: () => void;
-  onBeforePlay?: (control: View | null) => void;
-  onPlayControlRef?: (link: string, control: View | null) => void;
+  onBeforePlay?: (control: HostInstance | null) => void;
+  onPlayControlRef?: (link: string, control: HostInstance | null) => void;
   onLongPress: () => void;
   displayTitle: string;
   primary: string;
@@ -218,7 +218,7 @@ export const EpisodeCardRow: React.FC<EpisodeCardRowProps> = ({
           accessibilityLabel: `${selected ? 'Deselect' : 'Select'} ${displayTitle}`,
           accessibilityState: {selected},
         };
-  const playControlRef = useRef<View>(null);
+  const playControlRef = useRef<HostInstance>(null);
   const itemLink: string = item.link;
   useEffect(() => {
     if (!isTV || !onPlayControlRef) return;
@@ -439,14 +439,14 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {fetchStreams} = useStreamData();
   const detailsPressRef = useRef<string | null>(null);
-  const playerReturnFocusRef = useRef<View | null>(null);
+  const playerReturnFocusRef = useRef<HostInstance | null>(null);
   const restorePlayerFocusRef = useRef(false);
 
   // Play controls by episode link. Player can auto-advance, so on return the
   // last played episode may not be the one that opened Player.
-  const playControlsRef = useRef(new Map<string, View>());
+  const playControlsRef = useRef(new Map<string, HostInstance>());
   const registerPlayControl = useCallback(
-    (link: string, control: View | null) => {
+    (link: string, control: HostInstance | null) => {
       if (control) playControlsRef.current.set(link, control);
       else playControlsRef.current.delete(link);
     },
@@ -462,9 +462,9 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
         const target =
           (lastPlayedLink && playControlsRef.current.get(lastPlayedLink)) ||
           playerReturnFocusRef.current;
-        const handle = findNodeHandle(target);
+        const handle = getNodeHandle(target);
         if (handle) {
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          requestTVFocusByHandle(handle);
         }
         restorePlayerFocusRef.current = false;
       }, 350);
@@ -472,7 +472,7 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
     }, []),
   );
 
-  const rememberPlayerFocus = useCallback((control: View | null) => {
+  const rememberPlayerFocus = useCallback((control: HostInstance | null) => {
     if (!isTV) return;
     playerReturnFocusRef.current = control;
     restorePlayerFocusRef.current = true;
@@ -1552,7 +1552,7 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
     }, [readLastPlayed]),
   );
   const [pendingResume, setPendingResume] = useState<string | null>(null);
-  const resumeCardRef = useRef<View | null>(null);
+  const resumeCardRef = useRef<HostInstance | null>(null);
 
   const seasonItems: EpisodeLink[] = rangesOnEpisodes
     ? validEpisodes

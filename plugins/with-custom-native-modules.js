@@ -230,10 +230,24 @@ allprojects {
       );
     }
 
+    // smbj (SMB sources) always uses its Bouncy Castle security provider:
+    // Android's own crypto has no MD4 for NTLM, so SMB fails without it.
+    // Up to 5.3 it came through expo-updates, which is gone. smbj asks for
+    // bcprov-jdk18on 1.75; ship the current jdk15to18 build instead (a
+    // single copy, no multi-release jar).
+    if (!contents.includes('org.bouncycastle:bcprov-jdk15to18')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match =>
+          `${match}\n    implementation 'org.bouncycastle:bcprov-jdk15to18:1.86'\n`,
+      );
+    }
+
     if (!contents.includes("module: 'bcprov-jdk18on'")) {
       contents += `
 configurations.configureEach {
-    // libtorrent4j and another dependency both ship Bouncy Castle.
+    // One Bouncy Castle copy: bcprov-jdk15to18 replaces the bcprov-jdk18on
+    // that smbj asks for (same classes).
     exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
 }
 `;

@@ -1,6 +1,7 @@
 import React from 'react';
 import renderer, {act} from 'react-test-renderer';
-import {BackHandler, Clipboard, ToastAndroid} from 'react-native';
+import {BackHandler, ToastAndroid} from 'react-native';
+import * as ExpoClipboard from 'expo-clipboard';
 
 jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => 'Icon');
 jest.mock('../src/lib/tv/useTVFocusBorderColor', () => ({
@@ -136,7 +137,7 @@ describe('useEpisodeSelection', () => {
   let setString: jest.SpyInstance;
   let toast: jest.SpyInstance;
   beforeEach(() => {
-    setString = jest.spyOn(Clipboard, 'setString').mockImplementation(() => {});
+    setString = jest.spyOn(ExpoClipboard, 'setStringAsync').mockImplementation(() => Promise.resolve(true));
     toast = jest.spyOn(ToastAndroid, 'show').mockImplementation(() => {});
     setString.mockClear();
     toast.mockClear();

@@ -11,7 +11,8 @@ import {
 } from '@expo/ui/jetpack-compose';
 import {fillMaxWidth} from '@expo/ui/jetpack-compose/modifiers';
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState} from 'react';
-import {View, Keyboard, Pressable, BackHandler, findNodeHandle, UIManager} from 'react-native';
+import {View, Keyboard, Pressable, BackHandler, type HostInstance, type TextInputInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {RawText as RNText} from './Text';
 import {RawTextInput as TextInput} from './Text';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
@@ -60,8 +61,8 @@ const SearchField = forwardRef<SearchFieldRef, SearchFieldProps>(
     const hostTheme = useM3HostTheme();
     const nativeValue = useNativeState(value);
     const fieldRef = useRef<TextFieldRef>(null);
-    const tvInputRef = useRef<TextInput>(null);
-    const containerRef = useRef<View>(null);
+    const tvInputRef = useRef<TextInputInstance>(null);
+    const containerRef = useRef<HostInstance>(null);
     const [tvFocused, setTvFocused] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [hasPreferredFocus, setHasPreferredFocus] = useState(true);
@@ -105,7 +106,7 @@ const SearchField = forwardRef<SearchFieldRef, SearchFieldProps>(
 
     useEffect(() => {
       if (isTV && containerRef.current && !isEditing) {
-        const handle = findNodeHandle(containerRef.current);
+        const handle = getNodeHandle(containerRef.current);
         setContainerHandle(handle);
         onNodeHandle?.(handle);
       }
@@ -118,8 +119,8 @@ const SearchField = forwardRef<SearchFieldRef, SearchFieldProps>(
           // focus and keep preferred focus set until onFocus confirms arrival.
           setHasPreferredFocus(true);
           setIsEditing(false);
-          const handle = containerRef.current ? findNodeHandle(containerRef.current) : null;
-          if (handle) UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          const handle = containerRef.current ? getNodeHandle(containerRef.current) : null;
+          if (handle) requestTVFocusByHandle(handle);
         } else {
           fieldRef.current?.focus();
         }
@@ -132,7 +133,7 @@ const SearchField = forwardRef<SearchFieldRef, SearchFieldProps>(
         }
       },
       getNodeHandle: () => {
-        return containerRef.current ? findNodeHandle(containerRef.current) : null;
+        return containerRef.current ? getNodeHandle(containerRef.current) : null;
       },
     }));
 

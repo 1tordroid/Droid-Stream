@@ -1,6 +1,7 @@
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import React, {useEffect, useRef} from 'react';
-import {ActivityIndicator, findNodeHandle, UIManager, View} from 'react-native';
+import {ActivityIndicator, View, type HostInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../../../lib/tv/focus';
 import {RawText as Text} from '../../../components/ui/Text';
 import {isTV} from '../../../lib/tv';
 import {TVFocusable, TVFocusGuide} from '../../../components/tv';
@@ -36,7 +37,7 @@ export const ProviderCardActions: React.FC<ProviderCardActionsProps> = ({
   onOpenSettings,
 }) => {
   const colors = useM3Colors();
-  const testButtonRef = useRef<View>(null);
+  const testButtonRef = useRef<HostInstance>(null);
   const installFocusedRef = useRef(false);
 
   // The Install button unmounts once the provider is installed. Move focus to
@@ -45,9 +46,9 @@ export const ProviderCardActions: React.FC<ProviderCardActionsProps> = ({
     if (!isTV || !installed || !installFocusedRef.current) return;
     installFocusedRef.current = false;
     const timer = setTimeout(() => {
-      const handle = findNodeHandle(testButtonRef.current);
+      const handle = getNodeHandle(testButtonRef.current);
       if (handle) {
-        UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+        requestTVFocusByHandle(handle);
       }
     }, 50);
     return () => clearTimeout(timer);

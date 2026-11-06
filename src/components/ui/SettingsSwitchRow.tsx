@@ -1,5 +1,6 @@
 import React, {useCallback, useRef, useState} from 'react';
-import {findNodeHandle, Platform, Pressable, Switch, View} from 'react-native';
+import {Platform, Pressable, Switch, View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {isTV} from '../../lib/tv';
 import {TVFocusable} from '../tv';
@@ -15,7 +16,7 @@ interface SettingsSwitchRowProps {
   nextFocusUp?: number | null;
 }
 
-const SettingsSwitchRow = React.forwardRef<View, SettingsSwitchRowProps>(({
+const SettingsSwitchRow = React.forwardRef<HostInstance, SettingsSwitchRowProps>(({
   title,
   description,
   value,
@@ -24,9 +25,9 @@ const SettingsSwitchRow = React.forwardRef<View, SettingsSwitchRowProps>(({
   nextFocusUp,
 }: SettingsSwitchRowProps, forwardedRef) => {
   const colors = useM3Colors();
-  const rowRef = useRef<View>(null);
+  const rowRef = useRef<HostInstance>(null);
   const [rowHandle, setRowHandle] = useState<number | null>(null);
-  const setRefs = useCallback((node: View | null) => {
+  const setRefs = useCallback((node: HostInstance | null) => {
     rowRef.current = node;
     if (typeof forwardedRef === 'function') forwardedRef(node);
     else if (forwardedRef) forwardedRef.current = node;
@@ -34,7 +35,7 @@ const SettingsSwitchRow = React.forwardRef<View, SettingsSwitchRowProps>(({
 
   const onLayout = useCallback(() => {
     if (rowRef.current) {
-      setRowHandle(findNodeHandle(rowRef.current));
+      setRowHandle(getNodeHandle(rowRef.current));
     }
   }, []);
 

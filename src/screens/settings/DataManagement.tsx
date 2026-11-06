@@ -1,14 +1,9 @@
 import React, {useCallback, useState} from 'react';
-import {
-  BackHandler,
-  DevSettings,
-  ToastAndroid,
-  View,
-} from 'react-native';
+import {BackHandler, ToastAndroid, View} from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {useFocusEffect} from '@react-navigation/native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
-import * as Updates from 'expo-updates';
+import {reloadAppAsync} from 'expo';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import type {SettingsStackParamList} from '../../App';
 import BackupExportDialog from '../../components/BackupExportDialog';
@@ -93,12 +88,11 @@ export default function DataManagement({navigation}: Props) {
     ToastAndroid.show('App cache cleared', ToastAndroid.SHORT);
   }, []);
 
+  // Erasing data and restoring a backup both need a full JS restart so no
+  // in-memory store writes stale values back. DevSettings.reload is a no-op
+  // in release builds, so use Expo's reload, which works in every build.
   const reloadApp = useCallback(async (reason: string) => {
-    if (Updates.isEnabled) {
-      await Updates.reloadAsync();
-      return;
-    }
-    DevSettings.reload(reason);
+    await reloadAppAsync(reason);
   }, []);
 
   const eraseAllLocalData = useCallback(async () => {

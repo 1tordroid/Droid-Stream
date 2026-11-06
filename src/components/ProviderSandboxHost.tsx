@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useRef} from 'react';
 import {View} from 'react-native';
-import {WebView} from 'react-native-webview';
+import {WebView} from '../lib/webview';
 import type {WebViewMessageEvent} from 'react-native-webview';
 import {SANDBOX_RUNTIME} from '../lib/sandbox/generated/sandboxRuntime.generated';
 import {sandboxBridge} from '../lib/sandbox/sandboxBridge';

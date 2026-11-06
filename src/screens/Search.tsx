@@ -1,5 +1,5 @@
 import Chip from '../components/torrentSearch/Chip';
-import {View, FlatList, Keyboard, Pressable} from 'react-native';
+import {View, FlatList, Keyboard} from 'react-native';
 import React, {useState, useEffect, useCallback, memo, useRef} from 'react';
 import {useNavigation} from '@react-navigation/native';
 import type {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';

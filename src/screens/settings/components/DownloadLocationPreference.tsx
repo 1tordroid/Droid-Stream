@@ -6,7 +6,6 @@ import {
 } from '../../../lib/downloadLocation';
 import {settingsStorage} from '../../../lib/storage';
 import {syncFromSharedFolder} from '../../../lib/sync/syncService';
-import IconButton from '../../../components/ui/IconButton';
 import SettingsRow from '../../../components/ui/SettingsRow';
 import SettingsSection from '../../../components/ui/SettingsSection';
 import {isTV} from '../../../lib/tv';

@@ -46,7 +46,6 @@ const ProviderTestProgressDialog = ({
   providerName,
   steps,
   resultMessage,
-  primary,
   onClose,
 }: ProviderTestProgressDialogProps) => {
   const colors = useM3Colors();

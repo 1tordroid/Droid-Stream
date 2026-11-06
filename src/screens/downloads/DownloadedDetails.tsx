@@ -5,7 +5,8 @@ import type {CompositeScreenProps} from '@react-navigation/native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useFocusEffect} from '@react-navigation/native';
-import {BackHandler, ScrollView, StatusBar, View, findNodeHandle, UIManager} from 'react-native';
+import {BackHandler, ScrollView, View, type HostInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {RawText as Text} from '../../components/ui/Text';
 import type {DownloadsStackParamList, RootStackParamList} from '../../App';
 import ManagedEpisodeSelectionBar from '../../components/ManagedEpisodeSelectionBar';
@@ -44,15 +45,15 @@ const getSeasonTitle = (item: DownloadItem): string =>
   item.seasonTitle || 'Downloaded';
 
 const DownloadedFileDetails = ({navigation, route}: DownloadedDetailsProps) => {
-  const playerReturnFocusRef = useRef<View | null>(null);
+  const playerReturnFocusRef = useRef<HostInstance | null>(null);
   const restorePlayerFocusRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
       if (!isTV || !restorePlayerFocusRef.current) return;
       const timer = setTimeout(() => {
-        const handle = findNodeHandle(playerReturnFocusRef.current);
+        const handle = getNodeHandle(playerReturnFocusRef.current);
         if (handle) {
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          requestTVFocusByHandle(handle);
         }
         restorePlayerFocusRef.current = false;
       }, 350);
@@ -239,7 +240,6 @@ const DownloadedFileDetails = ({navigation, route}: DownloadedDetailsProps) => {
 
   return (
     <TVFocusGuide autoFocus={true} trapFocusRight={true} style={{flex: 1, backgroundColor: '#000000'}}>
-      <StatusBar translucent backgroundColor="transparent" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: selecting ? 120 : 0}}>
         <DetailsHero
           title={group.title}

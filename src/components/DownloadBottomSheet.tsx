@@ -1,6 +1,8 @@
 import {usesExternalApp} from '../lib/externalApps';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import {TouchableOpacity, ToastAndroid, View, Modal, ScrollView, StyleSheet, UIManager, findNodeHandle, type StyleProp, type ViewStyle} from 'react-native';
+import {TouchableOpacity, ToastAndroid, View, Modal, ScrollView, StyleSheet, type StyleProp, type ViewStyle, type HostInstance} from 'react-native';
+import {copyText} from '../lib/clipboard';
+import {getNodeHandle, requestTVFocusByHandle} from '../lib/tv/focus';
 import {RawText as Text} from './ui/Text';
 import React, { useEffect, useRef } from 'react';
 import { Stream } from '../lib/providers/types';
@@ -11,7 +13,6 @@ import BottomSheet, {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingIndicator from './ui/LoadingIndicator';
 import RNReactNativeHapticFeedback from 'react-native-haptic-feedback';
-import { Clipboard } from 'react-native';
 import { TextTrackType } from 'react-native-video';
 import { settingsStorage } from '../lib/storage';
 import { useM3Colors } from '../theme/M3PaletteContext';
@@ -91,7 +92,7 @@ const SheetRowMain = ({children, style, onPress, label, preferred, focusRef}: {
   onPress: () => void;
   label: string;
   preferred: boolean;
-  focusRef?: React.Ref<View>;
+  focusRef?: React.Ref<HostInstance>;
 }) => isTV ? (
   <TVFocusable
     ref={focusRef}
@@ -170,8 +171,8 @@ const DownloadBottomSheet = ({
   // cached streams render on the first frame, the list lays out at its full
   // content height and has nothing to scroll, so cap it from the modal size.
   const [sheetContainerHeight, setSheetContainerHeight] = React.useState(0);
-  const tvCloseRef = useRef<View>(null);
-  const tvFirstRowRef = useRef<View>(null);
+  const tvCloseRef = useRef<HostInstance>(null);
+  const tvFirstRowRef = useRef<HostInstance>(null);
   const closeSheet = () => {
     if (isTV) setModal(false);
     else bottomSheetRef.current?.close?.();
@@ -208,7 +209,7 @@ const DownloadBottomSheet = ({
         ignoreAndroidSystemSettings: false,
       });
     }
-    Clipboard.setString(link);
+    copyText(link);
     ToastAndroid.show('Link copied', ToastAndroid.SHORT);
   };
 
@@ -862,9 +863,9 @@ const DownloadBottomSheet = ({
           setTimeout(() => {
             // Same target as hasTVPreferredFocus: the first source, else Close.
             const handle =
-              findNodeHandle(closePreferred ? null : tvFirstRowRef.current) ??
-              findNodeHandle(tvCloseRef.current);
-            if (handle) UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+              getNodeHandle(closePreferred ? null : tvFirstRowRef.current) ??
+              getNodeHandle(tvCloseRef.current);
+            if (handle) requestTVFocusByHandle(handle);
           }, 250);
         }}>
         <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.78)'}}>

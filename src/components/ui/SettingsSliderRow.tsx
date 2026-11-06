@@ -3,7 +3,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {Host, Slider} from '@expo/ui/jetpack-compose';
 import {fillMaxWidth} from '@expo/ui/jetpack-compose/modifiers';
 import React, {useCallback, useRef} from 'react';
-import {View, findNodeHandle} from 'react-native';
+import {View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {settingsStorage} from '../../lib/storage';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
@@ -47,8 +48,8 @@ const SettingsSliderRow = ({
   const colors = useM3Colors();
   const hostTheme = useM3HostTheme();
   const prevValueRef = useRef(value);
-  const decreaseRef = useRef<View>(null);
-  const increaseRef = useRef<View>(null);
+  const decreaseRef = useRef<HostInstance>(null);
+  const increaseRef = useRef<HostInstance>(null);
   const [decreaseHandle, setDecreaseHandle] = React.useState<number | null>(
     null,
   );
@@ -174,7 +175,7 @@ const SettingsSliderRow = ({
             <TVFocusable
               ref={decreaseRef}
               onLayout={() =>
-                setDecreaseHandle(findNodeHandle(decreaseRef.current))
+                setDecreaseHandle(getNodeHandle(decreaseRef.current))
               }
               nextFocusRight={increaseHandle}
               onPress={() => {
@@ -224,7 +225,7 @@ const SettingsSliderRow = ({
             <TVFocusable
               ref={increaseRef}
               onLayout={() =>
-                setIncreaseHandle(findNodeHandle(increaseRef.current))
+                setIncreaseHandle(getNodeHandle(increaseRef.current))
               }
               nextFocusLeft={decreaseHandle}
               onPress={() => {

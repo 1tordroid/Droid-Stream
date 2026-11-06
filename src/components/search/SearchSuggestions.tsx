@@ -1,5 +1,6 @@
 import React, {memo, useCallback, useState, useRef, useEffect} from 'react';
-import {Image, View, ScrollView, Pressable, findNodeHandle} from 'react-native';
+import {Image, View, ScrollView, Pressable, type HostInstance, type ScrollViewInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import AppText from '../ui/Text';
@@ -25,7 +26,7 @@ interface SuggestionItemProps {
   focusBorderColor: string;
   nextFocusUp?: number | null;
   nextFocusDown?: number | null;
-  itemRef?: (el: View | null) => void;
+  itemRef?: (el: HostInstance | null) => void;
 }
 
 const SuggestionItem = memo(
@@ -147,8 +148,8 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   onFirstItemNodeHandle,
 }) => {
   const focusBorderColor = useTVFocusBorderColor();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const itemRefs = useRef<(View | null)[]>([]);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
+  const itemRefs = useRef<(HostInstance | null)[]>([]);
   const [nodeHandles, setNodeHandles] = useState<(number | null)[]>([]);
 
   const visibleSuggestions = isTV ? suggestions.slice(0, 7) : suggestions;
@@ -156,7 +157,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   useEffect(() => {
     if (!isTV) return;
     const handles = visibleSuggestions.map((_, i) =>
-      itemRefs.current[i] ? findNodeHandle(itemRefs.current[i]) : null,
+      itemRefs.current[i] ? getNodeHandle(itemRefs.current[i]) : null,
     );
     setNodeHandles(handles);
     if (handles[0] && onFirstItemNodeHandle) {

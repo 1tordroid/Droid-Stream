@@ -1,5 +1,6 @@
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {View, BackHandler, findNodeHandle} from 'react-native';
+import {View, BackHandler, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../lib/tv/focus';
 import {RawText as Text} from './ui/Text';
 // The gesture handler ScrollView lets a held row take over from scrolling.
 import {ScrollView} from 'react-native-gesture-handler';
@@ -40,8 +41,8 @@ const ProviderDrawer = ({
   const insets = useSafeAreaInsets();
   const focusBorderColor = useTVFocusBorderColor(primary);
   const mountTimeRef = React.useRef<number>(Date.now());
-  const closeRef = React.useRef<View>(null);
-  const firstProviderRef = React.useRef<View>(null);
+  const closeRef = React.useRef<HostInstance>(null);
+  const firstProviderRef = React.useRef<HostInstance>(null);
   const [closeNode, setCloseNode] = React.useState<number | null>(null);
   const [firstProviderNode, setFirstProviderNode] = React.useState<number | null>(null);
 
@@ -97,7 +98,7 @@ const ProviderDrawer = ({
         {isTV ? (
           <TVFocusable
             ref={closeRef}
-            onLayout={() => setCloseNode(findNodeHandle(closeRef.current))}
+            onLayout={() => setCloseNode(getNodeHandle(closeRef.current))}
             nextFocusDown={firstProviderNode}
             accessibilityRole="button"
             accessibilityLabel="Close drawer"
@@ -172,7 +173,7 @@ const ProviderDrawer = ({
                 <TVFocusable
                   key={item.value}
                   ref={index === 0 ? firstProviderRef : undefined}
-                  onLayout={index === 0 ? () => setFirstProviderNode(findNodeHandle(firstProviderRef.current)) : undefined}
+                  onLayout={index === 0 ? () => setFirstProviderNode(getNodeHandle(firstProviderRef.current)) : undefined}
                   nextFocusUp={index === 0 ? closeNode : undefined}
                   hasTVPreferredFocus={isPreferred}
                   onPress={() => handleSelectProvider(item)}

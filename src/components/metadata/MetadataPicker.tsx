@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {ActivityIndicator, FlatList, Image, ScrollView, View, findNodeHandle, UIManager} from 'react-native';
+import {ActivityIndicator, FlatList, Image, ScrollView, View, type HostInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {RawTextInput as TextInput} from '../ui/Text';
 import AppText from '../ui/Text';
 import DropdownField from '../ui/DropdownField';
@@ -34,16 +35,16 @@ export function ImportAction({
   focusEpoch?: number;
 }) {
   const colors = useM3Colors();
-  const ref = useRef<View>(null);
+  const ref = useRef<HostInstance>(null);
   const isFocused = useSafeIsNavFocused();
   useEffect(() => {
     if (!isTV || !preferredFocus || !isFocused || disabled) return;
     // Stack and Modal animations can take focus after the initial native request.
     const timers = [60, 350].map(delay =>
       setTimeout(() => {
-        const handle = findNodeHandle(ref.current);
+        const handle = getNodeHandle(ref.current);
         if (handle != null)
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          requestTVFocusByHandle(handle);
       }, delay),
     );
     return () => timers.forEach(clearTimeout);
@@ -224,7 +225,7 @@ export function MetadataPicker({
                 <AppText style={{color: colors.onSurfaceVariant}}>
                   Search by title, or switch to IMDb ID.
                 </AppText>
-              ) : null
+              ) : undefined
             }
             renderItem={({item}) => (
               <TVFocusable

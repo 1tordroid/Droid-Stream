@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
 import {Host, Switch} from '@expo/ui/jetpack-compose';
-import {Clipboard, Pressable, ToastAndroid, View} from 'react-native';
+import {Pressable, ToastAndroid, View} from 'react-native';
+import {copyText} from '../../lib/clipboard';
 import IconButton from '../ui/IconButton';
 import AppText from '../ui/Text';
 import {useRemoteStore} from '../../lib/remote/remoteStore';
@@ -38,7 +39,7 @@ export const RemoteHeader: React.FC<RemoteHeaderProps> = ({
       ToastAndroid.show(`No ${label} to copy`, ToastAndroid.SHORT);
       return;
     }
-    Clipboard.setString(value);
+    copyText(value);
     ToastAndroid.show(`${label[0].toUpperCase()}${label.slice(1)} copied`, ToastAndroid.SHORT);
     setMenuVisible(false);
   };

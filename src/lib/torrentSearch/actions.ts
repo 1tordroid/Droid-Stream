@@ -1,5 +1,6 @@
 import {archiveDirectVideo} from './archive';
-import {Clipboard, Linking, Share, ToastAndroid} from 'react-native';
+import {Linking, Share, ToastAndroid} from 'react-native';
+import {copyText} from '../clipboard';
 import {
   connectedServices,
   directLink,
@@ -131,7 +132,7 @@ export const quickDebridPlay = async (input: TorrentResult, navigation: any, ser
 
 export const copyMagnet = async (input: TorrentResult): Promise<void> => {
   const result = await resolveResult(input);
-  Clipboard.setString(sourceOf(result));
+  copyText(sourceOf(result));
   toast('Magnet copied');
 };
 

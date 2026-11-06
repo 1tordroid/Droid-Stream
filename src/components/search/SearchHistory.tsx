@@ -1,5 +1,6 @@
 import React, {memo, useCallback, useState, useRef, useEffect, useMemo} from 'react';
-import {View, ScrollView, Pressable, findNodeHandle, UIManager} from 'react-native';
+import {View, ScrollView, Pressable, type HostInstance, type ScrollViewInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import AppText from '../ui/Text';
@@ -25,7 +26,7 @@ interface HistoryRowProps {
   focusBorderColor: string;
   nextFocusUp?: number | null;
   nextFocusDown?: number | null;
-  itemRef?: (el: View | null) => void;
+  itemRef?: (el: HostInstance | null) => void;
 }
 
 const HistoryRow = memo(
@@ -45,12 +46,12 @@ const HistoryRow = memo(
     const [removeFocused, setRemoveFocused] = useState(false);
     const [rowNode, setRowNode] = useState<number | null>(null);
     const [removeNode, setRemoveNode] = useState<number | null>(null);
-    const setRowRef = useCallback((el: View | null) => {
+    const setRowRef = useCallback((el: HostInstance | null) => {
       itemRef?.(el);
-      if (isTV) setRowNode(el ? findNodeHandle(el) : null);
+      if (isTV) setRowNode(el ? getNodeHandle(el) : null);
     }, [itemRef]);
-    const setRemoveRef = useCallback((el: View | null) => {
-      setRemoveNode(el ? findNodeHandle(el) : null);
+    const setRemoveRef = useCallback((el: HostInstance | null) => {
+      setRemoveNode(el ? getNodeHandle(el) : null);
     }, []);
 
     const handlePress = useCallback(() => {
@@ -187,8 +188,8 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({
 }) => {
   const colors = useM3Colors();
   const focusBorderColor = useTVFocusBorderColor();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const itemRefs = useRef<(View | null)[]>([]);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
+  const itemRefs = useRef<(HostInstance | null)[]>([]);
   const [nodeHandles, setNodeHandles] = useState<(number | null)[]>([]);
 
   const [clearNode, setClearNode] = useState<number | null>(null);
@@ -197,11 +198,11 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({
     () => isTV ? history.slice(0, 10) : history,
     [history],
   );
-  const setClearRef = useCallback((el: View | null) => {
-    if (isTV) setClearNode(el ? findNodeHandle(el) : null);
+  const setClearRef = useCallback((el: HostInstance | null) => {
+    if (isTV) setClearNode(el ? getNodeHandle(el) : null);
   }, []);
   const rowRefs = useMemo(() => visibleHistory.map((_, index) =>
-    (el: View | null) => { itemRefs.current[index] = el; },
+    (el: HostInstance | null) => { itemRefs.current[index] = el; },
   ), [visibleHistory]);
   const handleRemove = useCallback((text: string) => {
     if (isTV && history.length > 1) {
@@ -213,7 +214,7 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({
   useEffect(() => {
     if (!isTV) return;
     const handles = visibleHistory.map((_, i) =>
-      itemRefs.current[i] ? findNodeHandle(itemRefs.current[i]) : null,
+      itemRefs.current[i] ? getNodeHandle(itemRefs.current[i]) : null,
     );
     setNodeHandles(handles);
     onFirstItemNodeHandle?.(handles[0] ?? null);
@@ -223,7 +224,7 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({
       pendingFocusIndex.current = null;
       if (target) {
         const frame = requestAnimationFrame(() => {
-          UIManager.dispatchViewManagerCommand(target, 'requestTVFocus', []);
+          requestTVFocusByHandle(target);
         });
         return () => cancelAnimationFrame(frame);
       }

@@ -28,7 +28,7 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
   const [open, setOpen] = useState<SavedSource>();
   const [showMagnet, setShowMagnet] = useState(false);
   const [rows, setRows] = useState<Array<{id: string; title: string; directory: boolean; playUrl?: string}>>([]);
-  const [folder, setFolder] = useState('');
+  const [, setFolder] = useState('');
 
   const refresh = () => setSources(listSources());
   useEffect(() => {

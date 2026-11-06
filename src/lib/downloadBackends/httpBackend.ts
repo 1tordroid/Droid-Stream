@@ -71,6 +71,11 @@ interface NativeStateEvent {
   message?: string;
 }
 
+type HttpDownloadEvents = {
+  VegaHttpDownloadProgress: [NativeProgressEvent];
+  VegaHttpDownloadState: [NativeStateEvent];
+};
+
 const nativeHttpModule = NativeModules.HttpDownloadModule as
   | NativeHttpDownloadModule
   | undefined;
@@ -142,7 +147,7 @@ const startNativeDownload = async ({
   }
 
   const subscriptions: EmitterSubscription[] = [];
-  const emitter = new NativeEventEmitter(nativeHttpModule);
+  const emitter = new NativeEventEmitter<HttpDownloadEvents>(nativeHttpModule);
   subscriptions.push(
     emitter.addListener(
       'VegaHttpDownloadProgress',

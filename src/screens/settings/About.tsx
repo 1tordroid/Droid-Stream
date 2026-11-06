@@ -1,5 +1,6 @@
 import {useFocusEffect} from '@react-navigation/native';
-import {View, ScrollView, ToastAndroid, Linking, BackHandler, findNodeHandle, Image} from 'react-native';
+import {View, ScrollView, ToastAndroid, Linking, BackHandler, Image, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import React, {useState, useRef, useCallback} from 'react';
 import {settingsStorage} from '../../lib/storage';
 import * as Application from 'expo-application';
@@ -28,8 +29,8 @@ export {checkForUpdate};
 
 const About = ({navigation}: any) => {
   const colors = useM3Colors();
-  const backRef = useRef<View>(null);
-  const autoDownloadRef = useRef<View>(null);
+  const backRef = useRef<HostInstance>(null);
+  const autoDownloadRef = useRef<HostInstance>(null);
   const [backHandle, setBackHandle] = useState<number | null>(null);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [autoDownload, setAutoDownload] = useState(
@@ -108,7 +109,7 @@ const About = ({navigation}: any) => {
           <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
             <TVFocusable
               ref={backRef}
-              onLayout={() => setBackHandle(findNodeHandle(backRef.current))}
+              onLayout={() => setBackHandle(getNodeHandle(backRef.current))}
               hasTVPreferredFocus={isTV}
               accessibilityLabel="Go back"
               accessibilityRole="button"

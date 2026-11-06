@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {Clipboard, Pressable, ScrollView, Share, Switch, ToastAndroid, View} from 'react-native';
+import {Pressable, ScrollView, Share, Switch, ToastAndroid, View} from 'react-native';
+import {copyText, readText} from '../../lib/clipboard';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
@@ -151,7 +152,7 @@ const TorrentSources = () => {
         {settings.adapters.length ? (
           <Chip label="Export" icon="export" onPress={() => {
             const text = exportAdapters(settings.adapters);
-            Clipboard.setString(text);
+            copyText(text);
             Share.share({message: text, title: 'Droid Stream site adapters'}).catch(() => undefined);
           }} />
         ) : null}
@@ -239,7 +240,7 @@ const TorrentSources = () => {
           <View style={{padding: 12}}>
             <Input label="Paste adapter JSON" multiline value={draft.json || ''} onChangeText={json => setDraft({...draft, json})} style={{minHeight: 120, textAlignVertical: 'top'}} />
             <View style={{flexDirection: 'row', gap: 8}}>
-              <Chip label="Paste from clipboard" icon="clipboard-text" onPress={async () => setDraft({...draft, json: await Clipboard.getString()})} />
+              <Chip label="Paste from clipboard" icon="clipboard-text" onPress={async () => setDraft({...draft, json: await readText()})} />
               <Chip label="Import" icon="import" onPress={() => {
                 try {
                   addAdapters(importAdapters(draft.json || ''));

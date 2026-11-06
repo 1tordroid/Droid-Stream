@@ -8,7 +8,7 @@ import {
 } from '@expo/ui/jetpack-compose';
 import {defaultMinSize} from '@expo/ui/jetpack-compose/modifiers';
 import React, {ReactNode} from 'react';
-import {ColorValue, Pressable, StyleSheet, View, ViewStyle} from 'react-native';
+import {ColorValue, Pressable, StyleSheet, View, ViewStyle, type HostInstance} from 'react-native';
 import {RawText as RNText} from './Text';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
 import {isTV} from '../../lib/tv';
@@ -41,7 +41,7 @@ interface ButtonProps {
   onLayout?: (event: any) => void;
 }
 
-const Button = React.forwardRef<View, ButtonProps>(({
+const Button = React.forwardRef<HostInstance, ButtonProps>(({
   children,
   variant = 'filled',
   compact = false,

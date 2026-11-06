@@ -9,7 +9,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {MAX_PLAYER_DELAY_MS, formatDelay} from '../PlayerDelayControl';
 import AppText from '../ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
-import SearchSubtitles, {FoundSubtitle} from '../SearchSubtitles';
+import SearchSubtitles from '../SearchSubtitles';
 import {useRemoteStore} from '../../lib/remote/remoteStore';
 import {remotePlaybackManager} from '../../lib/remote/remotePlaybackManager';
 import {vegaCastService} from '../../lib/remote/vegaCastService';

@@ -1,6 +1,7 @@
 import {isRemotePlaybackCanceled} from '../../lib/remote/remotePlaybackErrors';
 import React, {useEffect, useState} from 'react';
-import {ActivityIndicator, Alert, Clipboard, View} from 'react-native';
+import {ActivityIndicator, Alert, View} from 'react-native';
+import {copyText} from '../../lib/clipboard';
 import AppDialog from '../AppDialog';
 import GoogleCast, {useCastDevice, useDevices} from 'react-native-google-cast';
 import {useRemoteStore} from '../../lib/remote/remoteStore';
@@ -242,7 +243,7 @@ export const DevicePickerModal: React.FC<DevicePickerModalProps> = ({
         primary={colors.primary}
         onDismiss={()=>setShowCastInfo(false)}
         actions={[
-          {label:linkCopied?'Copied':'Copy link',dismissOnPress:false,onPress:()=>{Clipboard.setString(castPageUrl);setLinkCopied(true);}},
+          {label:linkCopied?'Copied':'Copy link',dismissOnPress:false,onPress:()=>{copyText(castPageUrl);setLinkCopied(true);}},
           {label:'Done',variant:'primary'},
         ]}
       />

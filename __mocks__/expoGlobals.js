@@ -1,3 +1,4 @@
+/* global globalThis */
 // Minimal Expo native runtime globals (what jest-expo installs), so expo-*
 // packages can be imported in tests without the native binary.
 class EventEmitter {

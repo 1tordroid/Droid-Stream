@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {ActivityIndicator, Clipboard, FlatList, Image, Pressable, ScrollView, Switch, View} from 'react-native';
+import {ActivityIndicator, FlatList, Image, Pressable, ScrollView, Switch, View} from 'react-native';
+import {copyText} from '../../lib/clipboard';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import {CardListSkeleton} from '../../components/PosterRowSkeleton';
@@ -247,13 +248,13 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
                   <Chip label="Download" icon="download" accessibilityLabel="Download torrent" onPress={() => downloadWithClient(candidateToResult(item)).catch(error => toast(error.message))} />
                 </>
               ) : null}
-              <Chip label="Copy" icon="content-copy" accessibilityLabel="Copy link" onPress={() => { Clipboard.setString(item.url || item.magnet || item.torrentUrl || ''); toast('Copied'); }} />
+              <Chip label="Copy" icon="content-copy" accessibilityLabel="Copy link" onPress={() => { copyText(item.url || item.magnet || item.torrentUrl || ''); toast('Copied'); }} />
             </View>
           </TVFocusable>
         )}
         ListEmptyComponent={want && !loading ? (
           <AppText role="bodyLarge" style={{color: colors.onSurfaceVariant, textAlign: 'center', marginTop: 32}}>No sources found. Add Stremio add-ons or turn on more torrent sites.</AppText>
-        ) : null}
+        ) : undefined}
       />
       {busy ? (
         <View accessibilityLiveRegion="polite" style={{position: 'absolute', left: 16, right: 16, bottom: 16, flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, backgroundColor: colors.surfaceContainerHigh, borderWidth: 1, borderColor: colors.primary}}>

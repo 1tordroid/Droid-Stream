@@ -1,5 +1,6 @@
 import React, {useRef} from 'react';
-import {Clipboard, View} from 'react-native';
+import {type HostInstance} from 'react-native';
+import {copyText, readText} from '../../../lib/clipboard';
 import {algorithmFor, checksumMatches, fileChecksum} from '../../../lib/checksum';
 import {showAppDialog} from '../../../lib/zustand/appDialogStore';
 import ManagedEpisodeRow from '../../../components/ManagedEpisodeRow';
@@ -11,7 +12,7 @@ interface DownloadedEpisodeRowProps {
   item: DownloadItem;
   isDeleting: boolean;
   onPlay: (item: DownloadItem) => void;
-  onBeforePlay?: (control: View | null) => void;
+  onBeforePlay?: (control: HostInstance | null) => void;
   onDelete: (item: DownloadItem) => void;
   selecting?: boolean;
   selected?: boolean;
@@ -30,7 +31,7 @@ export const DownloadedEpisodeRow: React.FC<DownloadedEpisodeRowProps> = ({
   onToggleSelection,
   onStartSelection,
 }) => {
-  const controlRef = useRef<View>(null);
+  const controlRef = useRef<HostInstance>(null);
   return (
     <ManagedEpisodeRow
       controlRef={controlRef}
@@ -54,7 +55,7 @@ export const DownloadedEpisodeRow: React.FC<DownloadedEpisodeRowProps> = ({
   );
 };
 const verify = async (item: DownloadItem) => {
-  const copied = (await Clipboard.getString().catch(() => '')) || '';
+  const copied = (await readText()) || '';
   const expected = algorithmFor(copied) ? copied.trim() : '';
   showAppDialog({title: 'Verifying…', message: 'Computing the checksum. Large files can take a minute.', actions: [{label: 'Hide'}]});
   try {
@@ -73,7 +74,7 @@ const verify = async (item: DownloadItem) => {
     showAppDialog({
       title: 'Checksums',
       message: `MD5\n${md5}\n\nSHA-256\n${sha256}\n\nTip: copy the expected hash first and Droid Stream compares it for you.`,
-      actions: [{label: 'Copy SHA-256', onPress: () => Clipboard.setString(sha256)}, {label: 'OK'}],
+      actions: [{label: 'Copy SHA-256', onPress: () => copyText(sha256)}, {label: 'OK'}],
     });
   } catch (error: any) {
     showAppDialog({title: 'Could not verify', message: error?.message || String(error), variant: 'error', actions: [{label: 'OK'}]});

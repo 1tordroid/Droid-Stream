@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import HdrFormatIcon, {hdrIconWidth} from './HdrFormatIcon';
-import {AppState, findNodeHandle, Modal, NativeModules, Platform, View} from 'react-native';
+import {AppState, Modal, NativeModules, Platform, View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import {RawText as Text} from '../../ui/Text';
 import {TVFocusable, TVFocusGuide} from '../../tv';
 
@@ -11,7 +12,7 @@ type HdrStatus = {
 };
 
 export default function HdrBadge({videoView, source, suspended, scale, backgroundOpacity = 0, onInteract, onWidthChange}: {
-  videoView: React.RefObject<View | null>; source: string; suspended: boolean;
+  videoView: React.RefObject<HostInstance | null>; source: string; suspended: boolean;
   scale: number; onInteract: () => void; onWidthChange?: (width: number) => void;
   backgroundOpacity?: number;
 }) {
@@ -41,7 +42,7 @@ export default function HdrBadge({videoView, source, suspended, scale, backgroun
     let timer: ReturnType<typeof setTimeout>;
     const check = async () => {
       try {
-        const tag = findNodeHandle(videoView.current);
+        const tag = getNodeHandle(videoView.current);
         const next = tag ? await NativeModules.AmbientVideo.hdrStatus(tag) : null;
         update(next);
       } catch { update(null); }

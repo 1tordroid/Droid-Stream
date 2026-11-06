@@ -38,9 +38,11 @@ npm run lint
 
 Local builds are much faster than waiting for CI, so use them for phone testing.
 
-- Build with `bash scripts/dev/build-local.sh`. Add `prebuild` after changing `app.config.js`, `plugins/` or `native-src/`. The script stops the Kotlin compile daemon first, because on Windows it keeps jars locked and the next build fails with "Unable to delete file ... classes.jar". The first build takes about 30 minutes, later ones 2 to 4.
-- The APK lands in `android/app/build/outputs/apk/release/DroidStream-v<version>.apk`. Without the release signing variables it is signed with the debug key. A debug-signed build cannot update the release-signed app, so uninstall first (this clears app data).
-- Phone helpers: `source scripts/dev/phone.sh`, then `install_app`, `open_app`, `tap 'content-desc="Torrents"'`, `shot name`, `dump`, `crash`, `share <url>`, `jank_reset` and `jank`. Screenshots go to `phone-shots/`, which git ignores. Every action first checks that Droid Stream is in front.
+- One-time Windows setup: turn on long paths (`LongPathsEnabled` = 1 under `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`) and install CMake 3.31.6 from the SDK (`sdkmanager "cmake;3.31.6"`). React Native 0.88's codegen object paths pass the 260-character limit, and the Ninja 1.10 in the default CMake 3.22.1 cannot open them ("ninja: error: mkdir ... No such file or directory"). On Windows, `app.config.js` sets `cmakeVersion` 3.31.6 through `expo-build-properties`, for the app and every native module; its Ninja 1.12 handles long paths. Linux CI keeps CMake 3.22.1.
+- Build with `bash scripts/dev/build-local.sh`. Add `prebuild` after changing `app.config.js`, `plugins/` or `native-src/`, or `clean` to regenerate `android/` from scratch. The script regenerates it by itself when `APP_VARIANT`, `EXPO_TV` or the Expo version changed since its own last prebuild, or when `android/` was prebuilt outside it (`npm run prebuild`, `npm run prebuild:tv`), because a prebuild without `--clean` keeps the old project's Gradle files and package (after an SDK update, AGP rejects them). It also stops the Kotlin compile daemon first, because on Windows it keeps jars locked and the next build fails with "Unable to delete file ... classes.jar". The first build takes about 30 minutes, later ones 2 to 4.
+- The APK lands in `android/app/build/outputs/apk/release/DroidStream-v<version>.apk`. Without the release signing variables it is signed with the debug key. A debug-signed build cannot update the release-signed app.
+- To test without touching the installed app or its data, build a preview: `APP_VARIANT=preview bash scripts/dev/build-local.sh`. It installs beside the release app as "Droid Stream Preview", with its own package `com.tordroid.droidstream.preview` (code namespace included, so launcher icons, "Open with" and notification taps work in it). Point the phone helpers at it with `PACKAGE=com.tordroid.droidstream.preview`, when sourcing them or on a single call. The next build without the variable regenerates `android/` for the release app. The Maestro flows drive `com.tordroid.droidstream` only, so `npm run e2e:phone` tests the release app, not the preview.
+- Phone helpers: `source scripts/dev/phone.sh`, then `install_app` (installs the newest APK in the output folder), `open_app`, `tap 'content-desc="Torrents"'`, `shot name`, `dump`, `crash`, `share <url>`, `jank_reset` and `jank`. Screenshots go to `phone-shots/`, which git ignores. Every action first checks that Droid Stream is in front.
 - Install to the personal profile only (`adb install -r --user 0`), never to a work profile.
 - `dump` (uiautomator) returns nothing while a progress bar animates. Take a screenshot instead. Text typed with `adb shell input text` needs `%s` for spaces.
 - End-to-end flows use Maestro 2.12.1 (the official release zip, with `JAVA_HOME` set to JDK 17): `maestro --device <serial> test --include-tags phone .maestro`, or `npm run e2e:phone` and `npm run e2e:tv`. The five phone flows pass.
@@ -68,10 +70,13 @@ Release certificate: CN=Tordroid, OU=Droid Stream, SHA-256 `76fb06dd1d36edb89ce3
 ## Dependencies
 
 - Patches in `patches/` are applied by `patch-package` on every install. Patched packages are pinned to the exact patched version in `package.json`. Re-check the patch before updating one.
-- `react-native` is the TV fork `react-native-tvos`, set through `overrides`. The override spells out the version instead of `$react-native`, because npm fails to resolve that reference for an aliased package.
+- Expo SDK 58 with `react-native` 0.88, which is the TV fork `react-native-tvos`, set through `overrides`. The override spells out the version instead of `$react-native`, because npm fails to resolve that reference for an aliased package. `expo.install.exclude` keeps `npx expo install --fix` away from it.
+- React Native 0.88 uses the strict TypeScript API: components such as `View`, `TextInput` and `ScrollView` are function types, so refs use `HostInstance`, `TextInputInstance` and `ScrollViewInstance` from `react-native`. List props such as `ListEmptyComponent` take `undefined`, not `null`. `StatusBar` no longer has `translucent`, `backgroundColor` or `setBackgroundColor` (edge-to-edge is always on).
+- Shared helpers: `src/lib/tv/focus.ts` (`getNodeHandle`, `requestTVFocusByHandle`), `src/lib/clipboard.ts` (`expo-clipboard`; React Native's `Clipboard` is deprecated) and `src/lib/webview.ts`, which works around a typing bug in `react-native-webview` 14.0.1 (`WebView<P = undefined>` turns every prop into `never`). Restarting the app uses `reloadAppAsync` from `expo`; `expo-updates` is not used.
 - `cheerio` stays on 1.0.0-rc.12. Version 1.x resolves to its Node build under React Native, which imports `undici` and `node:stream`, and provider plugins are written against the rc API.
 - `react-native-markdown-display` gets markdown-it 14 through `overrides`. The markdown-it 10 it asks for has denial-of-service bugs. `__tests__/markdownDisplay.test.tsx` checks that dialogs still render.
 - After an Expo update, check that `expo-modules-core` is still at the top of `node_modules` (`npm ls expo-modules-core`). `react-native-image-colors` imports it directly.
+- Android Gradle Plugin 9 (from React Native 0.88) reads a bare `-keep class X` rule strictly, without X's default constructor. Library rules still depend on the old reading (Room in WorkManager 2.8, Notifee, ML Kit), and a release build then crashes at start ("Failed to create an instance of class androidx.work.impl.WorkDatabase"). `plugins/with-proguard-rules.js` sets `android.r8.strictFullModeForKeepRules=false`. AGP 10 removes that switch, so check the libraries' rules before moving to it. The other AGP 9 defaults that matter at run time were checked for 5.4.0: no library rule uses a global option, no native module uses `resValue`, and the new resource shrinker keeps every resource the app looks up by name (notification icons, launcher and splash drawables).
 - To check the Android JS bundle without a full build: `npx expo export:embed --platform android --dev false --entry-file index.js --bundle-output /tmp/index.android.bundle --assets-dest /tmp/assets`.
 
 ## Code map
@@ -110,6 +115,8 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 
 ## Status
 
+5.4.0 (Expo SDK 58) on a OnePlus 12 (Android 16), as a preview build beside the release app: it starts and keeps running with no crash or JavaScript error, and every launcher, video player and main component resolves in its own package. Its resources match 5.3.4 except for the removed blur package and the newer Material and ConstraintLayout libraries, and the arm64 APK is 2.8 MB smaller than the arm64 parts of 5.3.4 (the code alone is 23% smaller). Not tested on 5.4.0 yet: the screens one by one, playback, downloads, and SMB with a real server.
+
 Tested on a OnePlus 15 for 5.3.3: magnet and Internet Archive playback (Archive files stream directly over HTTPS), first launch, Top 10 rows, the Info page Play button, Available providers pinned in the Home menu, Search poster suggestions, poster matches, shared links (also while the app is open), the stream quality picker, HLS download and playback of the merged file, queue reordering, Nuvio-format plugins, Library back navigation, the empty state of Cloud files, themes, Credits, the Inter font everywhere, and transfer rules from app start.
 
 Known issues:
@@ -122,7 +129,8 @@ Not tested yet: Cloud files with real PikPak or debrid accounts, debrid and watc
 ## Roadmap
 
 - Android TV focus pass on the newer screens, and the TV Maestro flow.
-- Expo SDK 58 and React Native 0.88.
+- `react-native-bootsplash` 7. It removes the build-time `sharp`, `fast-xml-parser` and `uuid` advisories, but it generates the splash at prebuild with new options (`logo`, `assetsOutput`, no `parentTheme`), so `plugins/with-dynamic-launcher-splash.js` has to move to the v7 resources and themes first.
+- `react-native-mmkv-storage` 13. It wraps Android encryption keys in the Keystore ("migrated automatically"), `initialize()` throws instead of failing silently, and `useMMKVStorage` returns stored falsy values. Test the encrypted debrid and network stores on an upgraded install before taking it.
 - Point `extra.eas.projectId` in `app.config.js` at a Droid Stream Expo project. It still names the upstream project.
 - A yt-dlp based downloader, written from scratch (nothing from the GPL YTDLnis or youtubedl-android).
 - A download engine on the level of IDM: dynamic segment splitting, queues and a scheduler.

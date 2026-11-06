@@ -8,9 +8,20 @@ import {
   TVFocusGuideView,
   View,
   ViewStyle,
+  type HostInstance,
 } from 'react-native';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
 import {isTV} from '../../lib/tv';
+
+// The focus guide's ref is its native view, which react-native-tvos extends
+// with requestTVFocus. The generated types leave out both the ref prop and
+// that method, so describe them here.
+type FocusGuideHandle = HostInstance & {requestTVFocus: () => void};
+const FocusGuide = TVFocusGuideView as unknown as React.ComponentType<
+  React.ComponentProps<typeof TVFocusGuideView> & {
+    ref?: React.Ref<FocusGuideHandle>;
+  }
+>;
 
 interface MaterialDialogSurfaceProps {
   visible: boolean;
@@ -29,7 +40,7 @@ const MaterialDialogSurface = ({
 }: MaterialDialogSurfaceProps) => {
   const colors = useM3Colors();
   const hostTheme = useM3HostTheme();
-  const dialogFocusRef = useRef<React.ElementRef<typeof TVFocusGuideView>>(null);
+  const dialogFocusRef = useRef<FocusGuideHandle>(null);
 
   useEffect(() => {
     if (!isTV || !visible || !dismissible) return;
@@ -70,7 +81,7 @@ const MaterialDialogSurface = ({
               onPress={onDismiss}
             />
           )}
-          <TVFocusGuideView
+          <FocusGuide
             ref={dialogFocusRef}
             autoFocus
             trapFocusUp
@@ -92,7 +103,7 @@ const MaterialDialogSurface = ({
               style,
             ]}>
             {children}
-          </TVFocusGuideView>
+          </FocusGuide>
         </View>
       </Modal>
     );

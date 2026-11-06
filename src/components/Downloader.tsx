@@ -1,6 +1,7 @@
 import {openExternalApp as launchDownloadApp, usesExternalApp} from '../lib/externalApps';
 import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, ToastAndroid, Pressable, UIManager, findNodeHandle } from 'react-native';
+import {View, TouchableOpacity, ToastAndroid, Pressable, type HostInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../lib/tv/focus';
 import { ifExists } from '../lib/file/ifExists';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Octicons from '@expo/vector-icons/Octicons';
@@ -216,14 +217,14 @@ const DownloadComponent = ({
     string | boolean
   >(false);
   const [downloadModal, setDownloadModal] = useState(false);
-  const downloadButtonRef = React.useRef<View>(null);
+  const downloadButtonRef = React.useRef<HostInstance>(null);
   const setDownloadModalWithFocus = (visible: boolean) => {
     setDownloadModal(visible);
     if (!visible && isTV) {
       setTimeout(() => {
-        const handle = findNodeHandle(downloadButtonRef.current);
+        const handle = getNodeHandle(downloadButtonRef.current);
         if (handle) {
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          requestTVFocusByHandle(handle);
         }
       }, 150);
     }

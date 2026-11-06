@@ -2,7 +2,7 @@ import {displayTitle} from '../lib/displayTitle';
 import {NavigationContext} from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import {Image, Pressable, TouchableOpacity, View} from 'react-native';
+import {Image, Pressable, TouchableOpacity, View, type HostInstance} from 'react-native';
 import Animated from 'react-native-reanimated';
 import {BlurView} from 'expo-blur';
 import {useM3Colors} from '../theme/M3PaletteContext';
@@ -80,7 +80,7 @@ interface MediaPosterCardProps {
 
 // Native opacity feedback avoids rerendering poster contents on every phone press.
 const MobilePosterTouchable = React.forwardRef<
-  View,
+  HostInstance,
   React.ComponentProps<typeof Pressable>
 >(({style, children, delayLongPress, ...props}, ref) => (
   <TouchableOpacity
@@ -94,7 +94,7 @@ const MobilePosterTouchable = React.forwardRef<
 ));
 const PosterTouchable = isTV ? Pressable : MobilePosterTouchable;
 
-const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
+const MediaPosterCardBase = React.forwardRef<HostInstance, MediaPosterCardProps>(
   (
     {
       title,
@@ -126,8 +126,8 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
     const navigation = React.useContext(NavigationContext);
     const isNavFocused = useSafeIsNavFocused();
     const isCurrentlyFocusable = isNavFocused;
-    const pressableRef = React.useRef<View>(null);
-    React.useImperativeHandle(ref, () => pressableRef.current as View);
+    const pressableRef = React.useRef<HostInstance>(null);
+    React.useImperativeHandle(ref, () => pressableRef.current as HostInstance);
     const {
       preferredFocus,
       onFocus: rememberFocus,
@@ -408,7 +408,7 @@ const MediaPosterCardBase = React.forwardRef<View, MediaPosterCardProps>(
                       : colors.onSurface,
                     marginTop: selected ? 4 : 7,
                     marginHorizontal: selected ? 4 : 0,
-                  }}>
+                  }}>
                   {fullTitle ? title : displayTitle(title)}
                 </AppText>
                 {subtitle ? (

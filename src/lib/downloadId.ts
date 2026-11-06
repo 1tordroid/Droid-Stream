@@ -71,7 +71,7 @@ export const createDownloadSeasonDirectoryName = (
 
 export const createDesktopCompatibleFileName = (
   title: string,
-  type: 'movie' | 'series',
+  _type: 'movie' | 'series',
 ): string => sanitizeDownloadFileName(title);
 
 export const createSubtitleFileName = (
