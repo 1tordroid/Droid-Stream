@@ -63,12 +63,6 @@ const Preferences = ({navigation}: any) => {
   const [showTabBarLables, setShowTabBarLables] = useState<boolean>(() =>
     settingsStorage.showTabBarLabels(),
   );
-  const hideDownloadsTab = useNavigationPreferencesStore(
-    state => state.hideDownloadsTab,
-  );
-  const setHideDownloadsTab = useNavigationPreferencesStore(
-    state => state.setHideDownloadsTab,
-  );
   const showContinueWatching = useNavigationPreferencesStore(
     state => state.showContinueWatching,
   );
@@ -165,11 +159,6 @@ const Preferences = ({navigation}: any) => {
                   ToastAndroid.SHORT,
                 );
               }}
-            />
-            <SettingsSwitchRow
-              title="Hide downloads tab"
-              value={hideDownloadsTab}
-              onValueChange={setHideDownloadsTab}
             />
             <SettingsSwitchRow
               title="Hamburger menu"

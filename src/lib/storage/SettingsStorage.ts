@@ -19,6 +19,7 @@ export enum SettingsKeys {
   THEME_MODE = 'themeMode',
   IS_CUSTOM_THEME = 'isCustomTheme',
   SHOW_TAB_BAR_LABELS = 'showTabBarLabels',
+  // No longer used. Kept so the key name stays known for values already stored.
   HIDE_DOWNLOADS_TAB = 'hideDownloadsTab',
   SHOW_CONTINUE_WATCHING = 'showContinueWatching',
   CUSTOM_COLOR = 'customColor',
@@ -333,14 +334,6 @@ export class SettingsStorage {
 
   setShowTabBarLabels(show: boolean): void {
     mainStorage.setBool(SettingsKeys.SHOW_TAB_BAR_LABELS, show);
-  }
-
-  hideDownloadsTab(): boolean {
-    return mainStorage.getBool(SettingsKeys.HIDE_DOWNLOADS_TAB, false);
-  }
-
-  setHideDownloadsTab(hide: boolean): void {
-    mainStorage.setBool(SettingsKeys.HIDE_DOWNLOADS_TAB, hide);
   }
 
   /** Continue watching row on Home. Playback positions are saved either way. */
