@@ -4,7 +4,7 @@ How to build, test and release Droid Stream, and where things live in the code.
 
 ## Requirements
 
-- Node.js 22. Expo's tooling needs 20.19.4 or newer; CI uses 22.
+- Node.js 22.13 or newer, as Expo SDK 58 requires; CI uses 22.
 - JDK 17 and the Android SDK for APK builds.
 - Git Bash on Windows for the helper scripts in `scripts/dev`.
 - An arm64 Android phone with USB debugging for device tests.
