@@ -45,7 +45,9 @@ jest.mock('../src/lib/sources/vault', () => ({
   clearPikPakAccount: jest.fn(),
   listSources: () => [],
   saveSource: (...args: unknown[]) => mockSaveSource(...args),
+  updateSource: jest.fn(),
   deleteSource: jest.fn(),
+  getInstallId: () => 'install-a',
 }));
 jest.mock('../src/lib/sources/mediaServers', () => ({
   signInJellyfin: (...args: unknown[]) => mockSignInJellyfin(...args),
@@ -156,7 +158,8 @@ describe('Add source', () => {
     await act(async () => {
       await tree.root.findAllByType(TextInput)[3].props.onSubmitEditing();
     });
-    expect(mockSignInJellyfin).toHaveBeenCalledWith('http://192.168.1.10:8096', 'me', 'pw');
+    // The DeviceId is this install's id plus the new source's id.
+    expect(mockSignInJellyfin).toHaveBeenCalledWith('http://192.168.1.10:8096', 'me', 'pw', expect.stringMatching(/^install-a-\d+$/));
     expect(mockSaveSource).toHaveBeenCalledWith(expect.objectContaining({kind: 'jellyfin', server: 'http://192.168.1.10:8096', username: 'user-1', secret: 'tok', name: 'Jellyfin'}));
   });
 
