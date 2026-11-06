@@ -1,5 +1,6 @@
 import {markerKey, markersToSkips, readShowMarkers} from '../../lib/playback/introMarkers';
 import VlcPlayerScreen from './VlcPlayerScreen';
+import {createPlayerEntry} from './createPlayerEntry';
 import {findSavedSubtitle, savedSubtitleLabel} from '../../lib/subtitles/savedSubtitles';
 import RemovableSubtitleRow from '../../components/RemovableSubtitleRow';
 import {getPlaybackQuality} from '../../lib/player/playbackQuality';
@@ -4312,17 +4313,6 @@ const Player = ({route}: Props): React.JSX.Element => {
 
 // The pill is styled on an inner View driven by plain state, so its shape
 // does not depend on a Pressable style function being applied.
-const PlayerEntry = (props: Props): React.JSX.Element => {
-  if (
-    settingsStorage.getPlayerEngine() === 'vlc' &&
-    (props.route.params.localContent ||
-      props.route.params.directUrl ||
-      props.route.params.file ||
-      props.route.params.externalVideo)
-  ) {
-    return <VlcPlayerScreen {...props} />;
-  }
-  return <Player {...props} />;
-};
+const PlayerEntry = createPlayerEntry<Props>(Player, VlcPlayerScreen);
 
 export default PlayerEntry;
