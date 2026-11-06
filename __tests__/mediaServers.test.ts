@@ -142,7 +142,25 @@ describe('media server sign-ins', () => {
     );
     const [film, other] = await media.listPlex('https://plex.local', 'tok', '/library/sections/1/all');
     expect(film.playUrl).toBe('https://plex.local/library/parts/9/1/file.mkv?X-Plex-Token=tok');
-    expect(other.playUrl).toBe('https://plex.local/library/metadata/8?X-Plex-Token=tok');
+    // A metadata address is no play link; the part is read when the video opens.
+    expect(other).toEqual({id: '8', title: 'Other', kind: 'video', playUrl: undefined});
+  });
+
+  it('reads a Plex video part from its metadata', async () => {
+    const {media, auth} = load();
+    fetchMock.mockReturnValueOnce(
+      json(200, {MediaContainer: {Metadata: [{ratingKey: '8', title: 'Other', type: 'movie', Media: [{Part: [{key: '/library/parts/3/1/other.mkv'}]}]}]}}),
+    );
+    await expect(media.resolvePlexPlayUrl('https://plex.local/', 'tok', '8')).resolves.toBe(
+      'https://plex.local/library/parts/3/1/other.mkv?X-Plex-Token=tok',
+    );
+    expect(fetchMock.mock.calls[0][0]).toBe('https://plex.local/library/metadata/8?X-Plex-Token=tok');
+
+    fetchMock.mockReturnValueOnce(json(200, {MediaContainer: {Metadata: [{ratingKey: '8', title: 'Other', type: 'movie'}]}}));
+    await expect(media.resolvePlexPlayUrl('https://plex.local', 'tok', '8')).rejects.toThrow('Plex has no playable file');
+
+    fetchMock.mockReturnValueOnce(json(401, {}));
+    await expect(media.resolvePlexPlayUrl('https://plex.local', 'tok', '8')).rejects.toBeInstanceOf(auth.SourceAuthError);
   });
 
   it('opens Plex libraries as folders and follows relative keys', async () => {

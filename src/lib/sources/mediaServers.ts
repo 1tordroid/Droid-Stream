@@ -199,13 +199,30 @@ export const listPlex = async (server: string, token: string, path = '/library/s
   const entries: LibraryItem[] = (container.Metadata || []).map((item: PlexItem) => {
     const video = item.type === 'movie' || item.type === 'episode';
     // The media part is the playable file. The server needs the token on it too.
+    // A metadata address is not playable, so a listing without the part leaves
+    // playUrl out and resolvePlexPlayUrl reads the part when the video is opened.
     const part = item.Media?.[0]?.Part?.[0]?.key;
     return {
       id: video ? String(item.ratingKey) : pathOf(String(item.key || item.ratingKey || item.title)),
       title: item.title,
       kind: video ? 'video' : 'folder',
-      playUrl: video ? withPlexToken(part ? `${root}${part}` : `${root}/library/metadata/${item.ratingKey}`, token) : undefined,
+      playUrl: video && part ? withPlexToken(`${root}${part}`, token) : undefined,
     };
   });
   return [...folders, ...entries];
+};
+
+/** The play address of a Plex video's first media part, read from its metadata. */
+export const resolvePlexPlayUrl = async (server: string, token: string, ratingKey: string): Promise<string> => {
+  const root = server.replace(/\/+$/, '');
+  const response = await fetch(withPlexToken(`${root}/library/metadata/${encodeURIComponent(ratingKey)}`, token), {
+    headers: {Accept: 'application/json'},
+  });
+  if (isSourceAuthStatus(response.status)) throw new SourceAuthError('plex', response.status);
+  if (!response.ok) throw new Error(`Plex library failed (${response.status})`);
+  const data = await response.json();
+  const item: PlexItem | undefined = data?.MediaContainer?.Metadata?.[0];
+  const part = item?.Media?.[0]?.Part?.[0]?.key;
+  if (!part) throw new Error('Plex has no playable file for this video.');
+  return withPlexToken(`${root}${part}`, token);
 };

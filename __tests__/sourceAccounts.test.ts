@@ -185,6 +185,37 @@ describe('saved source accounts', () => {
     expect(navigation.navigate).toHaveBeenCalledTimes(1);
   });
 
+  it('reads a Plex part when a video listed without one is opened', async () => {
+    const {accounts} = load();
+    const source = {id: 'p', kind: 'plex', name: 'Plex', server: 'https://plex.local', username: '', secret: 'tok'};
+    fetchMock.mockReturnValueOnce(json(200, {MediaContainer: {Metadata: [{ratingKey: '8', title: 'Other', type: 'movie'}]}}));
+    const [row] = await accounts.listSourceRows(source, '/library/sections/1/all');
+    expect(row).toEqual({id: '8', title: 'Other', directory: false, playUrl: `${accounts.PLEX_PART_PREFIX}8`});
+
+    const navigation = {navigate: jest.fn()};
+    fetchMock.mockReturnValueOnce(
+      json(200, {MediaContainer: {Metadata: [{ratingKey: '8', Media: [{Part: [{key: '/library/parts/3/1/other.mkv'}]}]}]}}),
+    );
+    await accounts.playSource(navigation, source, 'Other', row.playUrl);
+    expect(fetchMock.mock.calls[1][0]).toBe('https://plex.local/library/metadata/8?X-Plex-Token=tok');
+    const params = navigation.navigate.mock.calls[0][1];
+    expect(params.directUrl).toBe('https://plex.local/library/parts/3/1/other.mkv?X-Plex-Token=tok');
+    expect(params.episodeList).toEqual([{title: 'Other', link: 'https://plex.local/library/parts/3/1/other.mkv'}]);
+  });
+
+  it('shows why a Plex video without a part cannot play', async () => {
+    const {accounts} = load();
+    const {ToastAndroid} = require('react-native');
+    const toast = jest.spyOn(ToastAndroid, 'show').mockImplementation(() => {});
+    const source = {id: 'p', kind: 'plex', name: 'Plex', server: 'https://plex.local', username: '', secret: 'tok'};
+    const navigation = {navigate: jest.fn()};
+    fetchMock.mockReturnValueOnce(json(200, {MediaContainer: {Metadata: [{ratingKey: '8'}]}}));
+    await accounts.playSource(navigation, source, 'Other', `${accounts.PLEX_PART_PREFIX}8`);
+    expect(navigation.navigate).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith('Plex has no playable file for this video.', ToastAndroid.SHORT);
+    toast.mockRestore();
+  });
+
   it('tells the user what to do when a sign-in ends', () => {
     const {auth} = load();
     expect(auth.sourceSignedOutMessage({name: 'Home', kind: 'emby'})).toBe('Home: Emby ended this sign-in. Sign in again.');

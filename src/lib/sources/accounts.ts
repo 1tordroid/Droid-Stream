@@ -3,7 +3,8 @@
  * saved sign-in. Tokens and passwords stay in the encrypted source vault.
  */
 import {SOURCE_SERVICE_NAMES} from './authErrors';
-import {listEmby, listJellyfin, listPlex, signInEmby, signInJellyfin, signInPlex, type LibraryItem} from './mediaServers';
+import {ToastAndroid} from 'react-native';
+import {listEmby, listJellyfin, listPlex, resolvePlexPlayUrl, signInEmby, signInJellyfin, signInPlex, type LibraryItem} from './mediaServers';
 import {listSmbShare} from './smb';
 import {getInstallId, type SavedSource, type SourceKind} from './vault';
 import {listWebDav, webDavDownloadHeaders, type RemoteFile} from './webdav';
@@ -115,6 +116,12 @@ export const completeSourceForm = async (form: SourceForm, existing?: SavedSourc
   return {...base, username: login, secret: form.secret, authState: 'ok'};
 };
 
+/**
+ * Row playUrl of a Plex video whose listing had no media part: the rating key
+ * behind this prefix is resolved to the part's address by playSource.
+ */
+export const PLEX_PART_PREFIX = 'plex-part:';
+
 /** Lists one folder of a source. Throws SourceAuthError when the server rejects the saved sign-in. */
 export const listSourceRows = async (source: SavedSource, folder = ''): Promise<SourceRow[]> => {
   if (source.kind === 'webdav') {
@@ -127,7 +134,11 @@ export const listSourceRows = async (source: SavedSource, folder = ''): Promise<
   }
   const toRow = (item: LibraryItem): SourceRow => ({id: item.id, title: item.title, directory: item.kind === 'folder', playUrl: item.playUrl});
   if (source.kind === 'plex') {
-    return (await listPlex(source.server, source.secret, folder || '/library/sections')).map(toRow);
+    return (await listPlex(source.server, source.secret, folder || '/library/sections')).map(item => {
+      const row = toRow(item);
+      // A video listed without its media part gets the part when it is opened.
+      return item.kind === 'video' && !row.playUrl ? {...row, playUrl: `${PLEX_PART_PREFIX}${item.id}`} : row;
+    });
   }
   const list = source.kind === 'emby' ? listEmby : listJellyfin;
   return (await list(source.server, source.username, source.secret, folder || undefined, source.deviceId)).map(toRow);
@@ -157,14 +168,33 @@ export const withoutToken = (url: string): string => {
   return kept.length ? `${url.slice(0, at)}?${kept.join('&')}` : url.slice(0, at);
 };
 
-/** Opens the player for a file of this source. */
+type PlayerNavigation = {navigate: (screen: string, params: object) => void};
+
+/**
+ * Opens the player for a file of this source. A Plex video listed without its
+ * media part is looked up first; the returned promise settles once the player
+ * opened or the lookup failed (with a toast).
+ */
 export const playSource = (
-  navigation: {navigate: (screen: string, params: object) => void},
+  navigation: PlayerNavigation,
   source: SavedSource,
   title: string,
   url?: string,
-): void => {
+): void | Promise<void> => {
   if (!url) return;
+  if (url.startsWith(PLEX_PART_PREFIX)) {
+    if (source.kind !== 'plex') return;
+    return resolvePlexPlayUrl(source.server, source.secret, url.slice(PLEX_PART_PREFIX.length)).then(
+      partUrl => openSourcePlayer(navigation, source, title, partUrl),
+      (error: unknown) => {
+        ToastAndroid.show(error instanceof Error ? error.message : 'Plex could not open this video.', ToastAndroid.SHORT);
+      },
+    );
+  }
+  openSourcePlayer(navigation, source, title, url);
+};
+
+const openSourcePlayer = (navigation: PlayerNavigation, source: SavedSource, title: string, url: string): void => {
   const headers = playbackHeaders(source);
   // The player keys watch progress by the episode link, hands it to providers
   // and logs it, so that link leaves the token out. The stream keeps it.
