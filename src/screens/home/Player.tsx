@@ -84,7 +84,7 @@ import TVFocusPressable from '../../components/tv/TVFocusPressable';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
 import {findAnimeSkips} from '../../lib/aniskip';
 import {guessWatchMeta} from '../../lib/watchMeta';
-import {syncWatched} from '../../lib/watchSync';
+import {signedOutNotice, syncWatched} from '../../lib/watchSync';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
 import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
@@ -630,7 +630,9 @@ const Player = ({route}: Props): React.JSX.Element => {
         // Up next: once watched, the entry moves on to the next episode.
         if (activeEpisode && isWatched(position, duration)) {
           // Trakt, Simkl, AniList. Deduplicated, so repeated progress ticks are cheap.
-          syncWatched(watchMetaRef.current).catch(() => undefined);
+          syncWatched(watchMetaRef.current)
+            .then(({signedOut}) => signedOut.forEach(service => ToastAndroid.show(signedOutNotice(service), ToastAndroid.LONG)))
+            .catch(() => undefined);
           const next = getNextEpisode(route.params.episodeList, activeEpisode);
           if (
             finishContinueWatchingEpisode(
