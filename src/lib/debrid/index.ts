@@ -1,4 +1,5 @@
 import {MMKVLoader} from 'react-native-mmkv-storage';
+import {readPikPakAccount} from '../sources/vault';
 import {debridLink, offcloud, pikpak, pikpakKey} from './more';
 import {allDebrid, premiumize, realDebrid, torbox} from './services';
 import {VIDEO_FILE, type DebridFile, type DebridId, type DebridService, type DebridTransfer} from './types';
@@ -36,8 +37,12 @@ export const writeDebridSettings = (settings: DebridSettings): void => {
   storage.setString('settings', JSON.stringify(settings));
 };
 
+// A password sign-in (it has a refresh token) wins over a pasted PikPak token,
+// because only the sign-in can be renewed.
 export const debridKey = (id: DebridId, settings = readDebridSettings()): string =>
-  id === 'pikpak' ? settings.keys.pikpak || pikpakKey() : settings.keys[id] || '';
+  id === 'pikpak'
+    ? (readPikPakAccount()?.refreshToken ? pikpakKey() : settings.keys.pikpak || pikpakKey())
+    : settings.keys[id] || '';
 
 export const getService = (id: DebridId): DebridService => DEBRID_SERVICES.find(service => service.id === id)!;
 

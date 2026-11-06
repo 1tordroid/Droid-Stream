@@ -1,3 +1,11 @@
+/** A service answered with an HTTP error. Keeps the status and body so callers can tell an ended sign-in from other failures. */
+export class DebridHttpError extends Error {
+  constructor(message: string, readonly status: number, readonly body: any) {
+    super(message);
+    this.name = 'DebridHttpError';
+  }
+}
+
 export const debridFetch = async <T = any>(url: string, init: RequestInit = {}, timeoutMs = 20000): Promise<T> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -12,7 +20,7 @@ export const debridFetch = async <T = any>(url: string, init: RequestInit = {}, 
     }
     if (!response.ok) {
       const message = data?.error?.message || data?.error_description || data?.detail || data?.message || data?.error || `HTTP ${response.status}`;
-      throw new Error(typeof message === 'string' ? message : `HTTP ${response.status}`);
+      throw new DebridHttpError(typeof message === 'string' ? message : `HTTP ${response.status}`, response.status, data);
     }
     return data as T;
   } catch (error: any) {

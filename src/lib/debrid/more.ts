@@ -1,4 +1,5 @@
 import {readPikPakAccount} from '../sources/vault';
+import {isPikPakAuthError, withPikPak} from '../pikpak/session';
 import {debridFetch} from './http';
 import type {DebridFile, DebridService, DebridTransfer} from './types';
 
@@ -121,51 +122,63 @@ export const pikpak: DebridService = {
   keyHelp: 'Sign in under Library → PikPak, or paste an access token',
   // PikPak finishes popular torrents at once but has no public cache check.
   canCheckCache: false,
-  async account(token) {
-    const data = await debridFetch('https://user.mypikpak.com/v1/user/me', {headers: ppAuth(token)});
+  // Every request goes through withPikPak, which renews an expiring or
+  // rejected sign-in token and retries once.
+  async account(passed) {
+    const data = await withPikPak(passed, token => debridFetch('https://user.mypikpak.com/v1/user/me', {headers: ppAuth(token)}));
     return {username: data.name || data.email || 'PikPak', premium: true};
   },
   async checkCached() {
     return {};
   },
-  async addMagnet(token, magnet) {
-    const data = await debridFetch(`${PP}/files`, {method: 'POST', headers: ppAuth(token), body: JSON.stringify({kind: 'drive#file', parent_id: '', upload_type: 'UPLOAD_TYPE_URL', url: {url: magnet}, folder_type: 'DOWNLOAD'})});
+  async addMagnet(passed, magnet) {
+    const data = await withPikPak(passed, token => debridFetch(`${PP}/files`, {method: 'POST', headers: ppAuth(token), body: JSON.stringify({kind: 'drive#file', parent_id: '', upload_type: 'UPLOAD_TYPE_URL', url: {url: magnet}, folder_type: 'DOWNLOAD'})}));
     const id = data.task?.id;
     if (!id) throw new Error('PikPak did not accept the magnet');
     return {id: `${id}|${data.task?.file_id || data.file?.id || ''}`};
   },
-  async status(token, id) {
-    const [taskId, knownFile] = id.split('|');
-    // Items from the file list have no task, only a file id.
-    const task = taskId ? await debridFetch(`${PP}/tasks/${taskId}`, {headers: ppAuth(token)}).catch(() => ({}) as any) : ({} as any);
-    const fileId = task.file_id || knownFile;
-    const ready = task.phase === 'PHASE_TYPE_COMPLETE' || (!task.phase && Boolean(fileId));
-    let files: DebridFile[] = [];
-    if (ready && fileId) {
-      const file = await debridFetch(`${PP}/files/${fileId}`, {headers: ppAuth(token)});
-      files = file.kind === 'drive#folder' ? await ppFiles(token, fileId) : [{id: file.id, name: file.name, size: Number(file.size) || 0}];
-    }
-    return {id, name: task.name || task.file_name || 'PikPak', progress: ready ? 1 : (Number(task.progress) || 0) / 100, ready, status: task.phase || 'unknown', error: task.phase === 'PHASE_TYPE_ERROR' ? task.message : undefined, files};
+  async status(passed, id) {
+    return withPikPak(passed, async token => {
+      const [taskId, knownFile] = id.split('|');
+      // Items from the file list have no task, only a file id. Auth errors
+      // must reach withPikPak so it can renew the token and retry.
+      const task = taskId
+        ? await debridFetch(`${PP}/tasks/${taskId}`, {headers: ppAuth(token)}).catch(error => {
+            if (isPikPakAuthError(error)) throw error;
+            return {} as any;
+          })
+        : ({} as any);
+      const fileId = task.file_id || knownFile;
+      const ready = task.phase === 'PHASE_TYPE_COMPLETE' || (!task.phase && Boolean(fileId));
+      let files: DebridFile[] = [];
+      if (ready && fileId) {
+        const file = await debridFetch(`${PP}/files/${fileId}`, {headers: ppAuth(token)});
+        files = file.kind === 'drive#folder' ? await ppFiles(token, fileId) : [{id: file.id, name: file.name, size: Number(file.size) || 0}];
+      }
+      return {id, name: task.name || task.file_name || 'PikPak', progress: ready ? 1 : (Number(task.progress) || 0) / 100, ready, status: task.phase || 'unknown', error: task.phase === 'PHASE_TYPE_ERROR' ? task.message : undefined, files};
+    });
   },
-  async list(token) {
-    const filters = encodeURIComponent(JSON.stringify({trashed: {eq: false}, phase: {eq: 'PHASE_TYPE_COMPLETE'}}));
-    const page = (parent: string) =>
-      debridFetch(`${PP}/files?parent_id=${parent}&limit=100&filters=${filters}`, {headers: ppAuth(token)}).then((data: any) => (data?.files || []) as any[]);
-    const top = await page('');
-    // Downloads land in PikPak's download folder, so its contents list at the top.
-    const packs = top.filter(file => file.kind === 'drive#folder' && file.folder_type === 'DOWNLOAD');
-    const inner = (await Promise.all(packs.map(folder => page(folder.id).catch(() => [])))).flat();
-    return [...top.filter(file => !packs.includes(file)), ...inner].map(file => ({
-      id: `|${file.id}`,
-      name: file.name,
-      progress: 1,
-      ready: true,
-      status: 'ready',
-      files: file.kind === 'drive#file' ? [{id: file.id, name: file.name, size: Number(file.size) || 0}] : [],
-    }));
+  async list(passed) {
+    return withPikPak(passed, async token => {
+      const filters = encodeURIComponent(JSON.stringify({trashed: {eq: false}, phase: {eq: 'PHASE_TYPE_COMPLETE'}}));
+      const page = (parent: string) =>
+        debridFetch(`${PP}/files?parent_id=${parent}&limit=100&filters=${filters}`, {headers: ppAuth(token)}).then((data: any) => (data?.files || []) as any[]);
+      const top = await page('');
+      // Downloads land in PikPak's download folder, so its contents list at the top.
+      const packs = top.filter(file => file.kind === 'drive#folder' && file.folder_type === 'DOWNLOAD');
+      const inner = (await Promise.all(packs.map(folder => page(folder.id).catch(() => [])))).flat();
+      return [...top.filter(file => !packs.includes(file)), ...inner].map(file => ({
+        id: `|${file.id}`,
+        name: file.name,
+        progress: 1,
+        ready: true,
+        status: 'ready',
+        files: file.kind === 'drive#file' ? [{id: file.id, name: file.name, size: Number(file.size) || 0}] : [],
+      }));
+    });
   },
-  async fileLink(token, _transfer, file) {
-    const data = await debridFetch(`${PP}/files/${file.id}?thumbnail_size=SIZE_MEDIUM`, {headers: ppAuth(token)});
+  async fileLink(passed, _transfer, file) {
+    const data = await withPikPak(passed, token => debridFetch(`${PP}/files/${file.id}?thumbnail_size=SIZE_MEDIUM`, {headers: ppAuth(token)}));
     const media = (data.medias || []).find((item: any) => item.link?.url);
     const link = data.web_content_link || data.links?.['application/octet-stream']?.url || media?.link?.url;
     if (!link) throw new Error('PikPak has no link for this file yet');

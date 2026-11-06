@@ -1,5 +1,8 @@
 const mockFetch = jest.fn();
-jest.mock('../src/lib/debrid/http', () => ({debridFetch: (...args: unknown[]) => mockFetch(...args)}));
+jest.mock('../src/lib/debrid/http', () => ({
+  debridFetch: (...args: unknown[]) => mockFetch(...args),
+  DebridHttpError: class DebridHttpError extends Error {},
+}));
 jest.mock('../src/lib/sources/vault', () => ({readPikPakAccount: () => undefined}));
 
 import {pikpak} from '../src/lib/debrid/more';

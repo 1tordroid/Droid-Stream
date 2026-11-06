@@ -104,7 +104,7 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
                 ) : null}
                 <TextInput
                   accessibilityLabel={`${service.name} API key`}
-                  placeholder={service.id === 'pikpak' ? 'Access token (optional if signed in)' : 'API key'}
+                  placeholder={service.id === 'pikpak' ? 'Access token (lasts about 2 hours; Sign in keeps you signed in)' : 'API key'}
                   placeholderTextColor={colors.outline}
                   defaultValue={settings.keys[service.id] || ''}
                   autoCapitalize="none"

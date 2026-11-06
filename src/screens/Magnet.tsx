@@ -12,7 +12,8 @@ import {
   type MagnetTask,
   type PikPakSession,
 } from '../lib/pikpak/client';
-import {clearPikPakAccount, readPikPakAccount, savePikPakAccount} from '../lib/sources/vault';
+import {clearPikPakAccount, readPikPakAccount, readPikPakUsername, savePikPakAccount} from '../lib/sources/vault';
+import {isPikPakAuthError, withPikPak} from '../lib/pikpak/session';
 import {settingsStorage} from '../lib/storage';
 import {torrentManager} from '../lib/torrentManager';
 import {useM3Colors} from '../theme/M3PaletteContext';
@@ -23,7 +24,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
   const colors = useM3Colors();
   const saved = readPikPakAccount();
   const [route, setRoute] = useState<MagnetRoute>(pikpakOnly ? 'pikpak' : 'direct');
-  const [username, setUsername] = useState(saved?.username || '');
+  const [username, setUsername] = useState(saved?.username || readPikPakUsername());
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
   const [magnet, setMagnet] = useState('');
@@ -37,7 +38,14 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
   const signIn = async () => {
     try {
       const next = token.trim() ? sessionFromToken(token) : await signInToPikPak(username, password);
-      savePikPakAccount({username: username || 'PikPak', accessToken: next.accessToken, userId: next.userId});
+      // The refresh token keeps a password sign-in going after the access token expires.
+      savePikPakAccount({
+        username: username || 'PikPak',
+        accessToken: next.accessToken,
+        userId: next.userId,
+        refreshToken: next.refreshToken,
+        expiresAt: next.expiresAt,
+      });
       setSession(next);
       setPassword('');
       ToastAndroid.show('This device will use your PikPak account', ToastAndroid.SHORT);
@@ -88,10 +96,28 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
       return;
     }
     try {
-      setTask(await addMagnetTask(session, magnet));
+      setTask(await withPikPak(session.accessToken, accessToken => addMagnetTask({...session, accessToken}, magnet)));
     } catch (error: any) {
-      ToastAndroid.show(error?.message || 'Could not add the magnet', ToastAndroid.LONG);
+      onPikPakError(error, 'Could not add the magnet');
     }
+  };
+
+  const refreshTask = async () => {
+    if (!session || !task) return;
+    try {
+      setTask(await withPikPak(session.accessToken, accessToken => readMagnetTask({...session, accessToken}, task)));
+    } catch (error: any) {
+      onPikPakError(error, 'Could not read the progress');
+    }
+  };
+
+  // PikPak ended the sign-in: show the form again with the username filled in.
+  const onPikPakError = (error: any, fallback: string) => {
+    if (isPikPakAuthError(error)) {
+      setSession(undefined);
+      setUsername(readPikPakUsername());
+    }
+    ToastAndroid.show(error?.message || fallback, ToastAndroid.LONG);
   };
 
   const downloadToDevice = async () => {
@@ -143,7 +169,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
             <View style={{marginTop: 16}}>
               <AppText className="text-m3-on-surface">{task.name || 'Download'}</AppText>
               <AppText className="text-m3-on-surface-variant">{task.phase || 'Waiting'} {task.progress ? `${task.progress}%` : ''}</AppText>
-              <Pressable onPress={async () => session && setTask(await readMagnetTask(session, task))} style={{marginTop: 8}}><AppText style={{color: colors.primary}}>Refresh progress</AppText></Pressable>
+              <Pressable onPress={refreshTask} style={{marginTop: 8}}><AppText style={{color: colors.primary}}>Refresh progress</AppText></Pressable>
               {task.playUrl ? (
                 <>
                   <Pressable onPress={() => navigation.navigate('Player', {linkIndex: 0, episodeList: [{title: task.name || 'PikPak', link: task.playUrl}], directUrl: task.playUrl, type: 'movie', primaryTitle: task.name || 'PikPak', poster: {}})} style={{marginTop: 8}}>

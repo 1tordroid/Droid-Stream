@@ -35,9 +35,15 @@ export interface StoredPikPakAccount {
   username: string;
   accessToken: string;
   userId?: string;
+  /** Present for password sign-ins; lets the app renew the access token. */
+  refreshToken?: string;
+  /** Epoch ms when the access token stops working. */
+  expiresAt?: number;
 }
 
 const PIKPAK_KEY = 'pikpak-account';
+const PIKPAK_USER_KEY = 'pikpak-last-username';
+const PIKPAK_DEVICE_KEY = 'pikpak-device-id';
 
 /** One PikPak login per install. The token stays in the encrypted source store. */
 export const readPikPakAccount = (): StoredPikPakAccount | undefined => {
@@ -53,8 +59,26 @@ export const readPikPakAccount = (): StoredPikPakAccount | undefined => {
 
 export const savePikPakAccount = (account: StoredPikPakAccount): void => {
   storage.setString(PIKPAK_KEY, JSON.stringify(account));
+  storage.setString(PIKPAK_USER_KEY, account.username);
+};
+
+/** Writes renewed tokens in one step, keeping the rest of the account. */
+export const updatePikPakTokens = (
+  patch: Pick<StoredPikPakAccount, 'accessToken'> & Partial<Pick<StoredPikPakAccount, 'refreshToken' | 'expiresAt'>>,
+): void => {
+  const account = readPikPakAccount();
+  if (account) savePikPakAccount({...account, ...patch});
 };
 
 export const clearPikPakAccount = (): void => {
   storage.removeItem(PIKPAK_KEY);
+};
+
+/** The last username, kept after a sign-in ends so the form can be prefilled. */
+export const readPikPakUsername = (): string => storage.getString(PIKPAK_USER_KEY) || '';
+
+export const readPikPakDeviceId = (): string | undefined => storage.getString(PIKPAK_DEVICE_KEY) || undefined;
+
+export const savePikPakDeviceId = (id: string): void => {
+  storage.setString(PIKPAK_DEVICE_KEY, id);
 };
