@@ -14,13 +14,18 @@ import com.facebook.react.modules.network.OkHttpClientProvider
 import okhttp3.Call
 import okhttp3.Cookie
 import okhttp3.CookieJar
+import okhttp3.Dns
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.io.ByteArrayOutputStream
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -52,6 +57,56 @@ class ProviderHttpModule(reactContext: ReactApplicationContext) : ReactContextBa
 
     override fun getName(): String = "ProviderHttpModule"
 
+    companion object {
+        private val IPV4_LITERAL = Regex("^\\d{1,3}(\\.\\d{1,3}){3}$")
+
+        private fun isBlockedIpv4(bytes: ByteArray, offset: Int): Boolean {
+            val first = bytes[offset].toInt() and 0xff
+            val second = bytes[offset + 1].toInt() and 0xff
+            return first == 0 || first == 10 || first == 127 ||
+                (first == 169 && second == 254) ||
+                (first == 172 && second in 16..31) ||
+                (first == 192 && second == 168) ||
+                (first == 100 && second in 64..127) || // CGNAT
+                first >= 224 // multicast and reserved
+        }
+
+        /** Mirrors isPrivateHostname in src/lib/sandbox/urlGuard.ts. */
+        fun isBlockedAddress(address: InetAddress): Boolean {
+            if (address.isLoopbackAddress || address.isSiteLocalAddress ||
+                address.isLinkLocalAddress || address.isAnyLocalAddress ||
+                address.isMulticastAddress) {
+                return true
+            }
+            val bytes = address.address
+            if (address is Inet4Address || bytes.size == 4) return isBlockedIpv4(bytes, 0)
+            if (bytes.size != 16) return true
+            val b = { i: Int -> bytes[i].toInt() and 0xff }
+            val zeros = { from: Int, to: Int -> (from until to).all { b(it) == 0 } }
+            // ::/96 and ::ffff:0:0/96 carry an IPv4 address.
+            if (zeros(0, 10) && ((b(10) == 0 && b(11) == 0) || (b(10) == 0xff && b(11) == 0xff))) {
+                return isBlockedIpv4(bytes, 12)
+            }
+            // 64:ff9b::/96, NAT64.
+            if (b(0) == 0x00 && b(1) == 0x64 && b(2) == 0xff && b(3) == 0x9b && zeros(4, 12)) return true
+            // 2002::/16, 6to4.
+            if (b(0) == 0x20 && b(1) == 0x02) return isBlockedIpv4(bytes, 2)
+            return (b(0) and 0xfe) == 0xfc || // fc00::/7 unique local
+                (b(0) == 0xfe && (b(1) and 0xc0) == 0x80) || // fe80::/10
+                (b(0) == 0xfe && (b(1) and 0xc0) == 0xc0) || // fec0::/10
+                b(0) == 0xff
+        }
+
+        /** OkHttp does not call Dns for IP literals, so check those directly. */
+        fun rejectBlockedLiteral(host: String?) {
+            if (host == null) throw IOException("Provider URL is not valid")
+            val isLiteral = host.contains(':') || IPV4_LITERAL.matches(host)
+            if (isLiteral && isBlockedAddress(InetAddress.getByName(host))) {
+                throw IOException("Provider URL is not allowed")
+            }
+        }
+    }
+
     @ReactMethod
     fun fetch(url: String, options: ReadableMap, promise: Promise) {
         val requestId = if (options.hasKey("requestId")) options.getString("requestId") else null
@@ -76,7 +131,25 @@ class ProviderHttpModule(reactContext: ReactApplicationContext) : ReactContextBa
                     }
                 }
 
-                val client = OkHttpClientProvider.getOkHttpClient().newBuilder()
+                // The JS guard only sees host names. Check the addresses too, so a
+                // public name that resolves to a local address (127.0.0.1.nip.io)
+                // or an IP literal on any redirect hop cannot reach the device or LAN.
+                rejectBlockedLiteral(url.toHttpUrlOrNull()?.host)
+                val baseClient = OkHttpClientProvider.getOkHttpClient()
+                val baseDns = baseClient.dns
+                val client = baseClient.newBuilder()
+                    .dns(object : Dns {
+                        override fun lookup(hostname: String): List<InetAddress> =
+                            baseDns.lookup(hostname).also { addresses ->
+                                if (addresses.any { isBlockedAddress(it) }) {
+                                    throw UnknownHostException("Provider URL is not allowed")
+                                }
+                            }
+                    })
+                    .addNetworkInterceptor { chain ->
+                        rejectBlockedLiteral(chain.request().url.host)
+                        chain.proceed(chain.request())
+                    }
                     .cookieJar(recordingJar)
                     .followRedirects(followRedirects)
                     .followSslRedirects(followRedirects)
