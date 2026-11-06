@@ -44,12 +44,43 @@ describe('media server sign-ins', () => {
     fetchMock.mockReturnValue(json(200, {Items: [{Id: 'm1', Name: 'Movie', Type: 'Movie'}, {Id: 'f1', Name: 'Shows', Type: 'Folder'}]}));
     const items = await media.listJellyfin('https://jf.local', 'u1', 'tok', 'p1', 'dev-1');
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://jf.local/Users/u1/Items?Recursive=false&ParentId=p1');
+    expect(url).toBe('https://jf.local/Items?userId=u1&parentId=p1&fields=ProviderIds%2CDateCreated&startIndex=0&limit=200');
     expect(init.headers.Authorization).toContain('DeviceId="dev-1"');
     expect(init.headers.Authorization).toContain('Token="tok"');
     expect(items[0].playUrl).toBe('https://jf.local/Videos/m1/stream?static=true&ApiKey=tok');
     expect(items[0].playUrl).not.toContain('api_key=');
     expect(items[1]).toMatchObject({kind: 'folder', playUrl: undefined});
+  });
+
+  it('lists the Jellyfin libraries with /UserViews', async () => {
+    const {media} = load();
+    fetchMock.mockReturnValue(json(200, {Items: [{Id: 'lib1', Name: 'Movies', Type: 'CollectionFolder'}]}));
+    const items = await media.listJellyfin('https://jf.local/', 'u1', 'tok', undefined, 'dev-1');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://jf.local/UserViews?userId=u1');
+    expect(items).toEqual([{id: 'lib1', title: 'Movies', kind: 'folder', playUrl: undefined}]);
+  });
+
+  it('pages through large Jellyfin folders', async () => {
+    const {media} = load();
+    const page = (from: number, count: number) =>
+      Array.from({length: count}, (_, i) => ({Id: `m${from + i}`, Name: `Movie ${from + i}`, Type: 'Movie'}));
+    fetchMock
+      .mockReturnValueOnce(json(200, {Items: page(0, 200), TotalRecordCount: 250}))
+      .mockReturnValueOnce(json(200, {Items: page(200, 50), TotalRecordCount: 250}));
+    const items = await media.listJellyfin('https://jf.local', 'u1', 'tok', 'p1', 'dev-1');
+    expect(items).toHaveLength(250);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toContain('startIndex=200&limit=200');
+    expect(items[249].id).toBe('m249');
+  });
+
+  it('keeps the /Users/{id}/Items listing for Emby', async () => {
+    const {media} = load();
+    fetchMock.mockReturnValue(json(200, {Items: []}));
+    await media.listEmby('https://emby.local', 'u1', 'tok', 'p1', 'dev-1');
+    await media.listEmby('https://emby.local', 'u1', 'tok', undefined, 'dev-1');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://emby.local/Users/u1/Items?Recursive=false&ParentId=p1');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://emby.local/Users/u1/Items?Recursive=false');
   });
 
   it('keeps the documented api_key query for Emby', async () => {

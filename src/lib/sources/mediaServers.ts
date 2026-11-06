@@ -49,6 +49,56 @@ const signInMediaBrowser = async (kind: MediaBrowserKind, server: string, userna
 const streamUrl = (kind: MediaBrowserKind, root: string, itemId: string, token: string) =>
   `${root}/Videos/${itemId}/stream?static=true&${kind === 'emby' ? 'api_key' : 'ApiKey'}=${encodeURIComponent(token)}`;
 
+type MediaBrowserItem = {Id: string; Name: string; Type?: string; MediaType?: string};
+
+/** Items per Jellyfin /Items page. */
+export const JELLYFIN_PAGE_SIZE = 200;
+
+const fetchMediaBrowserItems = async (
+  kind: MediaBrowserKind,
+  url: string,
+  token: string,
+  deviceId: string,
+): Promise<{Items?: MediaBrowserItem[]; TotalRecordCount?: number}> => {
+  const response = await fetch(url, {headers: deviceHeader(deviceId, token)});
+  if (isSourceAuthStatus(response.status)) throw new SourceAuthError(kind, response.status);
+  if (!response.ok) throw new Error(`${NAMES[kind]} library failed (${response.status})`);
+  return response.json();
+};
+
+/**
+ * Jellyfin lists the libraries with /UserViews and a folder with /Items,
+ * a page at a time. /Users/{id}/Items is the older form; Emby keeps it.
+ */
+const listJellyfinItems = async (
+  root: string,
+  userId: string,
+  token: string,
+  parentId: string | undefined,
+  deviceId: string,
+): Promise<MediaBrowserItem[]> => {
+  if (!parentId) {
+    const query = new URLSearchParams({userId});
+    const data = await fetchMediaBrowserItems('jellyfin', `${root}/UserViews?${query}`, token, deviceId);
+    return data.Items || [];
+  }
+  const items: MediaBrowserItem[] = [];
+  for (;;) {
+    const query = new URLSearchParams({
+      userId,
+      parentId,
+      fields: 'ProviderIds,DateCreated',
+      startIndex: String(items.length),
+      limit: String(JELLYFIN_PAGE_SIZE),
+    });
+    const data = await fetchMediaBrowserItems('jellyfin', `${root}/Items?${query}`, token, deviceId);
+    const page = data.Items || [];
+    items.push(...page);
+    const total = typeof data.TotalRecordCount === 'number' ? data.TotalRecordCount : items.length;
+    if (page.length === 0 || page.length < JELLYFIN_PAGE_SIZE || items.length >= total) return items;
+  }
+};
+
 const listMediaBrowser = async (
   kind: MediaBrowserKind,
   server: string,
@@ -58,15 +108,15 @@ const listMediaBrowser = async (
   deviceId: string,
 ): Promise<LibraryItem[]> => {
   const root = server.replace(/\/+$/, '');
-  const query = new URLSearchParams({Recursive: 'false'});
-  if (parentId) query.set('ParentId', parentId);
-  const response = await fetch(`${root}/Users/${userId}/Items?${query}`, {
-    headers: deviceHeader(deviceId, token),
-  });
-  if (isSourceAuthStatus(response.status)) throw new SourceAuthError(kind, response.status);
-  if (!response.ok) throw new Error(`${NAMES[kind]} library failed (${response.status})`);
-  const data = await response.json();
-  return (data.Items || []).map((item: {Id: string; Name: string; Type?: string; MediaType?: string}) => {
+  let rawItems: MediaBrowserItem[];
+  if (kind === 'jellyfin') {
+    rawItems = await listJellyfinItems(root, userId, token, parentId, deviceId);
+  } else {
+    const query = new URLSearchParams({Recursive: 'false'});
+    if (parentId) query.set('ParentId', parentId);
+    rawItems = (await fetchMediaBrowserItems(kind, `${root}/Users/${userId}/Items?${query}`, token, deviceId)).Items || [];
+  }
+  return rawItems.map(item => {
     const video = item.Type === 'Movie' || item.Type === 'Episode' || item.MediaType === 'Video';
     return {
       id: item.Id,
