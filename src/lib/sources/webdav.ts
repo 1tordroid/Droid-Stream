@@ -1,4 +1,5 @@
 import {Buffer} from 'buffer';
+import {isSourceAuthStatus, SourceAuthError} from './authErrors';
 
 export interface RemoteFile {
   name: string;
@@ -53,6 +54,7 @@ export const listWebDav = async (
     },
     body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:resourcetype/><d:getcontentlength/></d:prop></d:propfind>',
   });
+  if (isSourceAuthStatus(response.status)) throw new SourceAuthError('webdav', response.status);
   if (!response.ok) throw new Error(`WebDAV listing failed (${response.status})`);
   const files = parsePropfind(await response.text(), base);
   return files.filter(file => file.href.replace(/\/+$/, '') !== (folder || base).replace(/\/+$/, ''));

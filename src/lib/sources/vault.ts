@@ -2,14 +2,28 @@ import {MMKVLoader} from 'react-native-mmkv-storage';
 
 export type SourceKind = 'webdav' | 'smb' | 'jellyfin' | 'emby' | 'plex';
 
+export type SourceAuthState = 'ok' | 'signedOut';
+
 export interface SavedSource {
   id: string;
   kind: SourceKind;
   name: string;
   server: string;
+  /** Jellyfin and Emby: the server's user id. Others: the name typed to sign in. */
   username: string;
+  /** The password, or the access token for Jellyfin, Emby and Plex. */
   secret: string;
   share?: string;
+  /**
+   * Jellyfin and Emby: the DeviceId the token was issued for. Plex: the
+   * X-Plex-Client-Identifier of the sign-in. Missing on sources saved before
+   * 5.5.0, which all used 'droid-stream'.
+   */
+  deviceId?: string;
+  /** Jellyfin and Emby: the name typed to sign in, so signing in again can be prefilled. */
+  loginName?: string;
+  /** 'signedOut' once the server rejected the saved sign-in. */
+  authState?: SourceAuthState;
 }
 
 const storage = new MMKVLoader()
@@ -18,13 +32,45 @@ const storage = new MMKVLoader()
   .initialize();
 
 const KEY = 'sources';
+const INSTALL_ID_KEY = 'install-id';
 
 export const listSources = (): SavedSource[] => storage.getArray<SavedSource>(KEY) || [];
 
+/** Adds a source, or replaces the saved one with the same id where it already is in the list. */
 export const saveSource = (source: SavedSource): void => {
-  const next = listSources().filter(item => item.id !== source.id);
-  next.push(source);
+  const list = listSources();
+  const next = list.some(item => item.id === source.id)
+    ? list.map(item => (item.id === source.id ? source : item))
+    : [...list, source];
   storage.setArray(KEY, next);
+};
+
+/** Changes a saved source in place. The id and list position stay the same, so links to it keep working. */
+export const updateSource = (id: string, patch: Partial<Omit<SavedSource, 'id'>>): SavedSource | undefined => {
+  let updated: SavedSource | undefined;
+  const next = listSources().map(item => {
+    if (item.id !== id) return item;
+    updated = {...item, ...patch, id};
+    return updated;
+  });
+  if (updated) storage.setArray(KEY, next);
+  return updated;
+};
+
+/**
+ * A random id made once per install and kept in this encrypted store, so it
+ * is not part of JSON backups. Media servers use it to tell this install's
+ * sign-ins apart from other phones and from the preview build.
+ */
+export const getInstallId = (): string => {
+  let id = storage.getString(INSTALL_ID_KEY);
+  if (!id) {
+    // Loaded on first use so modules that only read sources do not need the native module.
+    const {randomUUID} = require('expo-crypto') as typeof import('expo-crypto');
+    id = randomUUID();
+    storage.setString(INSTALL_ID_KEY, id);
+  }
+  return id;
 };
 
 export const deleteSource = (id: string): void => {
