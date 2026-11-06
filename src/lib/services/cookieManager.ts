@@ -85,8 +85,36 @@ export const getCookieHeader = async (url: string): Promise<string> => {
   return objects.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
 };
 
-// Deletes a specific cookie for a URL. `domain` is the cookie's Domain
-// attribute when known, so parent-domain cookies are removed too.
+// Expires the cookie in every domain scope it may have been set in.
+const expireCookie = async (
+  CookieManager: any,
+  url: string,
+  name: string,
+  domain?: string,
+): Promise<void> => {
+  const domains: Array<string | undefined> = [undefined];
+  try {
+    const host = new URL(url).hostname;
+    domains.push(host, `.${host}`);
+  } catch {}
+  if (domain) {
+    domains.push(domain);
+  }
+  for (const d of domains) {
+    await CookieManager.set(url, {
+      name,
+      value: '',
+      domain: d,
+      expires: '1970-01-01T00:00:00.00Z',
+      path: '/',
+    }).catch(() => {});
+  }
+  await CookieManager.flush();
+};
+
+// Deletes a specific cookie for a URL, in every domain and path scope the URL
+// sees it in. `domain` is the cookie's Domain attribute when known; it is only
+// needed on WebViews too old for clearByName.
 export const deleteCookie = async (
   url: string,
   name: string,
@@ -95,36 +123,20 @@ export const deleteCookie = async (
   const CookieManager = getCookieManager();
   if (!CookieManager) return;
   try {
-    try {
-      if (CookieManager.clearByName) {
-        await CookieManager.clearByName(url, name);
-      } else {
-        throw new Error('Not implemented');
-      }
-    } catch {
-      // Android workaround: set it to empty and expired across possible domain scopes
-      const domains: Array<string | undefined> = [undefined];
-      try {
-        const parsed = new URL(url);
-        const host = parsed.hostname;
-        domains.push(host, `.${host}`);
-      } catch {}
-      if (domain) {
-        domains.push(domain);
-      }
-
-      for (const d of domains) {
-        await CookieManager.set(url, {
-          name,
-          value: '',
-          domain: d,
-          expires: '1970-01-01T00:00:00.00Z',
-          path: '/',
-        }).catch(() => {});
-      }
-    }
-    await CookieManager.flush();
+    // clearByName flushes when it removed something and resolves false when
+    // there was nothing to remove.
+    await CookieManager.clearByName(url, name);
   } catch (e) {
+    // clearByName needs GET_COOKIE_INFO from the Android System WebView;
+    // older WebViews (some TV boxes) reject with not_supported.
+    if ((e as {code?: unknown} | null)?.code === 'not_supported') {
+      try {
+        await expireCookie(CookieManager, url, name, domain);
+      } catch (fallbackError) {
+        console.warn('[cookieManager] failed to delete cookie', fallbackError);
+      }
+      return;
+    }
     console.warn('[cookieManager] failed to delete cookie', e);
   }
 };
@@ -184,11 +196,15 @@ export const setCookieString = async (
         const name = part.slice(0, eqIdx).trim();
         const value = part.slice(eqIdx + 1).trim();
         if (name && value && !ATTRIBUTES.has(name.toLowerCase())) {
+          // Cookie manager 7 validates each cookie; one it rejects must not
+          // stop the others.
           await CookieManager.set(url, {
             name,
             value,
             path: '/',
-          });
+          }).catch((e: unknown) =>
+            console.warn('[cookieManager] rejected cookie', name, e),
+          );
         }
       }
     }
