@@ -160,7 +160,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
         <Pressable onPress={() => setRoute('direct')}><AppText style={{color: route === 'direct' ? colors.primary : colors.onSurfaceVariant}}>Direct (on-device)</AppText></Pressable>
         <Pressable onPress={() => setRoute('pikpak')}><AppText style={{color: route === 'pikpak' ? colors.primary : colors.onSurfaceVariant}}>PikPak (cloud)</AppText></Pressable>
       </View> : null}
-      <TextInput value={magnet} onChangeText={setMagnet} placeholder="magnet:?xt=urn:btih:..." placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" multiline style={{color: colors.onSurface, marginBottom: 12}} />
+      <TextInput accessibilityLabel="Magnet link" value={magnet} onChangeText={setMagnet} placeholder="magnet:?xt=urn:btih:..." placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" multiline style={{color: colors.onSurface, marginBottom: 12}} />
       {route === 'direct' ? (
         <View>
           <AppText role="bodySmall" className="mb-3 text-m3-on-surface-variant">
@@ -181,6 +181,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
             <>
               {label('Email or username')}
               <TextInput
+                accessibilityLabel="PikPak email or username"
                 value={username}
                 onChangeText={setUsername}
                 placeholder="you@example.com"
@@ -198,6 +199,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
               {label('Password')}
               <TextInput
                 ref={passwordRef}
+                accessibilityLabel="PikPak password"
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Password"
@@ -211,6 +213,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
               />
               {label('Or paste an access token (lasts about 2 hours)')}
               <TextInput
+                accessibilityLabel="PikPak access token"
                 value={token}
                 onChangeText={setToken}
                 placeholder="Access token"

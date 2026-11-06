@@ -46,6 +46,8 @@ const TorrentSources = () => {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const torznabUrl = useRef<TextInputInstance>(null);
   const torznabKey = useRef<TextInputInstance>(null);
+  // Typed custom mirrors, so Test uses them even if the field still has focus.
+  const pendingMirror = useRef<Record<string, string>>({});
 
   const save = (next: TorrentSearchSettings) => {
     setSettings(next);
@@ -88,11 +90,22 @@ const TorrentSources = () => {
                   ))}
                 </View>
                 <Input label="Custom mirror URL" placeholder="https://new-domain.example" defaultValue={engine.mirrors.includes(engineBaseUrl(engine, settings)) ? '' : engineBaseUrl(engine, settings)}
+                  onChangeText={text => {
+                    pendingMirror.current[engine.id] = text;
+                  }}
+                  keyboardType="url" returnKeyType="done"
                   onEndEditing={event => event.nativeEvent.text.trim() && setEngine(engine.id, {mirror: event.nativeEvent.text.trim(), enabled: on})} />
               </>
             ) : null}
             <View style={{flexDirection: 'row', gap: 8, flexWrap: 'wrap'}}>
-              <Chip label="Test" icon="play-circle-outline" onPress={() => runTest(engine)} />
+              <Chip label="Test" icon="play-circle-outline" onPress={() => {
+                const typed = pendingMirror.current[engine.id]?.trim();
+                if (typed) {
+                  delete pendingMirror.current[engine.id];
+                  setEngine(engine.id, {mirror: typed, enabled: on});
+                }
+                runTest(engine);
+              }} />
               {removable ? <Chip label="Remove" icon="delete-outline" tone="warn" onPress={removable} /> : null}
             </View>
           </View>

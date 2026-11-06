@@ -1,5 +1,6 @@
 import React from 'react';
 import {FlatList, KeyboardAvoidingView, ScrollView, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {isTV} from '../../lib/tv';
 import SettingsSection from './SettingsSection';
 import Surface from './Surface';
@@ -18,6 +19,7 @@ export const flattenSettingsChildren = (children: React.ReactNode): React.ReactN
 // Row and section windowing keeps native controls outside the initial viewport
 // out of the cold mount. TV retains a continuous tree for directional focus.
 const SettingsPage = ({children}: {children: React.ReactNode}) => {
+  const insets = useSafeAreaInsets();
   const [ready, setReady] = React.useState(isTV);
   React.useEffect(() => {
     if (isTV) return;
@@ -55,8 +57,10 @@ const SettingsPage = ({children}: {children: React.ReactNode}) => {
   });
   // Edge-to-edge: Android no longer shrinks the screen for the keyboard, so
   // pad the list by the part it covers to keep fields such as API keys usable.
+  // Settings screens start below the status bar (the stack's paddingTop), and
+  // KeyboardAvoidingView measures from its parent, so offset by that inset.
   return (
-    <KeyboardAvoidingView behavior="padding" className="flex-1 w-full bg-m3-background">
+    <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={insets.top} className="flex-1 w-full bg-m3-background">
     <FlatList
       className="flex-1 w-full bg-m3-background"
       keyboardShouldPersistTaps="handled"

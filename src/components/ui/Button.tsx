@@ -31,6 +31,8 @@ interface ButtonProps {
   onPress?: () => void;
   style?: ViewStyle;
   testID?: string;
+  /** Spoken name; defaults to the text child. */
+  accessibilityLabel?: string;
   containerColor?: ColorValue;
   contentColor?: ColorValue;
   hasTVPreferredFocus?: boolean;
@@ -49,6 +51,7 @@ const Button = React.forwardRef<HostInstance, ButtonProps>(({
   onPress,
   style,
   testID,
+  accessibilityLabel,
   containerColor,
   contentColor,
   hasTVPreferredFocus,
@@ -155,6 +158,9 @@ const Button = React.forwardRef<HostInstance, ButtonProps>(({
         },
         style,
       ]}>
+      {/* The Compose button only draws; the Pressable below handles taps and
+          TalkBack, so hide the drawn one from accessibility. */}
+      <View importantForAccessibility="no-hide-descendants">
       <Host
         matchContents
         {...hostTheme}
@@ -180,8 +186,10 @@ const Button = React.forwardRef<HostInstance, ButtonProps>(({
           </Text>
         </ButtonComponent>
       </Host>
+      </View>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? (typeof children === 'string' ? children : undefined)}
         accessibilityState={{disabled: Boolean(disabled)}}
         android_ripple={{color: String(colors.onSurfaceVariant)}}
         disabled={Boolean(disabled)}

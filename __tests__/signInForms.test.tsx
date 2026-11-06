@@ -123,6 +123,19 @@ describe('PikPak sign-in', () => {
     expect(ToastAndroid.show).toHaveBeenCalledWith(expect.stringMatching(/email and password/), expect.anything());
   });
 
+  it('names every field for screen readers', async () => {
+    let tree!: renderer.ReactTestRenderer;
+    await act(async () => {
+      tree = render();
+    });
+    expect(tree.root.findAllByType(TextInput).map(input => input.props.accessibilityLabel)).toEqual([
+      'Magnet link',
+      'PikPak email or username',
+      'PikPak password',
+      'PikPak access token',
+    ]);
+  });
+
   it('keeps the whole form in a keyboard-aware scroll view', async () => {
     let tree!: renderer.ReactTestRenderer;
     await act(async () => {

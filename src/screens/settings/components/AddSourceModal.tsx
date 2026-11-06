@@ -1,6 +1,6 @@
 import {MaterialCommunityIcons} from '@expo/vector-icons';
-import React, {useEffect, useState} from 'react';
-import {Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, View} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, View, type TextInputInstance} from 'react-native';
 import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import Text from '../../../components/ui/Text';
 import {TVFocusable} from '../../../components/tv';
@@ -82,12 +82,18 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     onClose();
   };
 
+  const tokenRef = useRef<TextInputInstance>(null);
+
   const handleConfirm = () => {
     const trimmed = inputValue.trim();
-    if (trimmed) {
-      onAdd(trimmed, isPrivate ? token : undefined);
-      resetForm();
+    if (!trimmed) return;
+    // A private source needs its token: go to that field instead of failing.
+    if (isPrivate && !token.trim()) {
+      tokenRef.current?.focus();
+      return;
     }
+    onAdd(trimmed, isPrivate ? token : undefined);
+    resetForm();
   };
 
   const renderVisibilityOption = (
@@ -243,7 +249,10 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
             selectionColor={colors.primary}
             value={inputValue}
             onChangeText={setInputValue}
-            onSubmitEditing={handleConfirm}
+            accessibilityLabel="Provider source"
+            returnKeyType={isPrivate ? 'next' : 'go'}
+            submitBehavior={isPrivate ? 'submit' : 'blurAndSubmit'}
+            onSubmitEditing={() => (isPrivate ? tokenRef.current?.focus() : handleConfirm())}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -255,6 +264,9 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
             <>
               <View className="flex-row items-center gap-2 mt-3">
                 <TextInput
+                  ref={tokenRef}
+                  accessibilityLabel="GitHub access token"
+                  returnKeyType="go"
                   className="h-14 px-4 flex-1"
                   focusable={true}
                   onFocus={() => setIsTokenFocused(true)}
