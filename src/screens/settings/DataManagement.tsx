@@ -19,6 +19,7 @@ import {
   clearAllMMKVStorage,
   settingsStorage,
 } from '../../lib/storage';
+import {clearSignInStores} from '../../lib/storage/secureStores';
 import {
   clearSyncedWatchProgress,
   syncFromSharedFolder,
@@ -97,6 +98,7 @@ export default function DataManagement({navigation}: Props) {
 
   const eraseAllLocalData = useCallback(async () => {
     clearAllMMKVStorage();
+    clearSignInStores();
     await reloadApp('All MMKV storage erased');
   }, [reloadApp]);
 
@@ -104,7 +106,7 @@ export default function DataManagement({navigation}: Props) {
     showAppDialog({
       title: 'Erase all local data?',
       message:
-        'This permanently erases every Droid Stream store, including settings, installed provider data, Library, Continue watching, download records, and cached state. This cannot be undone. Downloaded media files on disk are not deleted.',
+        'This permanently erases every Droid Stream store, including settings, saved sign-ins (Sources, PikPak, debrid, watch sync, and private provider sources), Stremio add-ons, torrent settings, installed provider data, Library, Continue watching, download records, and cached state. You will need to sign in again. This cannot be undone. Downloaded media files on disk are not deleted.',
       variant: 'error',
       actions: [
         {label: 'Cancel'},
@@ -253,7 +255,7 @@ export default function DataManagement({navigation}: Props) {
           />
           <SettingsRow
             title="Erase all local data"
-            description="Erase all local data"
+            description="Erase settings, saved sign-ins, Library, and cached data"
             icon="delete-alert-outline"
             divider={false}
             onPress={confirmEraseAllLocalData}

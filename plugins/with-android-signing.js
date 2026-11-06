@@ -2,6 +2,35 @@ const fs = require('fs');
 const path = require('path');
 const {withDangerousMod} = require('expo/config-plugins');
 
+const SIGNING_VARIABLES = [
+  'MYAPP_UPLOAD_STORE_FILE',
+  'MYAPP_UPLOAD_STORE_PASSWORD',
+  'MYAPP_UPLOAD_KEY_ALIAS',
+  'MYAPP_UPLOAD_KEY_PASSWORD',
+];
+
+/** Builds meant for distribution set RELEASE=1 (release, nightly and action-build workflows). */
+const isDistributionBuild = (env = process.env) => env.RELEASE === '1';
+
+/** Names (never values) of the signing variables that are not set. */
+const missingSigningVariables = (env = process.env) =>
+  SIGNING_VARIABLES.filter(name => !env[name]);
+
+/**
+ * Stops a distribution build early, at prebuild, when the upload key is not
+ * configured. The Gradle file below checks again at build time.
+ */
+const assertDistributionSigning = (env = process.env) => {
+  if (!isDistributionBuild(env)) return;
+  const missing = missingSigningVariables(env);
+  if (missing.length) {
+    throw new Error(
+      `RELEASE=1 but these signing variables are missing: ${missing.join(', ')}. ` +
+        'Set them, or unset RELEASE for a local test build signed with the debug key.',
+    );
+  }
+};
+
 /**
  * Adds release signing configuration that reads from env vars after prebuild.
  * Uses a Gradle file that applies signing config during the android block evaluation.
@@ -10,6 +39,7 @@ module.exports = function withAndroidSigning(config) {
   return withDangerousMod(config, [
     'android',
     async cfg => {
+      assertDistributionSigning();
       const projectRoot = cfg.modRequest.projectRoot;
       const appDir = path.join(projectRoot, 'android', 'app');
       const buildGradle = path.join(appDir, 'build.gradle');
@@ -26,6 +56,15 @@ module.exports = function withAndroidSigning(config) {
       const signingContent = `// Auto-applied by with-android-signing config plugin
 // Test builds without release secrets: sign "release" with the debug key so
 // packageRelease works. Real releases set the four MYAPP_UPLOAD_* variables.
+// Distribution builds (RELEASE=1) never fall back to the debug key: a
+// debug-signed update cannot install over the release app, and uninstalling
+// it to get past that deletes every saved sign-in.
+def failIfDistribution = { reason ->
+    if (System.getenv('RELEASE') == '1') {
+        throw new GradleException("RELEASE=1 but \${reason}. Set MYAPP_UPLOAD_STORE_FILE, MYAPP_UPLOAD_STORE_PASSWORD, MYAPP_UPLOAD_KEY_ALIAS and MYAPP_UPLOAD_KEY_PASSWORD, or unset RELEASE for a local test build signed with the debug key.")
+    }
+}
+
 def useDebugKeyFor = { config ->
     def candidates = [file('debug.keystore'), rootProject.file('../debug.keystore'), file("\${System.getProperty('user.home')}/.android/debug.keystore")]
     def debugStore = candidates.find { it.exists() }
@@ -61,6 +100,7 @@ android {
                     println "Release signing config configured successfully"
                 } else {
                     println "Keystore file not found: \${envStoreFile}"
+                    failIfDistribution("the keystore file \${envStoreFile} does not exist")
                     useDebugKeyFor(delegate)
                 }
             } else {
@@ -69,6 +109,8 @@ android {
                 println "  MYAPP_UPLOAD_STORE_PASSWORD: \${envStorePassword ? '***' : 'null'}"
                 println "  MYAPP_UPLOAD_KEY_ALIAS: \${envKeyAlias}"
                 println "  MYAPP_UPLOAD_KEY_PASSWORD: \${envKeyPassword ? '***' : 'null'}"
+                def missing = ['MYAPP_UPLOAD_STORE_FILE', 'MYAPP_UPLOAD_STORE_PASSWORD', 'MYAPP_UPLOAD_KEY_ALIAS', 'MYAPP_UPLOAD_KEY_PASSWORD'].findAll { !System.getenv(it) }
+                failIfDistribution("these signing variables are missing: \${missing.join(', ')}")
                 useDebugKeyFor(delegate)
             }
         }
@@ -133,3 +175,8 @@ afterEvaluate {
     },
   ]);
 };
+
+module.exports.SIGNING_VARIABLES = SIGNING_VARIABLES;
+module.exports.isDistributionBuild = isDistributionBuild;
+module.exports.missingSigningVariables = missingSigningVariables;
+module.exports.assertDistributionSigning = assertDistributionSigning;
