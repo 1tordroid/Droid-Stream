@@ -105,6 +105,30 @@ export function getReloadStartMs(
   return ms === currentStartMs ? ms + 1 : ms;
 }
 
+/**
+ * Decoder failures (Media3 4001-4005): the device has no decoder for a track,
+ * such as DTS or TrueHD audio on many phones. VLC decodes these in software.
+ * Reclaimed decoder resources (4006) are a temporary state, not a format gap.
+ */
+export function isDecoderFormatError(event: unknown): boolean {
+  const code = getPlaybackErrorCode(event);
+  return code !== null && code >= 4001 && code <= 4005;
+}
+
+export const VLC_DECODER_HINT =
+  "This device can't decode this video's format. Choose VLC in Player settings > Engine to play it.";
+
+/**
+ * Message for a decoder failure on a video the VLC engine can open (a file,
+ * a direct link or a downloaded video), or null when VLC is no way out.
+ */
+export function getDecoderFallbackHint(
+  event: unknown,
+  vlcCanOpen: boolean,
+): string | null {
+  return vlcCanOpen && isDecoderFormatError(event) ? VLC_DECODER_HINT : null;
+}
+
 /** Some Media3 extractor exceptions are wrapped as IO_UNSPECIFIED (2000). */
 export function isContainerParsingError(event: unknown): boolean {
   const error = (event as {error?: {errorStackTrace?: string; errorException?: string; cause?: {message?: string}}})?.error;

@@ -19,7 +19,7 @@ allprojects {
         resolutionStrategy.eachDependency { details ->
             if (details.requested.group == 'androidx.media3') {
                 details.useVersion '1.8.0'
-                details.because 'react-native-video and the FFmpeg decoder require the Media3 1.8 API'
+                details.because 'react-native-video requires the Media3 1.8 API'
             }
         }
     }

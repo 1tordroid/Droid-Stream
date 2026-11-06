@@ -158,6 +158,7 @@ import {
   NO_PLAYBACK_RETRY,
   isContainerParsingError,
   decidePlaybackError,
+  getDecoderFallbackHint,
   getReloadStartMs,
   markPlaybackLoaded,
 } from '../../lib/player/playbackErrorRetry';
@@ -1583,11 +1584,18 @@ const Player = ({route}: Props): React.JSX.Element => {
   const handleVideoError = useCallback(
     (e: any) => {
       console.log('PlayerError', e);
+      // The VLC engine opens files, direct links and downloads, not provider
+      // streams, so only those are pointed at it when no decoder exists.
+      const decoderHint = getDecoderFallbackHint(
+        e,
+        !!(route.params.localContent || route.params.directUrl ||
+          route.params.file || route.params.externalVideo),
+      );
 
       if (route.params.localContent) {
-        ToastAndroid.show(isContainerParsingError(e)
+        ToastAndroid.show(decoderHint ?? (isContainerParsingError(e)
           ? 'Unable to read the video container.'
-          : 'Cannot play this local file. Check the file and reselect its folder if access was lost.', ToastAndroid.LONG);
+          : 'Cannot play this local file. Check the file and reselect its folder if access was lost.'), ToastAndroid.LONG);
         navigation.goBack();
         return;
       }
@@ -1683,10 +1691,14 @@ const Player = ({route}: Props): React.JSX.Element => {
       }
 
       if (!switchToNextStream()) {
-        ToastAndroid.show(
-          'Video could not be played, try again later',
-          ToastAndroid.SHORT,
-        );
+        if (decoderHint) {
+          ToastAndroid.show(decoderHint, ToastAndroid.LONG);
+        } else {
+          ToastAndroid.show(
+            'Video could not be played, try again later',
+            ToastAndroid.SHORT,
+          );
+        }
         navigation.goBack();
       }
       setShowControls(true);
@@ -1698,6 +1710,9 @@ const Player = ({route}: Props): React.JSX.Element => {
       markStreamsOnline,
       navigation,
       refreshLinks,
+      route.params.directUrl,
+      route.params.externalVideo,
+      route.params.file,
       route.params.localContent,
       setSelectedStream,
       setShowControls,
