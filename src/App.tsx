@@ -179,7 +179,7 @@ export type WatchListStackParamList = {
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
-  Sources: {kind?: string; openId?: string} | undefined;
+  Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}} | undefined;
   Info: {link: string; provider?: string; poster?: string};
 };
 

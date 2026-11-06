@@ -54,18 +54,107 @@ describe('Watch sync screen', () => {
     sync.writeSyncSettings({trakt: {enabled: true}, simkl: {enabled: true}, anilist: {enabled: true}});
   });
 
-  it('keeps the form above the keyboard and gives every field a Done key', async () => {
+  it('keeps the form above the keyboard and chains the fields: Next moves on, Go signs in', async () => {
     const tree = await render();
     expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBe('padding');
     const fields = inputs(tree);
-    expect(fields.map(input => input.props.accessibilityLabel)).toEqual([
-      'Trakt Client ID',
-      'Trakt Client Secret',
-      'Simkl Client ID',
-      'AniList Client ID',
-      'AniList Paste the AniList token',
+    expect(fields.map(input => [input.props.accessibilityLabel, input.props.returnKeyType])).toEqual([
+      ['Trakt Client ID', 'next'],
+      ['Trakt Client Secret', 'go'],
+      ['Simkl Client ID', 'go'],
+      ['AniList Client ID', 'next'],
+      ['AniList Paste the AniList token', 'go'],
     ]);
-    expect(fields.every(input => input.props.returnKeyType === 'done')).toBe(true);
+    const field = (label: string) => fields.find(input => input.props.accessibilityLabel === label)!;
+    const focusOf = (label: string) => {
+      const focus = jest.fn();
+      field(label).instance.focus = focus;
+      return focus;
+    };
+    const secretFocus = focusOf('Trakt Client Secret');
+    const tokenFocus = focusOf('AniList Paste the AniList token');
+    // Next keeps the keyboard open and moves to the next field.
+    expect(field('Trakt Client ID').props.submitBehavior).toBe('submit');
+    act(() => field('Trakt Client ID').props.onSubmitEditing());
+    expect(secretFocus).toHaveBeenCalledTimes(1);
+    act(() => field('AniList Client ID').props.onSubmitEditing());
+    expect(tokenFocus).toHaveBeenCalledTimes(1);
+    act(() => tree.unmount());
+  });
+
+  it('signs in to Trakt with the details just typed, from Sign in or from Go, while the field still has focus', async () => {
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    fetchMock.mockImplementation(() => json(200, {user_code: 'ABCD', verification_url: 'https://trakt.tv/activate', device_code: 'dev', interval: 5, expires_in: 600}));
+    const tree = await render();
+    const field = (label: string) => inputs(tree).find(input => input.props.accessibilityLabel === label)!;
+    // Typed only: no onEndEditing has run yet.
+    await act(async () => {
+      field('Trakt Client ID').props.onChangeText(' typed-id ');
+      field('Trakt Client Secret').props.onChangeText('typed-secret');
+    });
+    expect(sync.readSyncSettings().trakt.clientId).toBeFalsy();
+    await act(async () => {
+      await chip(tree, 'Sign in')[0].props.onPress();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.trakt.tv/oauth/device/code');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({client_id: 'typed-id'});
+    expect(sync.readSyncSettings().trakt).toMatchObject({clientId: 'typed-id', clientSecret: 'typed-secret'});
+
+    await act(async () => {
+      field('Trakt Client ID').props.onChangeText('second-id');
+    });
+    await act(async () => {
+      await field('Trakt Client Secret').props.onSubmitEditing();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({client_id: 'second-id'});
+    act(() => tree.unmount());
+  });
+
+  it('signs in to Simkl with the client ID just typed, also from its Go key', async () => {
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    fetchMock.mockImplementation(() => json(200, {user_code: 'PIN1', verification_url: 'https://simkl.com/pin', interval: 5, expires_in: 900}));
+    const tree = await render();
+    const simkl = () => inputs(tree).find(input => input.props.accessibilityLabel === 'Simkl Client ID')!;
+    await act(async () => {
+      simkl().props.onChangeText('simkl-id');
+    });
+    await act(async () => {
+      await simkl().props.onSubmitEditing();
+    });
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/oauth/pin?client_id=simkl-id');
+    expect(sync.readSyncSettings().simkl.clientId).toBe('simkl-id');
+    act(() => tree.unmount());
+  });
+
+  it('opens the AniList sign-in and checks the token with the client ID just typed', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const tree = await render();
+    const field = (label: string) => inputs(tree).find(input => input.props.accessibilityLabel === label)!;
+    await act(async () => {
+      field('AniList Client ID').props.onChangeText('777');
+    });
+    // AniList has two Sign in chips' worth of services above it; its own is the last.
+    const signIns = chip(tree, 'Sign in');
+    await act(async () => {
+      signIns[signIns.length - 1].props.onPress();
+    });
+    expect(openURL).toHaveBeenCalledWith('https://anilist.co/api/v2/oauth/authorize?client_id=777&response_type=token');
+    expect(sync.readSyncSettings().anilist.clientId).toBe('777');
+
+    // Check token saves a client ID typed after it too, and still checks before saving the token.
+    await act(async () => {
+      field('AniList Client ID').props.onChangeText('888');
+      field('AniList Paste the AniList token').props.onChangeText('bad-token');
+    });
+    fetchMock.mockImplementationOnce(() => json(401, {errors: [{message: 'Invalid token', status: 401}]}));
+    await act(async () => {
+      await chip(tree, 'Check token')[0].props.onPress();
+    });
+    expect(sync.readSyncSettings().anilist.clientId).toBe('888');
+    expect(sync.readSyncSettings().anilist.accessToken).toBeUndefined();
+    act(() => tree.unmount());
   });
 
   it('saves a pasted AniList token only once AniList accepts it, also from the Done key', async () => {

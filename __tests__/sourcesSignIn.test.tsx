@@ -2,7 +2,7 @@
 // full-screen sign-in form prefilled under the same id; editing keeps the
 // sign-in; deleting asks first; WebDAV plays with its saved sign-in.
 import React from 'react';
-import {KeyboardAvoidingView, Text, TextInput, ToastAndroid} from 'react-native';
+import {BackHandler, KeyboardAvoidingView, Text, TextInput, ToastAndroid} from 'react-native';
 import renderer, {act} from 'react-test-renderer';
 import Sources from '../src/screens/Sources';
 import useAppDialogStore from '../src/lib/zustand/appDialogStore';
@@ -25,6 +25,11 @@ jest.mock('../src/components/ui/Button', () => {
   };
 });
 jest.mock('../src/screens/Magnet', () => 'Magnet');
+jest.mock('../src/components/tv', () => {
+  const {createElement} = require('react');
+  const {Pressable} = require('react-native');
+  return {TVFocusable: ({children, ...props}: any) => createElement(Pressable, props, children)};
+});
 jest.mock('../src/lib/sources/smb', () => ({listSmbShare: jest.fn(async () => [])}));
 jest.mock('../src/theme/M3PaletteContext', () => ({useM3Colors: () => ({})}));
 
@@ -210,6 +215,173 @@ describe('Sources sign-in', () => {
       dialog.actions!.find(action => action.label === 'Delete')!.onPress!();
     });
     expect(listSources()).toHaveLength(0);
+  });
+
+  describe('leaving the form', () => {
+    const RETURN_TO = {tab: 'TorrentsStack', screen: 'DebridSettings'};
+    let nav: {navigate: jest.Mock; goBack: jest.Mock; canGoBack: () => boolean; getState: () => {index: number}; setParams: jest.Mock; isFocused: () => boolean};
+    let stackIndex: number;
+
+    beforeEach(() => {
+      stackIndex = 0;
+      nav = {navigate: jest.fn(), goBack: jest.fn(), canGoBack: () => true, getState: () => ({index: stackIndex}), setParams: jest.fn(), isFocused: () => true};
+    });
+
+    const renderWith = async (params?: Record<string, unknown>) => {
+      await act(async () => {
+        tree = renderer.create(<Sources navigation={nav} route={{params}} />);
+      });
+      await flush();
+    };
+
+    it('stays in the Library tab when only the tab navigator could go back', async () => {
+      await renderWith({kind: 'jellyfin'});
+      await act(async () => {
+        button('Cancel').props.onPress();
+      });
+      expect(nav.goBack).not.toHaveBeenCalled();
+      expect(texts()).toContain('Sources');
+      expect(tree.root.findAllByType(TextInput)).toHaveLength(0);
+      expect(nav.setParams).toHaveBeenCalledWith({kind: undefined, openId: undefined, returnTo: undefined});
+    });
+
+    it('goes back when the Library stack has a screen below Sources', async () => {
+      stackIndex = 1;
+      await renderWith({kind: 'jellyfin'});
+      await act(async () => {
+        button('Cancel').props.onPress();
+      });
+      expect(nav.goBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns to Debrid and cloud after a PikPak sign-in opened from the Torrents tab', async () => {
+      stackIndex = 1;
+      let onBack: (() => boolean | null | undefined) | undefined;
+      jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, handler) => {
+        onBack = handler;
+        return {remove: jest.fn()};
+      });
+      await renderWith({kind: 'pikpak', returnTo: RETURN_TO});
+      const magnet = () => tree.root.findAll(node => (node.type as unknown) === 'Magnet');
+      expect(magnet()).toHaveLength(1);
+      act(() => magnet()[0].props.onClose());
+      expect(nav.navigate).toHaveBeenCalledWith('TorrentsStack', {screen: 'DebridSettings'});
+      expect(nav.goBack).not.toHaveBeenCalled();
+      // The Library tab shows the list next time instead of the PikPak form.
+      expect(magnet()).toHaveLength(0);
+      expect(nav.setParams).toHaveBeenCalledWith({kind: undefined, openId: undefined, returnTo: undefined});
+
+      // Android Back does the same.
+      act(() => tree.unmount());
+      nav.navigate.mockClear();
+      await renderWith({kind: 'pikpak', returnTo: RETURN_TO});
+      let handled: boolean | null | undefined;
+      act(() => {
+        handled = onBack!();
+      });
+      expect(handled).toBe(true);
+      expect(nav.navigate).toHaveBeenCalledWith('TorrentsStack', {screen: 'DebridSettings'});
+      expect(nav.goBack).not.toHaveBeenCalled();
+    });
+
+    it('opens what new params ask for while the screen stays mounted', async () => {
+      await renderWith();
+      expect(texts()).toContain('Sources');
+      await act(async () => {
+        tree.update(<Sources navigation={nav} route={{params: {kind: 'plex'}}} />);
+      });
+      expect(input('Server address').props.placeholder).toBe('http://192.168.1.10:32400');
+      await act(async () => {
+        tree.update(<Sources navigation={nav} route={{params: {kind: 'pikpak', returnTo: RETURN_TO}}} />);
+      });
+      expect(tree.root.findAll(node => (node.type as unknown) === 'Magnet')).toHaveLength(1);
+    });
+
+    it('saves nothing when Cancel or leaving the screen comes while signing in, and signs in to the trimmed server', async () => {
+      stackIndex = 1;
+      const pending: Array<(value: unknown) => void> = [];
+      fetchMock.mockImplementation(() => new Promise(resolve => pending.push(resolve)));
+      const fill = async () => {
+        await act(async () => {
+          input('Server address').props.onChangeText('  https://jf.local  ');
+          input('Username').props.onChangeText('me');
+          input('Password').props.onChangeText('pw');
+        });
+      };
+
+      await renderWith({kind: 'jellyfin'});
+      await fill();
+      let saving!: Promise<void>;
+      await act(async () => {
+        saving = button('Save').props.onPress();
+      });
+      expect(texts()).toContain('Signing in…');
+      expect(fetchMock.mock.calls[0][0]).toBe('https://jf.local/Users/AuthenticateByName');
+      await act(async () => {
+        button('Cancel').props.onPress();
+      });
+      expect(nav.goBack).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        pending[0](await json(200, {User: {Id: 'user-guid'}, AccessToken: 'late'}));
+        await saving;
+      });
+      expect(listSources()).toEqual([]);
+      expect(ToastAndroid.show).not.toHaveBeenCalledWith('Source saved', ToastAndroid.SHORT);
+
+      act(() => tree.unmount());
+      await renderWith({kind: 'jellyfin'});
+      await fill();
+      await act(async () => {
+        saving = button('Save').props.onPress();
+      });
+      act(() => tree.unmount());
+      await act(async () => {
+        pending[1](await json(200, {User: {Id: 'user-guid'}, AccessToken: 'late'}));
+        await saving;
+      });
+      expect(listSources()).toEqual([]);
+      // afterEach unmounts again; give it a fresh tree.
+      await renderWith();
+    });
+
+    it('starts the next new source empty after Save and after Cancel', async () => {
+      await renderWith();
+      const addSource = () => pressable(node => node.findAllByType(Text).some(text => text.props.children === 'Add source'));
+      const selectedKind = () => tree.root.findAll(node => node.props.accessibilityState?.selected === true && typeof node.props.onPress === 'function')[0].props.accessibilityLabel;
+      await act(async () => {
+        addSource().props.onPress();
+      });
+      await act(async () => {
+        pressable(node => node.props.accessibilityLabel === 'SMB').props.onPress();
+      });
+      await act(async () => {
+        input('Name').props.onChangeText('Den');
+        input('Server').props.onChangeText('192.168.1.2');
+      });
+      await act(async () => {
+        button('Cancel').props.onPress();
+      });
+      await act(async () => {
+        addSource().props.onPress();
+      });
+      expect(selectedKind()).toBe('WebDAV');
+      expect(input('Name').props.value).toBe('');
+      expect(input('Server address').props.value).toBe('');
+
+      await act(async () => {
+        input('Name').props.onChangeText('Attic');
+        input('Server address').props.onChangeText(' https://dav.local/dav/ ');
+        input('Username').props.onChangeText('me');
+      });
+      await act(async () => {
+        await button('Save').props.onPress();
+      });
+      expect(listSources()).toEqual([expect.objectContaining({kind: 'webdav', name: 'Attic', server: 'https://dav.local/dav/', username: 'me'})]);
+      await act(async () => {
+        addSource().props.onPress();
+      });
+      expect(['Name', 'Server address', 'Username', 'Password'].map(label => input(label).props.value)).toEqual(['', '', '', '']);
+    });
   });
 
   it('plays WebDAV files with the saved Basic sign-in', async () => {

@@ -63,6 +63,9 @@ it('names saved sign-ins and erases them with every other store before restartin
   const dialog = mockShowAppDialog.mock.calls[0][0];
   expect(dialog.message).toContain('saved sign-ins (Sources, PikPak, debrid, watch sync');
   expect(dialog.message).toContain('sign in again');
+  // Some stores stay; the dialog says so instead of claiming everything goes.
+  expect(dialog.message).not.toMatch(/every Droid Stream store/i);
+  expect(dialog.message).toContain('Script plugins, AniSkip, language and stream finder choices, torrent search settings, the download queue order, and downloaded media files on disk are kept.');
 
   const erase = dialog.actions.find((action: any) => action.variant === 'destructive');
   await act(async () => {

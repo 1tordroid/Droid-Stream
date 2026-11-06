@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Linking, Switch, View} from 'react-native';
+import {Linking, Switch, View, type ReturnKeyTypeOptions, type TextInputInstance} from 'react-native';
 import KeyboardForm from '../../components/ui/KeyboardForm';
 import {copyText} from '../../lib/clipboard';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
@@ -32,6 +32,10 @@ const HELP: Record<SyncServiceId, {name: string; app: string; steps: string}> = 
   anilist: {name: 'AniList', app: 'https://anilist.co/settings/developer', steps: 'Create an AniList client with redirect URL https://anilist.co/api/v2/oauth/pin, paste its ID, tap Sign in, then copy the token AniList shows, paste it here and tap Check token.'},
 };
 
+type AppField = 'clientId' | 'clientSecret';
+type FieldId = `${SyncServiceId}.${AppField}` | 'anilist.token';
+const APP_FIELDS: AppField[] = ['clientId', 'clientSecret'];
+
 const WatchSync = () => {
   const colors = useM3Colors();
   const [settings, setSettings] = useState<SyncSettings>(readSyncSettings);
@@ -42,6 +46,11 @@ const WatchSync = () => {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Bumped to cancel a running poll, including one whose request is still in flight.
   const pollRun = useRef(0);
+  // App details typed and not saved yet. Buttons run while a field still has
+  // focus, so every action saves what was typed first.
+  const [drafts, setDrafts] = useState<Partial<Record<FieldId, string>>>({});
+  const draftsRef = useRef<Partial<Record<FieldId, string>>>({});
+  const inputs = useRef<Partial<Record<FieldId, TextInputInstance | null>>>({});
 
   useEffect(() => () => {
     pollRun.current += 1;
@@ -50,8 +59,34 @@ const WatchSync = () => {
 
   const patch = (id: SyncServiceId, value: Partial<SyncSettings[SyncServiceId]>) => setSettings(updateAccount(id, value));
 
+  const setDraft = (field: FieldId, text: string) => {
+    draftsRef.current = {...draftsRef.current, [field]: text};
+    setDrafts(draftsRef.current);
+  };
+
+  /** Saves the app details typed for a service and returns its saved account. */
+  const commitDrafts = (id: SyncServiceId): SyncSettings[SyncServiceId] => {
+    const value: Partial<Record<AppField, string>> = {};
+    const rest = {...draftsRef.current};
+    for (const key of APP_FIELDS) {
+      const draft = rest[`${id}.${key}`];
+      if (draft === undefined) continue;
+      delete rest[`${id}.${key}`];
+      value[key] = draft.trim();
+    }
+    if (Object.keys(value).length === 0) return readSyncSettings()[id];
+    draftsRef.current = rest;
+    setDrafts(rest);
+    const saved = readSyncSettings()[id];
+    const changed = (Object.keys(value) as AppField[]).some(key => (saved[key] || '') !== value[key]);
+    if (!changed) return saved;
+    const next = updateAccount(id, value);
+    setSettings(next);
+    return next[id];
+  };
+
   const startDevice = async (id: 'trakt' | 'simkl') => {
-    const account = settings[id];
+    const account = commitDrafts(id);
     if (!account.clientId || (id === 'trakt' && !account.clientSecret)) return toast(`Paste the ${HELP[id].name} app details first`);
     try {
       const device = id === 'trakt' ? await traktStartDevice(account.clientId) : await simklStartPin(account.clientId);
@@ -93,6 +128,7 @@ const WatchSync = () => {
 
   /** Saves the pasted AniList token only once AniList accepts it. */
   const checkAnilistToken = async () => {
+    commitDrafts('anilist');
     try {
       const username = await anilistConnect(anilistToken);
       setAnilistToken('');
@@ -106,11 +142,31 @@ const WatchSync = () => {
   const labelColor = (status: AccountStatus) =>
     status.tone === 'signedOut' ? colors.error : status.tone === 'none' ? colors.onSurfaceVariant : colors.primary;
 
-  const field = (id: SyncServiceId, key: 'clientId' | 'clientSecret', label: string, secret = false) => (
-    <TextInput accessibilityLabel={`${HELP[id].name} ${label}`} placeholder={label} placeholderTextColor={colors.outline} defaultValue={settings[id][key] || ''} secureTextEntry={secret}
-      autoCapitalize="none" autoCorrect={false} returnKeyType="done" onEndEditing={event => patch(id, {[key]: event.nativeEvent.text.trim()})}
-      style={{color: colors.onSurface, minHeight: 44, borderBottomWidth: 1, borderColor: colors.outlineVariant, marginTop: 4}} />
-  );
+  const signInAnilist = () => {
+    const account = commitDrafts('anilist');
+    if (account.clientId) Linking.openURL(anilistAuthorizeUrl(account.clientId));
+    else toast('Paste the client ID first');
+  };
+
+  /** One app detail. `next` moves on to another field; otherwise the key is Go and runs `onGo`. */
+  const field = (id: SyncServiceId, key: AppField, label: string, keys: {secret?: boolean; next?: FieldId; onGo?: () => unknown} = {}) => {
+    const name: FieldId = `${id}.${key}`;
+    const returnKeyType: ReturnKeyTypeOptions = keys.next ? 'next' : 'go';
+    return (
+      <TextInput ref={element => {
+        inputs.current[name] = element;
+      }} accessibilityLabel={`${HELP[id].name} ${label}`} placeholder={label} placeholderTextColor={colors.outline}
+        value={drafts[name] ?? settings[id][key] ?? ''} onChangeText={text => setDraft(name, text)} secureTextEntry={keys.secret}
+        autoCapitalize="none" autoCorrect={false} returnKeyType={returnKeyType} submitBehavior={keys.next ? 'submit' : undefined}
+        onSubmitEditing={() => (keys.next ? inputs.current[keys.next]?.focus() : keys.onGo?.())}
+        onEndEditing={event => {
+          const text = event?.nativeEvent?.text;
+          if (typeof text === 'string') setDraft(name, text);
+          commitDrafts(id);
+        }}
+        style={{color: colors.onSurface, minHeight: 44, borderBottomWidth: 1, borderColor: colors.outlineVariant, marginTop: 4}} />
+    );
+  };
 
   return (
     <KeyboardForm style={{backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
@@ -146,11 +202,15 @@ const WatchSync = () => {
             {!connected ? (
               <>
                 <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 8}}>{HELP[id].steps}</AppText>
-                {field(id, 'clientId', 'Client ID')}
-                {id === 'trakt' ? field(id, 'clientSecret', 'Client Secret', true) : null}
+                {id === 'trakt' ? field(id, 'clientId', 'Client ID', {next: 'trakt.clientSecret'}) : null}
+                {id === 'trakt' ? field(id, 'clientSecret', 'Client Secret', {secret: true, onGo: () => startDevice('trakt')}) : null}
+                {id === 'simkl' ? field(id, 'clientId', 'Client ID', {onGo: () => startDevice('simkl')}) : null}
+                {id === 'anilist' ? field(id, 'clientId', 'Client ID', {next: 'anilist.token'}) : null}
                 {id === 'anilist' ? (
-                  <TextInput accessibilityLabel="AniList Paste the AniList token" placeholder="Paste the AniList token" placeholderTextColor={colors.outline} value={anilistToken}
-                    onChangeText={setAnilistToken} secureTextEntry autoCapitalize="none" autoCorrect={false} returnKeyType="done"
+                  <TextInput ref={element => {
+                    inputs.current['anilist.token'] = element;
+                  }} accessibilityLabel="AniList Paste the AniList token" placeholder="Paste the AniList token" placeholderTextColor={colors.outline} value={anilistToken}
+                    onChangeText={setAnilistToken} secureTextEntry autoCapitalize="none" autoCorrect={false} returnKeyType="go"
                     onSubmitEditing={() => (anilistToken.trim() ? checkAnilistToken() : undefined)}
                     style={{color: colors.onSurface, minHeight: 44, borderBottomWidth: 1, borderColor: colors.outlineVariant, marginTop: 4}} />
                 ) : null}
@@ -164,7 +224,7 @@ const WatchSync = () => {
               {!connected && id !== 'anilist' ? <Chip label="Sign in" icon="login" onPress={() => startDevice(id)} /> : null}
               {!connected && id === 'anilist' ? (
                 <>
-                  <Chip label="Sign in" icon="login" onPress={() => (account.clientId ? Linking.openURL(anilistAuthorizeUrl(account.clientId)) : toast('Paste the client ID first'))} />
+                  <Chip label="Sign in" icon="login" onPress={signInAnilist} />
                   <Chip label="Check token" icon="account-check" onPress={checkAnilistToken} />
                 </>
               ) : null}

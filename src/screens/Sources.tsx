@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useRef, useState} from 'react';
-import {FlatList, Pressable, ToastAndroid, View, type TextInputInstance} from 'react-native';
+import {BackHandler, FlatList, Pressable, ToastAndroid, View, type TextInputInstance} from 'react-native';
+import {TVFocusable} from '../components/tv';
 import {RawTextInput as TextInput} from '../components/ui/Text';
 import AppText from '../components/ui/Text';
 import Button from '../components/ui/Button';
@@ -9,12 +10,34 @@ import {completeSourceForm, emptySourceForm, formFromSource, listSourceRows, pla
 import {isSourceAuthError, SOURCE_SERVICE_NAMES as KIND_NAMES, sourceSignedOutMessage} from '../lib/sources/authErrors';
 import {deleteSource, listSources, saveSource, updateSource, type SavedSource, type SourceKind} from '../lib/sources/vault';
 import {showAppDialog} from '../lib/zustand/appDialogStore';
+import {isTV} from '../lib/tv/constants';
 import Magnet from './Magnet';
 import {useM3Colors} from '../theme/M3PaletteContext';
 
 const KINDS: SourceKind[] = ['webdav', 'smb', 'jellyfin', 'emby', 'plex'];
 
 type DraftField = 'name' | 'server' | 'username' | 'secret' | 'share';
+
+/** A screen in another tab to go back to, e.g. Torrents > Debrid and cloud after a PikPak sign-in. */
+export interface SourcesReturnTo {
+  tab: string;
+  screen: string;
+}
+
+export interface SourcesParams {
+  kind?: string;
+  openId?: string;
+  returnTo?: SourcesReturnTo;
+}
+
+const serverPlaceholder = (kind: SourceKind): string =>
+  kind === 'smb'
+    ? '192.168.1.10'
+    : kind === 'webdav'
+      ? 'https://example.com/remote.php/dav/files/me/'
+      : kind === 'plex'
+        ? 'http://192.168.1.10:32400'
+        : 'http://192.168.1.10:8096';
 
 /**
  * The fields a source needs, labeled for its kind. SMB alone has a share.
@@ -25,7 +48,7 @@ export const sourceFields = (kind: SourceKind, keepsSignIn = false): Array<{key:
   {
     key: 'server',
     label: kind === 'smb' ? 'Server' : 'Server address',
-    placeholder: kind === 'smb' ? '192.168.1.10' : kind === 'webdav' ? 'https://example.com/remote.php/dav/files/me/' : 'http://192.168.1.10:8096',
+    placeholder: serverPlaceholder(kind),
   },
   {key: 'username', label: kind === 'plex' ? 'Email or username (empty to use a token)' : 'Username', placeholder: kind === 'plex' ? 'you@example.com' : 'Username'},
   {
@@ -36,7 +59,7 @@ export const sourceFields = (kind: SourceKind, keepsSignIn = false): Array<{key:
   ...(kind === 'smb' ? [{key: 'share' as const, label: 'Share name', placeholder: 'Movies'}] : []),
 ];
 
-const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?: string; openId?: string}}}) => {
+const Sources = ({navigation, route}: {navigation: any; route?: {params?: SourcesParams}}) => {
   const colors = useM3Colors();
   const [sources, setSources] = useState(listSources());
   const [adding, setAdding] = useState(false);
@@ -48,30 +71,74 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [, setFolder] = useState('');
   const inputs = useRef<Partial<Record<DraftField, TextInputInstance | null>>>({});
+  // Bumped by Cancel and on unmount, so a sign-in still running cannot save afterwards.
+  const saveRun = useRef(0);
+  useEffect(
+    () => () => {
+      saveRun.current += 1;
+    },
+    [],
+  );
 
   const refresh = () => setSources(listSources());
   // Opened for one task (Library > PikPak, Library > Add WebDAV...): Back,
   // Cancel and Save return there instead of showing this screen's list.
   const launchedFor = route?.params?.kind;
-  const leave = (fallback: () => void) => {
-    if (launchedFor && navigation.canGoBack?.()) navigation.goBack();
-    else fallback();
+  const returnTo = route?.params?.returnTo;
+  // canGoBack() is also true when only the tab navigator can go back, which
+  // would jump to another tab. Only a route below this one in the Library
+  // stack counts.
+  const hasPreviousRoute = () => (navigation.getState?.()?.index ?? 0) > 0;
+  const clearLaunchParams = () => {
+    const params = route?.params;
+    if (params?.kind || params?.openId || params?.returnTo) {
+      navigation.setParams?.({kind: undefined, openId: undefined, returnTo: undefined});
+    }
   };
+  const leave = (fallback: () => void) => {
+    if (returnTo) {
+      // Opened from another tab: show the list here next time and go back there.
+      fallback();
+      clearLaunchParams();
+      navigation.navigate(returnTo.tab, {screen: returnTo.screen});
+    } else if (launchedFor && hasPreviousRoute()) {
+      navigation.goBack();
+    } else {
+      fallback();
+      clearLaunchParams();
+    }
+  };
+
+  // Runs on entry and again when new params reach a screen that stays mounted,
+  // e.g. Library left on Sources and PikPak sign-in opened from Torrents.
   useEffect(() => {
     const kind = route?.params?.kind;
     if (kind === 'pikpak') setShowMagnet(true);
-    else if (kind && kind !== 'pikpak') {
+    else if (kind) {
+      setShowMagnet(false);
       setAdding(true);
-      setDraft(current => ({...current, kind: kind as SourceKind}));
+      // A saved source's details do not carry over to a new one.
+      setDraft(current => (current.id ? emptySourceForm(kind as SourceKind) : {...current, kind: kind as SourceKind}));
     }
     const openId = route?.params?.openId;
     if (openId) {
       const source = listSources().find(item => item.id === openId);
       if (source) browse(source);
     }
-    // Open the requested source once when the screen is entered.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Only new params open something.
+  }, [route?.params?.kind, route?.params?.openId, route?.params?.returnTo]);
+
+  // Android Back from a form opened from another tab returns to that tab.
+  useEffect(() => {
+    if (!returnTo || !(showMagnet || adding)) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (navigation.isFocused?.() === false) return false;
+      if (showMagnet) leave(() => setShowMagnet(false));
+      else cancelDraft();
+      return true;
+    });
+    return () => subscription.remove();
+  });
 
   const addSource = () => {
     // What was typed for a new source stays; a saved source's details do not.
@@ -130,19 +197,24 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
 
   const saveDraft = async () => {
     if (saving) return;
-    if (!draft.server.trim()) {
+    const server = draft.server.trim();
+    if (!server) {
       ToastAndroid.show('Enter the server address', ToastAndroid.LONG);
       inputs.current.server?.focus();
       return;
     }
+    const run = ++saveRun.current;
     setSaving(true);
     try {
       // Read the saved source again: browsing may have marked it signed out meanwhile.
       const existing = draft.id ? listSources().find(item => item.id === draft.id) : undefined;
       const signedInAgain = existing?.authState === 'signedOut';
-      const source = await completeSourceForm(draft, existing);
+      // The sign-in goes to the trimmed address, the same one that is saved.
+      const source = await completeSourceForm({...draft, server}, existing);
+      // Cancelled or left while signing in: nothing is saved.
+      if (run !== saveRun.current) return;
       saveSource(source);
-      setDraft(emptySourceForm(source.kind));
+      setDraft(emptySourceForm());
       ToastAndroid.show(signedInAgain ? 'Signed in again' : 'Source saved', ToastAndroid.SHORT);
       leave(() => {
         setAdding(false);
@@ -151,11 +223,20 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
         if (signedInAgain) browse(source);
       });
     } catch (error: any) {
+      if (run !== saveRun.current) return;
       // A failed sign-in leaves the saved source as it was.
       ToastAndroid.show(error?.message || 'Could not save this source', ToastAndroid.LONG);
     } finally {
-      setSaving(false);
+      if (run === saveRun.current) setSaving(false);
     }
+  };
+
+  /** Leaves the form without saving, also while a sign-in is still running. */
+  const cancelDraft = () => {
+    saveRun.current += 1;
+    setSaving(false);
+    setDraft(emptySourceForm());
+    leave(() => setAdding(false));
   };
 
   // PikPak sign-in gets the whole screen so its buttons are never hidden.
@@ -171,6 +252,8 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
     // Signing in again starts at the first detail still missing. Plex can sign
     // in with a pasted token alone, so it starts at the password or token.
     const focusFirst: DraftField | undefined = signedOut ? ((draft.username || draft.kind === 'plex') ? 'secret' : 'username') : undefined;
+    // TV: a new source starts on its kind chips; an edit, with no chips, on its first field.
+    const tvFirstField: DraftField | undefined = isTV && editing && !focusFirst ? fields[0].key : undefined;
     return (
       <KeyboardForm style={{backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 48}}>
         <AppText role="headlineSmallEmphasized" className="mb-2 text-m3-on-background">
@@ -182,10 +265,13 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
         {!editing ? (
           <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16}}>
             {KINDS.map(kind => (
-              <Pressable
+              <TVFocusable
                 key={kind}
                 accessibilityRole="button"
+                accessibilityLabel={KIND_NAMES[kind]}
                 accessibilityState={{selected: draft.kind === kind}}
+                hasTVPreferredFocus={isTV && draft.kind === kind}
+                borderRadius={18}
                 onPress={() => setDraft(current => ({...current, kind}))}
                 style={{
                   paddingHorizontal: 14,
@@ -194,7 +280,7 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
                   backgroundColor: draft.kind === kind ? colors.primary : colors.surfaceContainerHigh,
                 }}>
                 <AppText style={{color: draft.kind === kind ? colors.onPrimary : colors.onSurfaceVariant}}>{KIND_NAMES[kind]}</AppText>
-              </Pressable>
+              </TVFocusable>
             ))}
           </View>
         ) : null}
@@ -218,9 +304,10 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
                 secureTextEntry={field.key === 'secret'}
                 autoComplete={field.key === 'username' ? 'username' : field.key === 'secret' ? 'password' : 'off'}
                 keyboardType={field.key === 'server' ? 'url' : 'default'}
-                autoFocus={field.key === focusFirst}
+                autoFocus={field.key === focusFirst || field.key === tvFirstField}
                 returnKeyType={last ? 'go' : 'next'}
-                submitBehavior={last ? 'blurAndSubmit' : 'submit'}
+                // On TV, blurring after Go would leave the D-pad with nothing focused.
+                submitBehavior={last && !isTV ? 'blurAndSubmit' : 'submit'}
                 onSubmitEditing={() => (last ? saveDraft() : inputs.current[fields[index + 1].key]?.focus())}
                 style={{color: colors.onSurface, minHeight: 48, borderBottomWidth: 1, borderColor: colors.outlineVariant}}
               />
@@ -228,7 +315,7 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: {kind?
           );
         })}
         <View style={{flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8}}>
-          <Button variant="text" onPress={() => leave(() => setAdding(false))}>Cancel</Button>
+          <Button variant="text" onPress={cancelDraft}>Cancel</Button>
           <Button onPress={saveDraft} disabled={saving}>{saving ? 'Signing in…' : signedOut ? 'Sign in' : 'Save'}</Button>
         </View>
       </KeyboardForm>

@@ -6,7 +6,7 @@ import {allDebrid, premiumize, realDebrid, torbox} from './services';
 import {VIDEO_FILE, type DebridFile, type DebridId, type DebridService, type DebridTransfer} from './types';
 
 export * from './types';
-export {ALLDEBRID_BLOCKED, authProblemLabel, DebridAuthError, isAuthFailure, KEY_REJECTED, type DebridAuthFailure, type DebridAuthState} from './auth';
+export {ALLDEBRID_BANNED, ALLDEBRID_BLOCKED, authProblemLabel, DebridAuthError, isAuthFailure, isPlanRestricted, KEY_REJECTED, TORBOX_PLAN_RESTRICTED, type DebridAuthFailure, type DebridAuthState} from './auth';
 
 export const DEBRID_SERVICES: DebridService[] = [torbox, realDebrid, allDebrid, premiumize, offcloud, debridLink, pikpak];
 

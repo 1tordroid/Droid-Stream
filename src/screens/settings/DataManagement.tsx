@@ -106,7 +106,7 @@ export default function DataManagement({navigation}: Props) {
     showAppDialog({
       title: 'Erase all local data?',
       message:
-        'This permanently erases every Droid Stream store, including settings, saved sign-ins (Sources, PikPak, debrid, watch sync, and private provider sources), Stremio add-ons, torrent settings, installed provider data, Library, Continue watching, download records, and cached state. You will need to sign in again. This cannot be undone. Downloaded media files on disk are not deleted.',
+        'This permanently erases settings, saved sign-ins (Sources, PikPak, debrid, watch sync, and private provider sources), Stremio add-ons, torrent settings, installed providers and their data, Library, Continue watching, download records, and cached state, then restarts the app. You will need to sign in again. This cannot be undone. Script plugins, AniSkip, language and stream finder choices, torrent search settings, the download queue order, and downloaded media files on disk are kept.',
       variant: 'error',
       actions: [
         {label: 'Cancel'},

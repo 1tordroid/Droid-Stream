@@ -24,6 +24,14 @@ jest.mock('../src/components/ui/Button', () => {
   };
 });
 jest.mock('../src/theme/M3PaletteContext', () => ({useM3Colors: () => ({})}));
+jest.mock('../src/components/tv', () => {
+  const {createElement} = require('react');
+  const {Pressable, View} = require('react-native');
+  return {
+    TVFocusable: ({children, ...props}: any) => createElement(Pressable, props, children),
+    TVFocusGuide: ({children}: any) => createElement(View, null, children),
+  };
+});
 jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => 'Icon');
 jest.mock('@dr.pogodin/react-native-fs', () => ({}));
 jest.mock('../src/lib/torrentManager', () => ({torrentManager: {}}));
@@ -178,7 +186,8 @@ describe('Add source', () => {
 
   it('returns to the screen it was opened from after Save and Cancel', async () => {
     mockSignInJellyfin.mockResolvedValue({userId: 'user-1', token: 'tok'});
-    const navigation = {navigate: jest.fn(), goBack: jest.fn(), canGoBack: () => true};
+    // Library > Add source: the Library stack has a screen below Sources.
+    const navigation = {navigate: jest.fn(), goBack: jest.fn(), canGoBack: () => true, getState: () => ({index: 1})};
     let tree!: renderer.ReactTestRenderer;
     await act(async () => {
       tree = renderer.create(<Sources navigation={navigation} route={{params: {kind: 'jellyfin'}}} />);
@@ -194,7 +203,7 @@ describe('Add source', () => {
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
 
     let cancelTree!: renderer.ReactTestRenderer;
-    const cancelNav = {navigate: jest.fn(), goBack: jest.fn(), canGoBack: () => true};
+    const cancelNav = {navigate: jest.fn(), goBack: jest.fn(), canGoBack: () => true, getState: () => ({index: 1})};
     await act(async () => {
       cancelTree = renderer.create(<Sources navigation={cancelNav} route={{params: {kind: 'webdav'}}} />);
     });
@@ -206,7 +215,7 @@ describe('Add source', () => {
   });
 
   it('closes the PikPak sign-in back to where it was opened', async () => {
-    const navigation = {navigate: jest.fn(), goBack: jest.fn(), canGoBack: () => true};
+    const navigation = {navigate: jest.fn(), goBack: jest.fn(), canGoBack: () => true, getState: () => ({index: 1})};
     let tree!: renderer.ReactTestRenderer;
     await act(async () => {
       tree = renderer.create(<Sources navigation={navigation} route={{params: {kind: 'pikpak'}}} />);

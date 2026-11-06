@@ -7,12 +7,18 @@
 import {debridFetch, DebridHttpError} from './http';
 import type {DebridId} from './types';
 
-/** ok: the last call with the saved key worked. rejected: paste a new key. blocked: AllDebrid wants a new location confirmed. */
-export type DebridAuthState = 'ok' | 'rejected' | 'blocked';
+/**
+ * ok: the last call with the saved key worked. rejected: paste a new key.
+ * blocked: AllDebrid wants a new location confirmed. banned: AllDebrid banned
+ * the account, so a new key would not help.
+ */
+export type DebridAuthState = 'ok' | 'rejected' | 'blocked' | 'banned';
 export type DebridAuthFailure = Exclude<DebridAuthState, 'ok'>;
 
 export const KEY_REJECTED = 'Key rejected - paste a new key';
 export const ALLDEBRID_BLOCKED = 'AllDebrid blocked this new location - confirm the email AllDebrid sent';
+export const ALLDEBRID_BANNED = 'AllDebrid banned this account - contact AllDebrid support';
+export const TORBOX_PLAN_RESTRICTED = 'Your TorBox plan does not include this - it needs an active paid plan';
 
 /** The service refused the key. `code` is the service's own error code, when it sent one. */
 export class DebridAuthError extends Error {
@@ -26,7 +32,7 @@ export class DebridAuthError extends Error {
 // location, device or app confirmed from the email it sent (/user/verif).
 const ALLDEBRID_CODES = new Map<string, DebridAuthFailure>([
   ['AUTH_BAD_APIKEY', 'rejected'],
-  ['AUTH_USER_BANNED', 'rejected'],
+  ['AUTH_USER_BANNED', 'banned'],
   ['AUTH_BLOCKED', 'blocked'],
 ]);
 
@@ -53,10 +59,18 @@ export const authFailureInBody = (id: DebridId, body: any): DebridAuthFailure | 
   }
 };
 
+/**
+ * TorBox answers 403 with PLAN_RESTRICTED_FEATURE when a free or lapsed plan
+ * asks for a paid feature. TorBox took the key; a new one would not help.
+ */
+export const isPlanRestricted = (id: DebridId, error: unknown): boolean =>
+  id === 'torbox' && error instanceof DebridHttpError && String(error.body?.error ?? '').toUpperCase() === 'PLAN_RESTRICTED_FEATURE';
+
 /** How the service refused the key, or undefined when the error is about something else. */
 export const isAuthFailure = (id: DebridId, error: unknown): DebridAuthFailure | undefined => {
   if (error instanceof DebridAuthError) return error.service === id ? error.state : undefined;
   if (!(error instanceof DebridHttpError)) return undefined;
+  if (isPlanRestricted(id, error)) return undefined;
   const inBody = authFailureInBody(id, error.body);
   if (inBody) return inBody;
   const {status} = error;
@@ -82,7 +96,11 @@ export const isAuthFailure = (id: DebridId, error: unknown): DebridAuthFailure |
 
 /** The short line the settings screen shows instead of "connected". */
 export const authProblemLabel = (state: DebridAuthState | undefined): string | undefined =>
-  state === 'blocked' ? ALLDEBRID_BLOCKED : state === 'rejected' ? KEY_REJECTED : undefined;
+  state === 'blocked' ? ALLDEBRID_BLOCKED : state === 'banned' ? ALLDEBRID_BANNED : state === 'rejected' ? KEY_REJECTED : undefined;
+
+/** What a refusal asks the user to do. */
+const refusalMessage = (name: string, state: DebridAuthFailure): string =>
+  state === 'blocked' ? ALLDEBRID_BLOCKED : state === 'banned' ? ALLDEBRID_BANNED : `${name} rejected the key - paste a new key in Torrents → Debrid and cloud`;
 
 const codeOf = (error: unknown): string | undefined => {
   if (error instanceof DebridAuthError) return error.code;
@@ -119,10 +137,15 @@ export const keyedFetch =
     try {
       result = check(await debridFetch(url, init));
     } catch (error) {
+      if (isPlanRestricted(id, error)) {
+        // The service knew the key; only the plan stands in the way.
+        report(id, key, 'ok');
+        throw Object.assign(new Error(TORBOX_PLAN_RESTRICTED), {code: 'PLAN_RESTRICTED_FEATURE'});
+      }
       const state = isAuthFailure(id, error);
       if (!state) throw error;
       report(id, key, state);
-      throw new DebridAuthError(state === 'blocked' ? ALLDEBRID_BLOCKED : `${name} rejected the key - paste a new key in Torrents → Debrid and cloud`, id, state, codeOf(error));
+      throw new DebridAuthError(refusalMessage(name, state), id, state, codeOf(error));
     }
     report(id, key, 'ok');
     return result;

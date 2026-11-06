@@ -1,6 +1,7 @@
 jest.mock('../src/lib/sources/vault', () => ({readPikPakAccount: () => undefined}));
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {
+  ALLDEBRID_BANNED,
   ALLDEBRID_BLOCKED,
   authProblemLabel,
   checkAllCaches,
@@ -10,6 +11,7 @@ import {
   isAuthFailure,
   KEY_REJECTED,
   pickVideo,
+  TORBOX_PLAN_RESTRICTED,
   readDebridAuthStates,
   readDebridSettings,
   sendToDebrid,
@@ -143,8 +145,43 @@ describe('key state', () => {
     // A key that never arrived is not a refused key.
     await expect(getService('alldebrid').account('ad-key')).rejects.toThrow('The auth apikey was not sent');
     expect(readDebridAuthStates().alldebrid).toBeUndefined();
-    await expect(getService('alldebrid').account('ad-key')).rejects.toThrow('AllDebrid rejected the key');
-    expect(readDebridAuthStates().alldebrid).toBe('rejected');
+    // A banned account is not fixed by a new key, so it does not ask for one.
+    const banned = await failure(getService('alldebrid').account('ad-key'));
+    expect(banned).toMatchObject({service: 'alldebrid', state: 'banned', code: 'AUTH_USER_BANNED'});
+    expect(banned.message).toBe(ALLDEBRID_BANNED);
+    expect(banned.message).not.toContain('paste a new key');
+    expect(readDebridAuthStates().alldebrid).toBe('banned');
+    expect(authProblemLabel('banned')).toBe('AllDebrid banned this account - contact AllDebrid support');
+  });
+
+  it('says an AllDebrid account is banned also when the ban comes with HTTP 200', async () => {
+    setKeys({alldebrid: 'ad-key'});
+    respond(json({status: 'error', error: {code: 'AUTH_USER_BANNED', message: 'This account is banned'}}));
+    const error = await failure(getService('alldebrid').account('ad-key'));
+    expect(error).toBeInstanceOf(DebridAuthError);
+    expect(error.state).toBe('banned');
+    expect(authProblemLabel(readDebridAuthStates().alldebrid)).toBe(ALLDEBRID_BANNED);
+  });
+
+  it('tells a TorBox plan without the feature apart from a refused key', async () => {
+    setKeys({torbox: 'tb-key'});
+    const restricted = reply({success: false, error: 'PLAN_RESTRICTED_FEATURE', detail: 'This feature is not available on your plan.'}, 403);
+    respond(reply({success: false, error: 'BAD_TOKEN'}, 403), restricted, restricted);
+    await expect(getService('torbox').account('tb-key')).rejects.toThrow('rejected the key');
+    expect(readDebridAuthStates().torbox).toBe('rejected');
+
+    const error = await failure(getService('torbox').addMagnet('tb-key', MAGNET));
+    expect(error).not.toBeInstanceOf(DebridAuthError);
+    expect(error.message).toBe(TORBOX_PLAN_RESTRICTED);
+    expect(error.message).not.toContain('rejected');
+    expect(error.code).toBe('PLAN_RESTRICTED_FEATURE');
+    // TorBox knew the key, so the earlier refusal no longer stands.
+    expect(readDebridAuthStates().torbox).toBe('ok');
+    expect(authProblemLabel(readDebridAuthStates().torbox)).toBeUndefined();
+
+    await expect(getService('torbox').list!('tb-key')).rejects.toThrow(TORBOX_PLAN_RESTRICTED);
+    expect(isAuthFailure('torbox', new DebridHttpError('x', 403, {success: false, error: 'PLAN_RESTRICTED_FEATURE'}))).toBeUndefined();
+    expect(isAuthFailure('torbox', new DebridHttpError('x', 403, {success: false, error: 'BAD_TOKEN'}))).toBe('rejected');
   });
 
   it('marks a Premiumize key rejected on authentication_failed sent with HTTP 200', async () => {
