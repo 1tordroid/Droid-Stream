@@ -1,11 +1,14 @@
 import {readPikPakAccount} from '../sources/vault';
 import {isPikPakAuthError, withPikPak} from '../pikpak/session';
+import {authFailureInBody, DebridAuthError, keyedFetch} from './auth';
 import {debridFetch} from './http';
 import type {DebridFile, DebridService, DebridTransfer} from './types';
 
 // ---------------------------------------------------------------- Offcloud
 const OC = 'https://offcloud.com/api';
+// Offcloud's API README asks for the key as ?key=. https://github.com/offcloud/offcloud-api
 const ocKey = (key: string) => `key=${encodeURIComponent(key)}`;
+const ocFetch = keyedFetch('offcloud', 'Offcloud');
 const JSON_HEADERS = {'Content-Type': 'application/json'};
 
 export const offcloud: DebridService = {
@@ -15,26 +18,26 @@ export const offcloud: DebridService = {
   keyHelp: 'offcloud.com → Account → API key',
   canCheckCache: true,
   async account(key) {
-    const data = await debridFetch(`${OC}/account/stats?${ocKey(key)}`);
+    const data = await ocFetch(key, `${OC}/account/stats?${ocKey(key)}`);
     return {username: data.email || data.userId || 'Offcloud', premium: Boolean(data.isPremium ?? data.premium ?? true), expiresAt: data.expirationDate ? Date.parse(data.expirationDate) : undefined};
   },
   async checkCached(key, hashes) {
-    const data = await debridFetch(`${OC}/cache?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({hashes})});
+    const data = await ocFetch(key, `${OC}/cache?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({hashes})});
     const cached = new Set<string>((data.cachedItems || []).map((hash: string) => hash.toLowerCase()));
     return Object.fromEntries(hashes.map(hash => [hash, cached.has(hash)]));
   },
   async addMagnet(key, magnet) {
-    const data = await debridFetch(`${OC}/cloud?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({url: magnet})});
+    const data = await ocFetch(key, `${OC}/cloud?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({url: magnet})});
     if (data.error || !data.requestId) throw new Error(data.error || 'Offcloud did not accept the magnet');
     return {id: String(data.requestId)};
   },
   async status(key, id) {
-    const data = await debridFetch(`${OC}/cloud/status?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({requestIds: [id]})});
+    const data = await ocFetch(key, `${OC}/cloud/status?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({requestIds: [id]})});
     const request = data.requests?.[0] || data.status || {};
     const ready = request.status === 'downloaded';
     let files: DebridFile[] = [];
     if (ready) {
-      const listing = await debridFetch<any>(`${OC}/cloud/explore/${id}?${ocKey(key)}`).catch(() => null);
+      const listing = await ocFetch<any>(key, `${OC}/cloud/explore/${id}?${ocKey(key)}`).catch(() => null);
       const urls: string[] = Array.isArray(listing) ? listing : [];
       files = urls.length
         ? urls.map(url => ({id: url, name: decodeURIComponent(url.split('/').pop() || 'file'), size: 0, link: url}))
@@ -51,8 +54,14 @@ export const offcloud: DebridService = {
 // ---------------------------------------------------------------- Debrid-Link
 const DL = 'https://debrid-link.com/api/v2';
 const dlAuth = (key: string) => ({Authorization: `Bearer ${key}`});
+const dlFetch = keyedFetch('debridlink', 'Debrid-Link');
 const dlValue = (data: any) => {
-  if (data?.success === false) throw new Error(data.error || 'Debrid-Link error');
+  if (data?.success === false) {
+    // A revoked or replaced key comes back as success:false, not always as an HTTP error.
+    const state = authFailureInBody('debridlink', data);
+    if (state) throw new DebridAuthError(data.error, 'debridlink', state, data.error);
+    throw new Error(data.error || 'Debrid-Link error');
+  }
   return data.value;
 };
 
@@ -72,20 +81,20 @@ export const debridLink: DebridService = {
   keyHelp: 'debrid-link.com → Web app → API key',
   canCheckCache: true,
   async account(key) {
-    const value = dlValue(await debridFetch(`${DL}/account/infos`, {headers: dlAuth(key)}));
+    const value = await dlFetch(key, `${DL}/account/infos`, {headers: dlAuth(key)}, dlValue);
     return {username: value.pseudo || value.email, premium: Number(value.accountType) >= 1, expiresAt: value.premiumLeft ? Date.now() + Number(value.premiumLeft) * 1000 : undefined};
   },
   async checkCached(key, hashes) {
-    const value = dlValue(await debridFetch(`${DL}/seedbox/cached?url=${hashes.join(',')}`, {headers: dlAuth(key)})) || {};
+    const value = (await dlFetch(key, `${DL}/seedbox/cached?url=${hashes.join(',')}`, {headers: dlAuth(key)}, dlValue)) || {};
     const cached = new Set(Object.keys(value).map(hash => hash.toLowerCase()));
     return Object.fromEntries(hashes.map(hash => [hash, cached.has(hash)]));
   },
   async addMagnet(key, magnet) {
-    const value = dlValue(await debridFetch(`${DL}/seedbox/add`, {method: 'POST', headers: {...dlAuth(key), 'Content-Type': 'application/json'}, body: JSON.stringify({url: magnet, async: true})}));
+    const value = await dlFetch(key, `${DL}/seedbox/add`, {method: 'POST', headers: {...dlAuth(key), 'Content-Type': 'application/json'}, body: JSON.stringify({url: magnet, async: true})}, dlValue);
     return {id: String(value.id)};
   },
   async status(key, id) {
-    const value = dlValue(await debridFetch(`${DL}/seedbox/list?ids=${id}`, {headers: dlAuth(key)}));
+    const value = await dlFetch(key, `${DL}/seedbox/list?ids=${id}`, {headers: dlAuth(key)}, dlValue);
     return dlTransfer(Array.isArray(value) ? value[0] || {id} : value);
   },
   async fileLink(_key, _transfer, file) {
@@ -93,7 +102,7 @@ export const debridLink: DebridService = {
     return file.link;
   },
   async remove(key, id) {
-    await debridFetch(`${DL}/seedbox/${id}/remove`, {method: 'DELETE', headers: dlAuth(key)});
+    await dlFetch(key, `${DL}/seedbox/${id}/remove`, {method: 'DELETE', headers: dlAuth(key)});
   },
 };
 

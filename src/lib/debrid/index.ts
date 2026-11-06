@@ -1,10 +1,12 @@
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {readPikPakAccount} from '../sources/vault';
+import {setDebridAuthReporter, type DebridAuthState} from './auth';
 import {debridLink, offcloud, pikpak, pikpakKey} from './more';
 import {allDebrid, premiumize, realDebrid, torbox} from './services';
 import {VIDEO_FILE, type DebridFile, type DebridId, type DebridService, type DebridTransfer} from './types';
 
 export * from './types';
+export {ALLDEBRID_BLOCKED, authProblemLabel, DebridAuthError, isAuthFailure, KEY_REJECTED, type DebridAuthFailure, type DebridAuthState} from './auth';
 
 export const DEBRID_SERVICES: DebridService[] = [torbox, realDebrid, allDebrid, premiumize, offcloud, debridLink, pikpak];
 
@@ -33,8 +35,52 @@ export const readDebridSettings = (): DebridSettings => {
   }
 };
 
+// What the last call with each saved key learned, kept beside the keys in the
+// same encrypted store. A service without an entry has not been checked yet.
+// It sits under its own name so a settings write from a screen that loaded
+// earlier cannot bring back an old state.
+const AUTH_STATE = 'auth-state';
+export type DebridAuthStates = Partial<Record<DebridId, DebridAuthState>>;
+const authListeners = new Set<() => void>();
+
+export const readDebridAuthStates = (): DebridAuthStates => {
+  try {
+    const raw = storage.getString(AUTH_STATE);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeDebridAuthStates = (states: DebridAuthStates): void => {
+  storage.setString(AUTH_STATE, JSON.stringify(states));
+  authListeners.forEach(listener => listener());
+};
+
+/** Calls `listener` after any key's state changes. Returns the unsubscribe function. */
+export const subscribeDebridAuth = (listener: () => void): (() => void) => {
+  authListeners.add(listener);
+  return () => {
+    authListeners.delete(listener);
+  };
+};
+
+// Only an answer for the key saved right now changes its state, so a late
+// answer for a key the user already replaced cannot mark the new one. A
+// refused key is never deleted; the user replaces it.
+setDebridAuthReporter((id, key, state) => {
+  if (!key || readDebridSettings().keys[id] !== key) return;
+  const states = readDebridAuthStates();
+  if (states[id] !== state) writeDebridAuthStates({...states, [id]: state});
+});
+
 export const writeDebridSettings = (settings: DebridSettings): void => {
+  const previous = readDebridSettings().keys;
   storage.setString('settings', JSON.stringify(settings));
+  // A new or removed key has not been checked yet.
+  const states = readDebridAuthStates();
+  const kept = Object.entries(states).filter(([id]) => (previous[id as DebridId] || '') === (settings.keys[id as DebridId] || ''));
+  if (kept.length !== Object.keys(states).length) writeDebridAuthStates(Object.fromEntries(kept));
 };
 
 // A password sign-in (it has a refresh token) wins over a pasted PikPak token,
