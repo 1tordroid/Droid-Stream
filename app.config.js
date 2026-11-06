@@ -44,6 +44,9 @@ module.exports = () => {
     './plugins/with-native-scroll-performance.js',
     './plugins/with-android-signing.js',
     './plugins/with-android-okhttp.js',
+    // Keeps the encrypted sign-in stores out of Auto Backup and device
+    // transfer; their Keystore keys never leave the phone.
+    './plugins/with-backup-rules.js',
     'react-native-vlc-media-player',
     [
       'react-native-video',
