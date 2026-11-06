@@ -69,7 +69,7 @@
     "react-native-fullscreen-chz": "^4.0.13",
     "react-native-gesture-handler": "~3.3.0",
     "react-native-google-cast": "4.9.1",
-    "react-native-haptic-feedback": "^2.2.0",
+    "react-native-haptic-feedback": "3.0.0",
     "react-native-image-colors": "2.6.1",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-markdown-display": "^7.0.2",
