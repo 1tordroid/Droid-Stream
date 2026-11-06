@@ -1,14 +1,18 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, Linking, Pressable, Switch, ToastAndroid, View} from 'react-native';
 import KeyboardForm from '../../components/ui/KeyboardForm';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {
+  authProblemLabel,
+  DebridAuthError,
   DEBRID_SERVICES,
   debridKey,
+  readDebridAuthStates,
   readDebridSettings,
+  subscribeDebridAuth,
   writeDebridSettings,
   type DebridAccount,
   type DebridId,
@@ -28,8 +32,14 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
   const [open, setOpen] = useState<DebridId>();
   const [transfers, setTransfers] = useState<DebridTransfer[]>();
   const [busy, setBusy] = useState(false);
+  // Any call, from this screen or elsewhere, can learn that a key was refused.
+  const [authStates, setAuthStates] = useState(readDebridAuthStates);
+  useEffect(() => subscribeDebridAuth(() => setAuthStates(readDebridAuthStates())), []);
 
   const save = (next: Settings) => {
+    // A changed key has not been checked yet, so the last result for the old one goes.
+    const changed = DEBRID_SERVICES.filter(({id}) => (next.keys[id] || '') !== (settings.keys[id] || '')).map(({id}) => id);
+    if (changed.length) setAccounts(current => Object.fromEntries(Object.entries(current).filter(([id]) => !changed.includes(id as DebridId))));
     setSettings(next);
     writeDebridSettings(next);
   };
@@ -42,7 +52,9 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
       const account = await service.account(key);
       setAccounts(current => ({...current, [service.id]: account}));
     } catch (error: any) {
-      setAccounts(current => ({...current, [service.id]: `Failed: ${error.message}`}));
+      // A refused key gets the short label; this screen is where it is replaced.
+      const reason = error instanceof DebridAuthError ? authProblemLabel(error.state) : error.message;
+      setAccounts(current => ({...current, [service.id]: `Failed: ${reason}`}));
     }
   };
 
@@ -85,14 +97,15 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
         const key = debridKey(service.id, settings);
         const account = accounts[service.id];
         const expanded = open === service.id;
+        const problem = key ? authProblemLabel(authStates[service.id]) : undefined;
         return (
           <View key={service.id} style={{backgroundColor: colors.surfaceContainer, borderRadius: 20, marginTop: 12, padding: 12}}>
             <Pressable accessibilityRole="button" accessibilityLabel={`${service.name} settings`} onPress={() => setOpen(expanded ? undefined : service.id)} style={{flexDirection: 'row', alignItems: 'center', minHeight: 48}}>
-              <MaterialCommunityIcons name={key ? 'check-circle' : 'circle-outline'} size={22} color={key ? colors.primary : colors.outline} />
+              <MaterialCommunityIcons name={problem ? 'alert-circle' : key ? 'check-circle' : 'circle-outline'} size={22} color={problem ? colors.error : key ? colors.primary : colors.outline} />
               <View style={{flex: 1, marginLeft: 12}}>
                 <AppText role="titleMedium" style={{color: colors.onSurface}}>{service.name}{settings.preferred === service.id ? ' · preferred' : ''}</AppText>
-                <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>
-                  {service.canCheckCache ? 'Instant cache check' : 'Cache shows after adding'} · {key ? 'connected' : 'not set up'}
+                <AppText role="bodySmall" style={{color: problem ? colors.error : colors.onSurfaceVariant}}>
+                  {service.canCheckCache ? 'Instant cache check' : 'Cache shows after adding'} · {problem || (key ? 'connected' : 'not set up')}
                 </AppText>
               </View>
               <MaterialCommunityIcons name={expanded ? 'chevron-up' : 'chevron-down'} size={22} color={colors.onSurfaceVariant} />
@@ -100,6 +113,9 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
             {expanded ? (
               <View style={{marginTop: 8}}>
                 <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>{service.keyHelp}</AppText>
+                {problem && authStates[service.id] === 'blocked' ? (
+                  <AppText role="bodySmall" style={{color: colors.error, marginTop: 4}}>After you confirm it, tap Check account.</AppText>
+                ) : null}
                 {service.id === 'pikpak' && !settings.keys.pikpak && key ? (
                   <AppText role="bodySmall" style={{color: colors.primary, marginTop: 4}}>Using the PikPak account you signed in to under Library.</AppText>
                 ) : null}
