@@ -226,7 +226,7 @@ allprojects {
     if (!contents.includes('androidx.documentfile:documentfile')) {
       contents = contents.replace(
         /dependencies\s*\{/,
-        match => `${match}\n    implementation 'androidx.documentfile:documentfile:1.0.1'\n`,
+        match => `${match}\n    implementation 'androidx.documentfile:documentfile:1.1.0'\n`,
       );
     }
 
