@@ -90,13 +90,13 @@ describe('clearSignInStores', () => {
     const original = MMKVLoader.prototype.initialize;
     jest.spyOn(MMKVLoader.prototype, 'initialize').mockImplementation(function (this: LoaderWithId) {
       const store = original.call(this);
-      if (this.id !== 'droid-stream-debrid') return store;
-      return {
-        ...store,
-        clearStore: () => {
+      if (this.id === 'droid-stream-debrid') {
+        // Restored by jest.restoreAllMocks() after the test.
+        jest.spyOn(store, 'clearStore').mockImplementation(() => {
           throw new Error('locked');
-        },
-      } as typeof store;
+        });
+      }
+      return store;
     });
     savePikPakAccount({username: 'user@example.com', accessToken: 'a'});
     updateAccount('simkl', {accessToken: 's'});
