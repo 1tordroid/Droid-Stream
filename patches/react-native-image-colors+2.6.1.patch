@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-image-colors/android/build.gradle b/node_modules/react-native-image-colors/android/build.gradle
-index 25d0f74..5b61474 100644
+index de2c5c5..5482786 100644
 --- a/node_modules/react-native-image-colors/android/build.gradle
 +++ b/node_modules/react-native-image-colors/android/build.gradle
-@@ -55,15 +55,13 @@ android {
+@@ -62,15 +62,13 @@ android {
    compileSdkVersion safeExtGet("compileSdkVersion", 33)
  
    def agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
@@ -24,7 +24,7 @@ index 25d0f74..5b61474 100644
    }
  
    defaultConfig {
-@@ -88,6 +86,7 @@ repositories {
+@@ -95,6 +93,7 @@ repositories {
  
  dependencies {
    implementation project(':expo-modules-core')
