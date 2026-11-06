@@ -1,5 +1,5 @@
 import React from 'react';
-import {FlatList, ScrollView, View} from 'react-native';
+import {FlatList, KeyboardAvoidingView, ScrollView, View} from 'react-native';
 import {isTV} from '../../lib/tv';
 import SettingsSection from './SettingsSection';
 import Surface from './Surface';
@@ -53,9 +53,13 @@ const SettingsPage = ({children}: {children: React.ReactNode}) => {
       )),
     ];
   });
+  // Edge-to-edge: Android no longer shrinks the screen for the keyboard, so
+  // pad the list by the part it covers to keep fields such as API keys usable.
   return (
+    <KeyboardAvoidingView behavior="padding" className="flex-1 w-full bg-m3-background">
     <FlatList
       className="flex-1 w-full bg-m3-background"
+      keyboardShouldPersistTaps="handled"
       data={ready ? rows : rows.slice(0, 4)}
       renderItem={({item}) => <>{item}</>}
       keyExtractor={(item, index) =>
@@ -69,6 +73,7 @@ const SettingsPage = ({children}: {children: React.ReactNode}) => {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{paddingHorizontal: 20, paddingBottom: 40, paddingTop: 20}}
     />
+    </KeyboardAvoidingView>
   );
 };
 export default SettingsPage;

@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React, {useState} from 'react';
-import {Pressable, ScrollView, Share, Switch, ToastAndroid, View} from 'react-native';
+import React, {useRef, useState} from 'react';
+import {Pressable, Share, Switch, ToastAndroid, View, type TextInputInstance} from 'react-native';
+import KeyboardForm from '../../components/ui/KeyboardForm';
 import {copyText, readText} from '../../lib/clipboard';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
@@ -43,6 +44,8 @@ const TorrentSources = () => {
   const [tests, setTests] = useState<Record<string, EngineStatus>>({});
   const [editor, setEditor] = useState<'torznab' | 'adapter' | 'import' | 'catalog'>();
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const torznabUrl = useRef<TextInputInstance>(null);
+  const torznabKey = useRef<TextInputInstance>(null);
 
   const save = (next: TorrentSearchSettings) => {
     setSettings(next);
@@ -137,7 +140,7 @@ const TorrentSources = () => {
   const installed = new Set(settings.adapters.map(item => item.id));
 
   return (
-    <ScrollView style={{flex: 1, backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
+    <KeyboardForm style={{backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
       <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground}}>Torrent sites</AppText>
       <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 4}}>
         Turn sites on or off, switch to a working mirror when a domain changes, or add any site yourself. Every search runs on all sites at once.
@@ -182,9 +185,12 @@ const TorrentSources = () => {
             <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>
               Jackett: copy the Torznab feed URL of an indexer, or use /api/v2.0/indexers/all/results/torznab. Prowlarr: Indexers → an indexer → copy the Torznab URL. The API key is on the same page.
             </AppText>
-            <Input label="Name" placeholder="Home Jackett" value={draft.name || ''} onChangeText={name => setDraft({...draft, name})} />
-            <Input label="Torznab URL" placeholder="http://192.168.1.10:9117/api/v2.0/indexers/all/results/torznab" value={draft.url || ''} onChangeText={url => setDraft({...draft, url})} />
-            <Input label="API key" value={draft.apiKey || ''} onChangeText={apiKey => setDraft({...draft, apiKey})} secureTextEntry />
+            <Input label="Name" placeholder="Home Jackett" value={draft.name || ''} onChangeText={name => setDraft({...draft, name})}
+              returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => torznabUrl.current?.focus()} />
+            <Input ref={torznabUrl} label="Torznab URL" placeholder="http://192.168.1.10:9117/api/v2.0/indexers/all/results/torznab" value={draft.url || ''} onChangeText={url => setDraft({...draft, url})}
+              keyboardType="url" returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => torznabKey.current?.focus()} />
+            <Input ref={torznabKey} label="API key" value={draft.apiKey || ''} onChangeText={apiKey => setDraft({...draft, apiKey})} secureTextEntry
+              returnKeyType="go" onSubmitEditing={addTorznab} />
             <Chip label="Save and test" icon="content-save" onPress={addTorznab} />
           </View>
         </Section>
@@ -265,7 +271,7 @@ const TorrentSources = () => {
         </Section>
       ) : null}
       <Section title="Built-in sites">{BUILT_IN_ENGINES.map(engine => row(engine))}</Section>
-    </ScrollView>
+    </KeyboardForm>
   );
 };
 

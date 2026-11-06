@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Linking, ScrollView, Switch, View} from 'react-native';
+import {Linking, Switch, View} from 'react-native';
+import KeyboardForm from '../../components/ui/KeyboardForm';
 import {copyText} from '../../lib/clipboard';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
@@ -74,12 +75,12 @@ const WatchSync = () => {
 
   const field = (id: SyncServiceId, key: 'clientId' | 'clientSecret' | 'accessToken', label: string, secret = false) => (
     <TextInput accessibilityLabel={`${HELP[id].name} ${label}`} placeholder={label} placeholderTextColor={colors.outline} defaultValue={settings[id][key] || ''} secureTextEntry={secret}
-      autoCapitalize="none" autoCorrect={false} onEndEditing={event => patch(id, {[key]: event.nativeEvent.text.trim()})}
+      autoCapitalize="none" autoCorrect={false} returnKeyType="done" onEndEditing={event => patch(id, {[key]: event.nativeEvent.text.trim()})}
       style={{color: colors.onSurface, minHeight: 44, borderBottomWidth: 1, borderColor: colors.outlineVariant, marginTop: 4}} />
   );
 
   return (
-    <ScrollView style={{flex: 1, backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
+    <KeyboardForm style={{backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
       <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground}}>Watch sync</AppText>
       <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 4}}>
         When you finish a movie or episode, Droid Stream marks it watched on the services you connect. Tokens stay encrypted on this phone.
@@ -142,7 +143,7 @@ const WatchSync = () => {
           </View>
         );
       })}
-    </ScrollView>
+    </KeyboardForm>
   );
 };
 

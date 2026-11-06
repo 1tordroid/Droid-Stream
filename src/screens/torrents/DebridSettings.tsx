@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {ActivityIndicator, Linking, Pressable, ScrollView, Switch, ToastAndroid, View} from 'react-native';
+import {ActivityIndicator, Linking, Pressable, Switch, ToastAndroid, View} from 'react-native';
+import KeyboardForm from '../../components/ui/KeyboardForm';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
@@ -68,7 +69,7 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
   );
 
   return (
-    <ScrollView style={{flex: 1, backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
+    <KeyboardForm style={{backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 96}}>
       <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground}}>Debrid and cloud</AppText>
       <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 4}}>
         A debrid or cloud service downloads the torrent on its own fast servers. Popular torrents are often already cached there, so they play at once and save over plain HTTPS at full speed with no peers and no visible IP. Use your own account. Keys stay encrypted on this phone and go only to that service.
@@ -110,6 +111,7 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
                   autoCapitalize="none"
                   autoCorrect={false}
                   secureTextEntry
+                  returnKeyType="done"
                   onEndEditing={event => save({...settings, keys: {...settings.keys, [service.id]: event.nativeEvent.text.trim()}})}
                   style={{color: colors.onSurface, minHeight: 48, borderBottomWidth: 1, borderColor: colors.outlineVariant, marginVertical: 8}}
                 />
@@ -165,7 +167,7 @@ const DebridSettings = ({navigation}: {navigation: any}) => {
           </View>
         );
       })}
-    </ScrollView>
+    </KeyboardForm>
   );
 };
 
