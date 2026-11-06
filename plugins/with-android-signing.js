@@ -9,7 +9,7 @@ const SIGNING_VARIABLES = [
   'MYAPP_UPLOAD_KEY_PASSWORD',
 ];
 
-/** Builds meant for distribution set RELEASE=1 (release and action-build workflows). */
+/** Builds meant for distribution set RELEASE=1 (release, nightly and action-build workflows). */
 const isDistributionBuild = (env = process.env) => env.RELEASE === '1';
 
 /** Names (never values) of the signing variables that are not set. */

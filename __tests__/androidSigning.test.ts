@@ -123,10 +123,26 @@ describe('signing config plugin', () => {
 });
 
 describe('release workflows', () => {
+  const workflow = (name: string) =>
+    fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', name), 'utf8');
+  const RELEASE_LINE = /^ {6}RELEASE: '1'\r?$/m;
+
   it('set RELEASE=1 for distribution builds', () => {
-    for (const workflow of ['release.yml', 'action-build.yml']) {
-      const text = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', workflow), 'utf8');
-      expect(text).toMatch(/^ {6}RELEASE: '1'\r?$/m);
+    // Nightly builds are published too, and install over the releases.
+    for (const name of ['release.yml', 'action-build.yml', 'main.yml']) {
+      expect(workflow(name)).toMatch(RELEASE_LINE);
     }
+  });
+
+  it('keep the debug-key fallback where a build is not signed', () => {
+    // Test APKs are signed with the debug key when release secrets are absent.
+    expect(workflow('test-apk.yml')).not.toMatch(/RELEASE:/);
+    // The nightly manifest check runs prebuild without the signing secrets,
+    // so only the signed build job sets RELEASE.
+    const nightly = workflow('main.yml');
+    const buildJob = nightly.indexOf('\n  build-android:');
+    expect(buildJob).toBeGreaterThan(0);
+    expect(nightly.match(new RegExp(RELEASE_LINE.source, 'gm'))).toHaveLength(1);
+    expect(nightly.search(RELEASE_LINE)).toBeGreaterThan(buildJob);
   });
 });
