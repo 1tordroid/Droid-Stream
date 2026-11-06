@@ -1,5 +1,6 @@
 import ScreenSafeArea from '../../components/ui/ScreenSafeArea';
-import {View, ScrollView, findNodeHandle, Keyboard, BackHandler, Linking, Pressable} from 'react-native';
+import {View, ScrollView, Keyboard, BackHandler, Linking, Pressable, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 
 interface ProviderItemProps {
@@ -23,7 +24,7 @@ const ProviderItem = React.memo(
     colors,
     onSelect,
   }: ProviderItemProps) => {
-    const itemRef = React.useRef<View>(null);
+    const itemRef = React.useRef<HostInstance>(null);
     const [handle, setHandle] = React.useState<number | null>(null);
     const screenFocused = useIsFocused();
 
@@ -39,7 +40,7 @@ const ProviderItem = React.memo(
           onLayout={() => {
             if (!isTV) return;
             if (itemRef.current) {
-              const h = findNodeHandle(itemRef.current);
+              const h = getNodeHandle(itemRef.current);
               setHandle(h);
               if (screenFocused && isFirst && h) {
                 useTVNavigationStore.getState().setActiveScreenFocusHandle(h);
@@ -48,7 +49,7 @@ const ProviderItem = React.memo(
           }}
           onFocus={() => {
             if (itemRef.current) {
-              const h = findNodeHandle(itemRef.current);
+              const h = getNodeHandle(itemRef.current);
               if (screenFocused && h) {
                 useTVNavigationStore.getState().setActiveScreenFocusHandle(h);
               }
@@ -135,7 +136,7 @@ const AnimatedSection = ({
 }) => <View>{children}</View>;
 
 const Settings = ({navigation}: Props) => {
-  const providerManagerRowRef = React.useRef<View>(null);
+  const providerManagerRowRef = React.useRef<HostInstance>(null);
   const tabNavigation =
     useNavigation<NativeStackNavigationProp<TabStackParamList>>();
   const colors = useM3Colors();

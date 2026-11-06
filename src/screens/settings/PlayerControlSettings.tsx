@@ -1,7 +1,8 @@
 import {useFocusEffect} from '@react-navigation/native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import React, {useCallback, useRef, useState} from 'react';
-import {BackHandler, View, findNodeHandle} from 'react-native';
+import {BackHandler, View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import type {SettingsStackParamList} from '../../App';
 import PlayerControlArrangement from '../../components/PlayerControlArrangement';
 import AppText from '../../components/ui/Text';
@@ -41,7 +42,7 @@ const controls: PlayerControl[] = PLAYER_CONTROL_IDS.map(id => ({
 type Props = NativeStackScreenProps<SettingsStackParamList, 'PlayerControlSettings'>;
 export default function PlayerControlSettings({navigation}: Props) {
   const colors = useM3Colors();
-  const backRef = useRef<View>(null);
+  const backRef = useRef<HostInstance>(null);
   const [backHandle, setBackHandle] = useState<number>();
   const [entryHandle, setEntryHandle] = useState<number>();
   const [layout, setLayout] = useState(() => settingsStorage.getPlayerControlLayout());
@@ -55,7 +56,7 @@ export default function PlayerControlSettings({navigation}: Props) {
     <GestureHandlerRootView style={{flex: 1}}>
       <TVFocusGuide autoFocus style={{flex: 1, backgroundColor: colors.background, padding: 20}}>
         <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
-          <TVFocusable ref={backRef} onLayout={() => { const handle = findNodeHandle(backRef.current); if (handle) setBackHandle(handle); }}
+          <TVFocusable ref={backRef} onLayout={() => { const handle = getNodeHandle(backRef.current); if (handle) setBackHandle(handle); }}
             nextFocusDown={entryHandle} hasTVPreferredFocus={isTV} accessibilityLabel="Go back"
             accessibilityRole="button" onPress={() => navigation.goBack()} borderRadius={22}
             style={{alignItems: 'center', height: 44, justifyContent: 'center', marginRight: 10, width: 44}}>

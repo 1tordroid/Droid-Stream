@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Linking, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { WebView } from 'react-native-webview';
+import {WebView} from '../../../../lib/webview';
 import AppText from '../../../../components/ui/Text';
 import { useM3Colors } from '../../../../theme/M3PaletteContext';
 import type { TmdbStoryData } from '../../../../lib/hooks/useTmdbStory';

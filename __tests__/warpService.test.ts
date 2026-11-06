@@ -49,7 +49,6 @@ import {settingsStorage} from '../src/lib/storage/SettingsStorage';
 import {
   isWarpSupported,
   startWarp,
-  stopWarp,
   toggleWarp,
   syncWarpSettings,
 } from '../src/lib/services/warpService';

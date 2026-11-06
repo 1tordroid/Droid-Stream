@@ -55,7 +55,6 @@ import {settingsStorage} from '../src/lib/storage/SettingsStorage';
 import {
   isByeDpiSupported,
   startByeDpi,
-  stopByeDpi,
   restartByeDpi,
   toggleByeDpi,
   syncByeDpiSettings,

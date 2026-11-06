@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef} from 'react';
-import {findNodeHandle, UIManager} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from './focus';
 import {useIsFocused} from '@react-navigation/native';
 import {isTV} from './constants';
 import useTVNavigationStore from '../zustand/tvNavigationStore';
@@ -27,7 +27,7 @@ const dropRecent = (handle: number) => {
 };
 
 const requestFocus = (handle: number) => {
-  UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+  requestTVFocusByHandle(handle);
 };
 
 /**
@@ -117,9 +117,9 @@ const useTVFocusMemory = ({
           restoreRef.current = false;
           return;
         }
-        const handle = findNodeHandle(ref.current);
+        const handle = getNodeHandle(ref.current);
         if (handle) {
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          requestTVFocusByHandle(handle);
         }
       }, delay),
     );
@@ -128,7 +128,7 @@ const useTVFocusMemory = ({
 
   useEffect(() => {
     if (!isTV) return;
-    handleRef.current = findNodeHandle(ref.current);
+    handleRef.current = getNodeHandle(ref.current);
     return () => {
       const handle = handleRef.current;
       if (handle == null) return;
@@ -154,7 +154,7 @@ const useTVFocusMemory = ({
   const onFocus = useCallback(() => {
     focusedRef.current = true;
     restoreRef.current = false;
-    const ownHandle = findNodeHandle(ref.current);
+    const ownHandle = getNodeHandle(ref.current);
     if (ownHandle) {
       handleRef.current = ownHandle;
       currentFocusedHandle = ownHandle;
@@ -166,7 +166,7 @@ const useTVFocusMemory = ({
       if (recentFocus.length > RECENT_LIMIT) recentFocus.shift();
     }
     if (registerScreenFocus && isNavFocused) {
-      const handle = findNodeHandle(ref.current);
+      const handle = getNodeHandle(ref.current);
       if (handle) {
         useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
       }

@@ -638,6 +638,13 @@ const App = () => {
   // One AppState listener and one timer. They were registered twice, so every
   // foreground, background and 30 s tick ran the sync twice.
   useEffect(() => {
+    // Android can recreate the activity (for example after a launcher icon
+    // change) and report "active" before this listener exists. A stale
+    // 'app-background' hold would then block idle work, and settings pages
+    // would stay half rendered, until the process restarts.
+    if (AppState.currentState === 'active') {
+      endUIInteraction('app-background');
+    }
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') {
         endUIInteraction('app-background');

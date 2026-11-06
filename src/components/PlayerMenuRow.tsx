@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, {useState} from 'react';
-import {Pressable, TouchableOpacity, View} from 'react-native';
+import {Pressable, TouchableOpacity, View, type HostInstance} from 'react-native';
 import {RawText as Text} from './ui/Text';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 import {isTV} from '../lib/tv/constants';
@@ -18,7 +18,7 @@ type PlayerMenuRowProps = {
   onPress: () => void;
 };
 
-const PlayerMenuRow = React.forwardRef<View, PlayerMenuRowProps>(({
+const PlayerMenuRow = React.forwardRef<HostInstance, PlayerMenuRowProps>(({
   title,
   detail,
   quality,

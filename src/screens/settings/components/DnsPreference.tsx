@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import {Pressable, Switch, ToastAndroid, TouchableOpacity, View, Keyboard, BackHandler} from 'react-native';
+import {Switch, ToastAndroid, View, Keyboard, BackHandler, type HostInstance, type TextInputInstance} from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import { settingsStorage } from '../../../lib/storage';
 import {
@@ -19,23 +20,20 @@ import {
 import { useM3Colors } from '../../../theme/M3PaletteContext';
 import AppText from '../../../components/ui/Text';
 import DropdownField from '../../../components/ui/DropdownField';
-import {useTVFocusBorderColor} from '../../../lib/tv/useTVFocusBorderColor';
 import {TVFocusable} from '../../../components/tv';
-import {findNodeHandle} from 'react-native';
 import useTVNavigationStore from '../../../lib/zustand/tvNavigationStore';
 
 const DnsPreference = () => {
   const colors = useM3Colors();
-  const focusBorderColor = useTVFocusBorderColor();
 
   const [warpEnabled, setWarpEnabledState] = useState<boolean>(
     settingsStorage.isWarpEnabled(),
   );
   const [isWarpBusy, setIsWarpBusy] = useState<boolean>(false);
   const [warpPort, setWarpPort] = useState<number | null>(null);
-  const warpRef = React.useRef<View>(null);
+  const warpRef = React.useRef<HostInstance>(null);
   const [warpHandle, setWarpHandle] = useState<number | null>(null);
-  const byeDpiRef = React.useRef<View>(null);
+  const byeDpiRef = React.useRef<HostInstance>(null);
   const [byeDpiHandle, setByeDpiHandle] = useState<number | null>(null);
 
   const [byeDpiEnabled, setByeDpiEnabledState] = useState<boolean>(
@@ -47,9 +45,9 @@ const DnsPreference = () => {
     settingsStorage.getByeDpiCmdArgs() || DEFAULT_BYEDPI_ARGS,
   );
   const [showArgsEditor, setShowArgsEditor] = useState<boolean>(false);
-  const argsInputRef = React.useRef<TextInput>(null);
+  const argsInputRef = React.useRef<TextInputInstance>(null);
   const [isArgsInputFocused, setIsArgsInputFocused] = useState<boolean>(false);
-  const customUrlInputRef = React.useRef<TextInput>(null);
+  const customUrlInputRef = React.useRef<TextInputInstance>(null);
   const [isCustomUrlFocused, setIsCustomUrlFocused] = useState<boolean>(false);
 
   useEffect(() => {
@@ -225,11 +223,11 @@ const DnsPreference = () => {
       <TVFocusable
         ref={warpRef}
         onLayout={() => {
-          if (warpRef.current) setWarpHandle(findNodeHandle(warpRef.current));
+          if (warpRef.current) setWarpHandle(getNodeHandle(warpRef.current));
         }}
         onFocus={() => {
           if (warpRef.current) {
-            const h = findNodeHandle(warpRef.current);
+            const h = getNodeHandle(warpRef.current);
             if (h) useTVNavigationStore.getState().setActiveScreenFocusHandle(h);
           }
         }}
@@ -312,11 +310,11 @@ const DnsPreference = () => {
         <TVFocusable
           ref={byeDpiRef}
           onLayout={() => {
-            if (byeDpiRef.current) setByeDpiHandle(findNodeHandle(byeDpiRef.current));
+            if (byeDpiRef.current) setByeDpiHandle(getNodeHandle(byeDpiRef.current));
           }}
           onFocus={() => {
             if (byeDpiRef.current) {
-              const h = findNodeHandle(byeDpiRef.current);
+              const h = getNodeHandle(byeDpiRef.current);
               if (h) useTVNavigationStore.getState().setActiveScreenFocusHandle(h);
             }
           }}

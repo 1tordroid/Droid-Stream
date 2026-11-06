@@ -13,8 +13,9 @@ import {
   ScrollView,
   useWindowDimensions,
   View,
-  findNodeHandle,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle} from '../lib/tv/focus';
 import ReactNativeHapticFeedback, {
   HapticFeedbackTypes,
 } from 'react-native-haptic-feedback';
@@ -73,9 +74,9 @@ const Library = () => {
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   const [isSelectionModeActive, setIsSelectionModeActive] = useState(false);
 
-  const selectButtonRef = React.useRef<View>(null);
-  const firstCardRef = React.useRef<View>(null);
-  const activeChipRef = React.useRef<View>(null);
+  const selectButtonRef = React.useRef<HostInstance>(null);
+  const firstCardRef = React.useRef<HostInstance>(null);
+  const activeChipRef = React.useRef<HostInstance>(null);
   // Claim focus for the first card only until a card has had focus, so
   // leaving selection mode or a list remount does not pull focus back.
   const [initialCardFocused, setInitialCardFocused] = useState(false);
@@ -84,9 +85,9 @@ const Library = () => {
   const [activeChipNode, setActiveChipNode] = useState<number | null>(null);
 
   const updateNode = useCallback(
-    (ref: React.RefObject<View | null>, setNode: (handle: number) => void) => {
+    (ref: React.RefObject<HostInstance | null>, setNode: (handle: number) => void) => {
       if (ref.current) {
-        const handle = findNodeHandle(ref.current);
+        const handle = getNodeHandle(ref.current);
         if (handle) {
           setNode(handle);
         }

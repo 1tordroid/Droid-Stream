@@ -1,5 +1,5 @@
 import React, {forwardRef, useEffect, useRef, useState} from 'react';
-import {ScrollView, View} from 'react-native';
+import {ScrollView, View, type HostInstance} from 'react-native';
 import {RawText as Text} from './ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {Host, Slider} from '@expo/ui/jetpack-compose';
@@ -32,7 +32,7 @@ const roundButton = {
   justifyContent: 'center' as const,
 };
 
-const PlayerSleepControl = forwardRef<View, Props>(
+const PlayerSleepControl = forwardRef<HostInstance, Props>(
   ({timer, minutesLeft, accentColor, onSelect, onAdjust, onTVFocus}, ref) => {
     const hostTheme = useM3HostTheme();
     const [draft, setDraft] = useState(minutesLeft ?? 0);

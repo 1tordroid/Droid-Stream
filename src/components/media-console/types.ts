@@ -1,6 +1,6 @@
 import type {PlayerControlStyle} from '../../lib/player/controlStyle';
 import type {RefObject} from 'react';
-import type {View, ViewStyle, StyleProp, Animated} from 'react-native';
+import type {ViewStyle, StyleProp, Animated, HostInstance} from 'react-native';
 import type Reanimated from 'react-native-reanimated';
 import type {StyleProps} from 'react-native-reanimated';
 import type {VideoRef, ReactVideoProps} from 'react-native-video';
@@ -92,7 +92,7 @@ export interface VideoPlayerProps extends ReactVideoProps {
   controlAppearance?: PlayerControlStyle;
   ambientVideoSize?: {width: number; height: number} | null;
   ambientDisabled?: boolean;
-  nativeVideoViewRef?: RefObject<View | null>;
+  nativeVideoViewRef?: RefObject<HostInstance | null>;
   seekbarScale?: number;
   /** Temporarily freeze playback without changing the user's pause state. */
   playbackSuspended?: boolean;

@@ -1,6 +1,7 @@
 import {AntDesign} from '@expo/vector-icons';
 import React, {useState} from 'react';
-import {Image, Linking, Pressable, View, findNodeHandle} from 'react-native';
+import {Image, Linking, Pressable, View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import AppText from '../../../components/ui/Text';
 import {socialLinks} from '../../../lib/constants';
 import {isTV} from '../../../lib/tv';
@@ -23,13 +24,13 @@ const LinkCard = ({
   const colors = useM3Colors();
   const focusBorderColor = useTVFocusBorderColor(colors.primary);
   const [focused, setFocused] = useState(false);
-  const ref = React.useRef<View>(null);
+  const ref = React.useRef<HostInstance>(null);
   const [handle, setHandle] = useState<number | null>(null);
 
   return (
     <Pressable
       ref={ref as any}
-      onLayout={() => setHandle(findNodeHandle(ref.current))}
+      onLayout={() => setHandle(getNodeHandle(ref.current))}
       nextFocusDown={isTV ? handle ?? undefined : undefined}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}

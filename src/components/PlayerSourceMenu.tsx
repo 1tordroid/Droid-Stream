@@ -1,5 +1,5 @@
 import React, {memo, useCallback, useMemo} from 'react';
-import {FlatList, ScrollView, View} from 'react-native';
+import {FlatList, ScrollView, View, type HostInstance} from 'react-native';
 import {RawText as Text} from './ui/Text';
 import type {Stream} from '../lib/providers/types';
 import {isTV} from '../lib/tv/constants';
@@ -20,7 +20,7 @@ type RowProps = {
   item: Item;
   selected: boolean;
   accentColor: string;
-  preferredRef?: React.RefObject<View | null>;
+  preferredRef?: React.RefObject<HostInstance | null>;
   onSelect: (item: Item) => void;
   onTVFocus: () => void;
 };
@@ -67,7 +67,7 @@ type ColumnProps = {
   message?: string;
   footer?: React.ReactElement;
   accentColor: string;
-  preferredRef?: React.RefObject<View | null>;
+  preferredRef?: React.RefObject<HostInstance | null>;
   onSelect: (item: Item) => void;
   onTVFocus: () => void;
 };
@@ -151,7 +151,7 @@ type Props = {
   videoLoaded: boolean;
   loading: boolean;
   accentColor: string;
-  preferredRef: React.RefObject<View | null>;
+  preferredRef: React.RefObject<HostInstance | null>;
   getQualityIcon: (height?: number | string) => Item['icon'];
   onSelectStream: (stream: Stream) => void;
   onSelectQuality: (index: number) => void;

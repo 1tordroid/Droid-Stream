@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Clipboard, Linking, ScrollView, Switch, View} from 'react-native';
+import {Linking, ScrollView, Switch, View} from 'react-native';
+import {copyText} from '../../lib/clipboard';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
@@ -43,7 +44,7 @@ const WatchSync = () => {
     try {
       const device = id === 'trakt' ? await traktStartDevice(account.clientId) : await simklStartPin(account.clientId);
       setCode({service: id, code: device});
-      Clipboard.setString(device.userCode);
+      copyText(device.userCode);
       Linking.openURL(device.verificationUrl).catch(() => undefined);
       clearInterval(timer.current);
       timer.current = setInterval(async () => {

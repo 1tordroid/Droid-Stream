@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {Image, View} from 'react-native';
+import {Image, View, type HostInstance} from 'react-native';
 import {RawText as Text} from '../../../components/ui/Text';
 import {TVFocusable} from '../../../components/tv';
 import {useTVFocusBorderColor} from '../../../lib/tv/useTVFocusBorderColor';
@@ -63,7 +63,7 @@ const CurrentDownloadRow = ({
   onRetry: () => void;
   onStartNow: () => void;
   onWatch?: () => void;
-  firstActionRef?: React.RefObject<View | null>;
+  firstActionRef?: React.RefObject<HostInstance | null>;
   onFirstActionLayout?: () => void;
 }) => {
   const colors = useM3Colors();

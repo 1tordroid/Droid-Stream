@@ -7,8 +7,9 @@ import {
   FlatList,
   RefreshControl,
   BackHandler,
-  findNodeHandle,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import {useIsFocused} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {SettingsStackParamList} from '../../App';
@@ -81,11 +82,11 @@ const providerListKey = (item: ProviderExtension) =>
 
 const Extensions = ({navigation, route}: Props) => {
   const isScreenFocused = useIsFocused();
-  const backButtonRef = useRef<View>(null);
+  const backButtonRef = useRef<HostInstance>(null);
   const backFocusHandleRef = useRef<number | null>(null);
   const registerBackFocus = useCallback(() => {
     if (!isTV || !isScreenFocused) return;
-    const handle = findNodeHandle(backButtonRef.current);
+    const handle = getNodeHandle(backButtonRef.current);
     if (handle) {
       backFocusHandleRef.current = handle;
       useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
@@ -623,7 +624,7 @@ const Extensions = ({navigation, route}: Props) => {
   return (
     <TVFocusGuide autoFocus={true} trapFocusRight={true} trapFocusDown={true} style={{flex: 1}}>
       <View style={{flex: 1, height: '100%', width: '100%', backgroundColor: colors.background, paddingTop: isTV ? 40 : 20}}>
-        <StatusBar backgroundColor={colors.background} barStyle="light-content" />
+        <StatusBar barStyle="light-content" />
         <View className="flex-row items-center justify-between px-4 pb-4 pt-2">
           <TVFocusable
             ref={backButtonRef}

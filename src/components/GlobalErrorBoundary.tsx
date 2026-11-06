@@ -1,11 +1,12 @@
 import React from 'react';
-import {View, ScrollView, Dimensions, Clipboard} from 'react-native';
+import {View, ScrollView, Dimensions} from 'react-native';
+import {copyText} from '../lib/clipboard';
 import {RawText as Text} from './ui/Text';
 import useThemeStore from '../lib/zustand/themeStore';
 import TVTouchable from './tv/TVTouchable';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Application from 'expo-application';
-import * as Updates from 'expo-updates';
+import {reloadAppAsync} from 'expo';
 import {showAppDialog} from '../lib/zustand/appDialogStore';
 import BootSplash from 'react-native-bootsplash';
 
@@ -72,13 +73,9 @@ export default class GlobalErrorBoundary extends React.Component<
 
   handleRestart = async () => {
     try {
-      // Try to reload the app using Expo Updates
-      if (Updates.isEnabled) {
-        await Updates.reloadAsync();
-      } else {
-        // Fallback: reset the error boundary state
-        this.resetError();
-      }
+      // Restarts the JS app in every build type (expo-updates is disabled,
+      // so its reloadAsync never ran and the button only cleared the screen).
+      await reloadAppAsync('Restart after an error');
     } catch (reloadError) {
       console.error('Failed to reload app:', reloadError);
       this.resetError();
@@ -122,7 +119,7 @@ ${errorInfo?.componentStack || 'Not available'}
       actions: [
         {
           label: 'Copy report',
-          onPress: () => Clipboard.setString(errorReport),
+          onPress: () => copyText(errorReport),
         },
         {label: 'OK', variant: 'primary'},
       ],

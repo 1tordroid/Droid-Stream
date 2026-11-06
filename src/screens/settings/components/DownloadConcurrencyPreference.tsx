@@ -2,7 +2,8 @@ import {registerInteractionCommit} from '../../../lib/performance/idleWork';
 import {Host, Slider} from '@expo/ui/jetpack-compose';
 import {fillMaxWidth} from '@expo/ui/jetpack-compose/modifiers';
 import React, {useCallback, useRef, useState} from 'react';
-import {View, findNodeHandle} from 'react-native';
+import {View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Surface from '../../../components/ui/Surface';
@@ -39,8 +40,8 @@ const DownloadConcurrencyPreference = ({
     settingsStorage.isAutoDownloadServerFallbackEnabled(),
   );
   const prevConcurrencyRef = useRef(concurrency);
-  const decreaseRef = useRef<View>(null);
-  const increaseRef = useRef<View>(null);
+  const decreaseRef = useRef<HostInstance>(null);
+  const increaseRef = useRef<HostInstance>(null);
   const [decreaseHandle, setDecreaseHandle] = useState<number | null>(null);
   const [increaseHandle, setIncreaseHandle] = useState<number | null>(null);
 
@@ -118,7 +119,7 @@ const DownloadConcurrencyPreference = ({
                 <TVFocusable
                   ref={decreaseRef}
                   onLayout={() =>
-                    setDecreaseHandle(findNodeHandle(decreaseRef.current))
+                    setDecreaseHandle(getNodeHandle(decreaseRef.current))
                   }
                   nextFocusRight={increaseHandle}
                   onPress={() => update(concurrency - 1)}
@@ -163,7 +164,7 @@ const DownloadConcurrencyPreference = ({
                 <TVFocusable
                   ref={increaseRef}
                   onLayout={() =>
-                    setIncreaseHandle(findNodeHandle(increaseRef.current))
+                    setIncreaseHandle(getNodeHandle(increaseRef.current))
                   }
                   nextFocusLeft={decreaseHandle}
                   onPress={() => update(concurrency + 1)}

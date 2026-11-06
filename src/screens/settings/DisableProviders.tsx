@@ -1,6 +1,6 @@
 import {useFocusEffect} from '@react-navigation/native';
 import {View, ScrollView, BackHandler} from 'react-native';
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useCallback} from 'react';
 import {extensionStorage, providersStorage} from '../../lib/storage';
 import {SvgUri} from 'react-native-svg';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';

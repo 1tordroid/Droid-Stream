@@ -1,5 +1,5 @@
 import React, {forwardRef, useEffect, useState} from 'react';
-import {ScrollView, View} from 'react-native';
+import {ScrollView, View, type HostInstance} from 'react-native';
 import {RawText as Text} from './ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {Host, Slider} from '@expo/ui/jetpack-compose';
@@ -26,7 +26,7 @@ const snapSpeed = (speed: number) =>
     Math.max(MIN, Math.min(MAX, Math.round(speed / STEP) * STEP)).toFixed(2),
   );
 
-const PlayerSpeedControl = forwardRef<View, Props>(
+const PlayerSpeedControl = forwardRef<HostInstance, Props>(
   ({value, accentColor, onChange, onTVFocus}, ref) => {
     const hostTheme = useM3HostTheme();
     const [draft, setDraft] = useState(value);

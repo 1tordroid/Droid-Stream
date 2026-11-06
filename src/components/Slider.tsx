@@ -353,7 +353,7 @@ const Slider = ({
                   </AppText>
                 </TVFocusable>
               </View>
-            ) : null
+            ) : undefined
           }
         />
       )}

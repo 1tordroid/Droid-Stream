@@ -5,8 +5,9 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
-  findNodeHandle,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {settingsStorage} from '../../lib/storage';
@@ -63,7 +64,7 @@ const StreamingTabButton = ({
 }: TabButtonProps) => {
   const focusBorderColor = useTVFocusBorderColor();
   const railFocusHandle = useRailFocusHandle();
-  const tabRef = React.useRef<View>(null);
+  const tabRef = React.useRef<HostInstance>(null);
   const [tabHandle, setTabHandle] = useState<number | null>(null);
 
   if (isTV) {
@@ -73,7 +74,7 @@ const StreamingTabButton = ({
         registerScreenFocus={false}
         onLayout={() => {
           if (tabRef.current) {
-            setTabHandle(findNodeHandle(tabRef.current));
+            setTabHandle(getNodeHandle(tabRef.current));
           }
         }}
         nextFocusLeft={tabHandle}

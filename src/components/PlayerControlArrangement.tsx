@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {ScrollView, View, UIManager, findNodeHandle, useWindowDimensions} from 'react-native';
+import {ScrollView, View, useWindowDimensions, type HostInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../lib/tv/focus';
 import {RawText as Text} from './ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
@@ -65,7 +66,7 @@ function ControlToken({
   onDrop,
 }: TokenProps) {
   const id = control.id;
-  const tokenRef = useRef<View>(null);
+  const tokenRef = useRef<HostInstance>(null);
   const dx = useSharedValue(0);
   const dy = useSharedValue(0);
   const active = useSharedValue(false);
@@ -148,7 +149,7 @@ function ControlToken({
       <View style={{position: 'absolute', left: x, top: y}}>
         <TVFocusable
           ref={tokenRef}
-          onLayout={() => { const handle = findNodeHandle(tokenRef.current); if (handle) onHandle(id, handle); }}
+          onLayout={() => { const handle = getNodeHandle(tokenRef.current); if (handle) onHandle(id, handle); }}
           nextFocusUp={nextFocusUp}
           accessibilityState={{selected}}
           registerScreenFocus={false}
@@ -195,7 +196,7 @@ export type PlayerControlArrangementProps = {
 export default function PlayerControlArrangement({layout, hiddenControls, controls, color,
   limit = MAX_TOP_CONTROLS, page = false, exitUpHandle, onEntryHandle, onChange, onHaptic = noop}: PlayerControlArrangementProps) {
   const {width} = useWindowDimensions();
-  const firstActionRef = useRef<View>(null);
+  const firstActionRef = useRef<HostInstance>(null);
   const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [tokenHandles, setTokenHandles] = useState<Partial<Record<PlayerControlId, number>>>({});
   const registerToken = useCallback((id: PlayerControlId, handle: number) => {
@@ -219,8 +220,8 @@ export default function PlayerControlArrangement({layout, hiddenControls, contro
     if (!isTV) return;
     clearTimeout(focusTimer.current);
     focusTimer.current = setTimeout(() => {
-      const handle = findNodeHandle(firstActionRef.current);
-      if (handle) UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+      const handle = getNodeHandle(firstActionRef.current);
+      if (handle) requestTVFocusByHandle(handle);
     }, 50);
   }, []);
   const [canvasWidth, setCanvasWidth] = useState(

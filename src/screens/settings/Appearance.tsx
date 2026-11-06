@@ -1,7 +1,7 @@
 import {useFocusEffect} from '@react-navigation/native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
-import React, {useEffect, useCallback} from 'react';
+import React, {useCallback} from 'react';
 import {BackHandler, ScrollView, View} from 'react-native';
 import type {SettingsStackParamList} from '../../App';
 import AppearancePreference from './components/AppearancePreference';

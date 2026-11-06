@@ -28,7 +28,8 @@ const useDownloadConnectionsStore = create<DownloadConnectionsState>(set => ({
       if (!(downloadId in state.details)) {
         return state;
       }
-      const {[downloadId]: _removed, ...rest} = state.details;
+      const rest = {...state.details};
+      delete rest[downloadId];
       return {details: rest};
     }),
 }));

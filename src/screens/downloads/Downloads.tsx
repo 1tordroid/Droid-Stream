@@ -8,9 +8,10 @@ import {
   BackHandler,
   Dimensions,
   FlatList,
-  findNodeHandle,
   View,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import ReactNativeHapticFeedback, {
   HapticFeedbackTypes,
 } from 'react-native-haptic-feedback';
@@ -114,10 +115,10 @@ const Downloads = () => {
   const [isSelectionModeActive, setIsSelectionModeActive] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const selectButtonRef = useRef<View>(null);
-  const firstCardRef = useRef<View>(null);
-  const currentDownloadActionRef = useRef<View>(null);
-  const exploreButtonRef = useRef<View>(null);
+  const selectButtonRef = useRef<HostInstance>(null);
+  const firstCardRef = useRef<HostInstance>(null);
+  const currentDownloadActionRef = useRef<HostInstance>(null);
+  const exploreButtonRef = useRef<HostInstance>(null);
   const [selectButtonNode, setSelectButtonNode] = useState<number | null>(null);
   const [firstCardNode, setFirstCardNode] = useState<number | null>(null);
   const [currentDownloadActionNode, setCurrentDownloadActionNode] = useState<number | null>(null);
@@ -140,7 +141,7 @@ const Downloads = () => {
   const updateSelectButtonNode = useCallback(() => {
     if (!isTV) return;
     if (selectButtonRef.current) {
-      const handle = findNodeHandle(selectButtonRef.current);
+      const handle = getNodeHandle(selectButtonRef.current);
       if (handle) setSelectButtonNode(handle);
     }
   }, []);
@@ -148,7 +149,7 @@ const Downloads = () => {
   const updateFirstCardNode = useCallback(() => {
     if (!isTV) return;
     if (firstCardRef.current) {
-      const handle = findNodeHandle(firstCardRef.current);
+      const handle = getNodeHandle(firstCardRef.current);
       if (handle) {
         setFirstCardNode(handle);
         if (isTV && screenFocused && currentDownloads.length === 0) {
@@ -160,7 +161,7 @@ const Downloads = () => {
 
   const updateCurrentDownloadActionNode = useCallback(() => {
     if (!isTV) return;
-    const handle = findNodeHandle(currentDownloadActionRef.current);
+    const handle = getNodeHandle(currentDownloadActionRef.current);
     setCurrentDownloadActionNode(handle);
     if (isTV && screenFocused && handle) {
       useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
@@ -176,7 +177,7 @@ const Downloads = () => {
   const updateExploreButtonNode = useCallback(() => {
     if (!isTV) return;
     if (exploreButtonRef.current) {
-      const handle = findNodeHandle(exploreButtonRef.current);
+      const handle = getNodeHandle(exploreButtonRef.current);
       if (handle) {
         setExploreButtonNode(handle);
         if (isTV && screenFocused && currentDownloads.length === 0 && groups.length === 0) {
@@ -480,7 +481,7 @@ const Downloads = () => {
                 </AppText>
               ) : null}
             </View>
-          ) : null
+          ) : undefined
         }
         renderItem={({item, index}) => {
           const isTopRow = index < columns;
@@ -565,7 +566,7 @@ const Downloads = () => {
                 );
               }}
             />
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           localItems.length === 0 ? (
@@ -577,7 +578,7 @@ const Downloads = () => {
                 navigation.getParent<any>()?.navigate('HomeStack');
               }}
             />
-          ) : null
+          ) : undefined
         }
         showsVerticalScrollIndicator={false}
       />

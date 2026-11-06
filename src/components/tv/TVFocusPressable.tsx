@@ -1,5 +1,5 @@
 import React, {forwardRef} from 'react';
-import {Pressable, View} from 'react-native';
+import {Pressable, View, type HostInstance} from 'react-native';
 import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';
 
 type Props = React.ComponentProps<typeof Pressable> & {
@@ -9,7 +9,7 @@ type Props = React.ComponentProps<typeof Pressable> & {
 
 // Keep layout styles static: NativeWind does not preserve the player's layout
 // when a focus-dependent style function is passed through its Pressable wrapper.
-const TVFocusPressable = forwardRef<View, Props>(function TVFocusPressableView(
+const TVFocusPressable = forwardRef<HostInstance, Props>(function TVFocusPressableView(
   {children, focusRadius = 12, focusWidth = 2.5, ...props},
   ref,
 ) {

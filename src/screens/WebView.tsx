@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import ScreenSafeArea from '../components/ui/ScreenSafeArea';
 import React, {useEffect, useRef, useState} from 'react';
-import {WebView} from 'react-native-webview';
+import {WebView} from '../lib/webview';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {HomeStackParamList} from '../App';
 import {isSafeExternalUrl} from '../lib/sandbox/urlGuard';

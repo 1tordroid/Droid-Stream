@@ -327,7 +327,7 @@ const TorrentSearch = ({navigation, route}: {navigation: any; route?: {params?: 
             <Pressable accessibilityRole="button" accessibilityLabel="Load more results" onPress={() => start(submitted, 'results', category, page + 1)} style={{minHeight: 52, alignItems: 'center', justifyContent: 'center'}}>
               <AppText style={{color: colors.primary}}>Load more</AppText>
             </Pressable>
-          ) : null
+          ) : undefined
         }
       />
       {selected ? (

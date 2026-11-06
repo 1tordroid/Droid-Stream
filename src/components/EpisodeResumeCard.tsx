@@ -1,5 +1,5 @@
 import React from 'react';
-import {ScrollView, View} from 'react-native';
+import {ScrollView, View, type HostInstance} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
@@ -34,7 +34,7 @@ const formatRemaining = (seconds: number) => {
 
 /** Wide primary button at the top of the episode list. */
 export const EpisodeResumeCard = React.forwardRef<
-  View,
+  HostInstance,
   {target: ResumeTarget; onPress: () => void}
 >(({target, onPress}, ref) => {
   const colors = useM3Colors();

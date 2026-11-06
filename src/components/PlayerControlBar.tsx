@@ -1,5 +1,6 @@
 import React, {useCallback} from 'react';
-import {ScrollView, TouchableOpacity, View, StyleProp, ViewStyle, findNodeHandle} from 'react-native';
+import {ScrollView, TouchableOpacity, View, StyleProp, ViewStyle, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../lib/tv/focus';
 import {RawText as Text} from './ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -84,8 +85,8 @@ export default function PlayerControlBar({
   onEntryHandle,
 }: Props) {
   const entryRef = useCallback(
-    (node: View | React.ElementRef<typeof TouchableOpacity> | null) => {
-      onEntryHandle?.(findNodeHandle(node));
+    (node: HostInstance | null) => {
+      onEntryHandle?.(getNodeHandle(node));
     },
     [onEntryHandle],
   );

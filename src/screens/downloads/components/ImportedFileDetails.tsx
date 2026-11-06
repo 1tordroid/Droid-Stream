@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ScrollView, StatusBar, View} from 'react-native';
+import {ScrollView, View} from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import useLocalContentStore from '../../../lib/zustand/localContentStore';
@@ -37,7 +37,6 @@ export default function ImportedFileDetails({
         autoFocus
         trapFocusRight
         style={{flex: 1, backgroundColor: '#000000'}}>
-        <StatusBar translucent backgroundColor="transparent" />
         <ScreenOverlayHost>
           <ScrollView
             contentContainerStyle={{
@@ -82,7 +81,6 @@ export default function ImportedFileDetails({
       autoFocus
       trapFocusRight
       style={{flex: 1, backgroundColor: '#000000'}}>
-      <StatusBar translucent backgroundColor="transparent" />
       <ScreenOverlayHost>
         <ScrollView
           showsVerticalScrollIndicator={false}

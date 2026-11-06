@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {Pressable, View} from 'react-native';
+import {Pressable, View, type HostInstance} from 'react-native';
 import {RawText as Text} from '../../../components/ui/Text';
 import {
   cancelDownload,
@@ -27,7 +27,7 @@ const CurrentDownloadsSection = ({
   include,
 }: {
   primary: string;
-  firstActionRef?: React.RefObject<View | null>;
+  firstActionRef?: React.RefObject<HostInstance | null>;
   onFirstActionLayout?: () => void;
   include?: (item: ReturnType<typeof selectCurrentDownloads>[number]) => boolean;
 }) => {

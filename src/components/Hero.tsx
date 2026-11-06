@@ -15,9 +15,10 @@ import {
   Modal,
   Pressable,
   View,
-  findNodeHandle,
   Keyboard,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle} from '../lib/tv/focus';
 import {extractImageAccent} from '../lib/imageAccent';
 import LinearGradient from 'react-native-linear-gradient';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
@@ -102,7 +103,7 @@ const useAppActive = () => {
 };
 
 const HeroTopButton = React.forwardRef<
-  View,
+  HostInstance,
   {
     disabled?: boolean;
     icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -206,9 +207,9 @@ const Hero = memo(
     const [searchButtonColor, setSearchButtonColor] = useState('#FFFFFF');
     const [loadedImageUri, setLoadedImageUri] = useState('');
     const searchFieldRef = useRef<SearchFieldRef>(null);
-    const hamburgerRef = useRef<View>(null);
-    const searchRef = useRef<View>(null);
-    const watchNowRef = useRef<View>(null);
+    const hamburgerRef = useRef<HostInstance>(null);
+    const searchRef = useRef<HostInstance>(null);
+    const watchNowRef = useRef<HostInstance>(null);
 
     const [hamburgerNode, setHamburgerNode] = useState<number | null>(null);
     const [searchNode, setSearchNode] = useState<number | null>(null);
@@ -217,7 +218,7 @@ const Hero = memo(
     const updateHamburgerNode = useCallback(() => {
       if (!isTV) return;
       if (hamburgerRef.current) {
-        const handle = findNodeHandle(hamburgerRef.current);
+        const handle = getNodeHandle(hamburgerRef.current);
         if (handle) setHamburgerNode(handle);
       }
     }, []);
@@ -225,7 +226,7 @@ const Hero = memo(
     const updateSearchNode = useCallback(() => {
       if (!isTV) return;
       if (searchRef.current) {
-        const handle = findNodeHandle(searchRef.current);
+        const handle = getNodeHandle(searchRef.current);
         if (handle) setSearchNode(handle);
       }
     }, []);
@@ -233,7 +234,7 @@ const Hero = memo(
     const updateWatchNowNode = useCallback(() => {
       if (!isTV) return;
       if (watchNowRef.current) {
-        const handle = findNodeHandle(watchNowRef.current);
+        const handle = getNodeHandle(watchNowRef.current);
         if (handle) setWatchNowNode(handle);
       }
     }, []);

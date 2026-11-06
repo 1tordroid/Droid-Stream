@@ -1,4 +1,5 @@
-import {ActivityIndicator, Image, View, StatusBar, ToastAndroid, UIManager, findNodeHandle} from 'react-native';
+import {ActivityIndicator, Image, View, StatusBar, ToastAndroid, type HostInstance} from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../lib/tv/focus';
 import {RawText as Text} from './ui/Text';
 import React from 'react';
 import {useState} from 'react';
@@ -35,7 +36,7 @@ const Tutorial = () => {
     !installedProviders ||
     installedProviders.length === 0;
   const [showTutorial, setShowTutorial] = useState<boolean>(hasNoProvider);
-  const installButtonRef = React.useRef<View>(null);
+  const installButtonRef = React.useRef<HostInstance>(null);
 
   // A fresh TV install can leave native focus on the full-screen React root.
   // Request focus after the tutorial button has mounted so the first D-pad
@@ -44,9 +45,9 @@ const Tutorial = () => {
     React.useCallback(() => {
       if (!isTV || !showTutorial) return;
       const timer = setTimeout(() => {
-        const handle = findNodeHandle(installButtonRef.current);
+        const handle = getNodeHandle(installButtonRef.current);
         if (handle) {
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          requestTVFocusByHandle(handle);
         }
       }, 450);
       return () => clearTimeout(timer);
@@ -67,14 +68,12 @@ const Tutorial = () => {
     }
   }, [installedProviders, currentProvider]);
 
-  // Handle status bar color
+  // Light status bar icons on the dark tutorial screens
   useFocusEffect(
     React.useCallback(() => {
-      StatusBar.setBackgroundColor('#121212');
       StatusBar.setBarStyle('light-content');
 
       return () => {
-        StatusBar.setBackgroundColor('#121212');
         StatusBar.setBarStyle('light-content');
       };
     }, []),

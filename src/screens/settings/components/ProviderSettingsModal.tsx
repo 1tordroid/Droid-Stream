@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import {ActivityIndicator, Animated, BackHandler, Easing, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, ToastAndroid, View, findNodeHandle, useWindowDimensions} from 'react-native';
+import {ActivityIndicator, Animated, BackHandler, Easing, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, ToastAndroid, View, useWindowDimensions, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { providerManager } from '../../../lib/services/ProviderManager';
@@ -33,7 +34,7 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
   const colors = useM3Colors();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const closeRef = React.useRef<View>(null);
+  const closeRef = React.useRef<HostInstance>(null);
   const [closeHandle, setCloseHandle] = useState<number | null>(null);
   const [fields, setFields] = useState<SettingsField[]>([]);
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -551,7 +552,7 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
               </View>
               <TVFocusable
                 ref={closeRef}
-                onLayout={() => setCloseHandle(findNodeHandle(closeRef.current))}
+                onLayout={() => setCloseHandle(getNodeHandle(closeRef.current))}
                 hasTVPreferredFocus={isTV}
                 onPress={onClose}
                 accessibilityRole="button"

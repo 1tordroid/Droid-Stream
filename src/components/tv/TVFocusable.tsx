@@ -8,8 +8,9 @@ import {
   ViewStyle,
   StyleProp,
   StyleSheet,
-  findNodeHandle,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle} from '../../lib/tv/focus';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -60,7 +61,7 @@ export interface TVFocusableProps {
   onLayout?: (event: RN.LayoutChangeEvent) => void;
 }
 
-const TVFocusableImpl = React.forwardRef<View, TVFocusableProps>(
+const TVFocusableImpl = React.forwardRef<HostInstance, TVFocusableProps>(
   (
     {
       children,
@@ -93,8 +94,8 @@ const TVFocusableImpl = React.forwardRef<View, TVFocusableProps>(
     const isNavFocused = useSafeIsNavFocused();
     const isCurrentlyFocusable = !disabled && isNavFocused;
 
-    const buttonRef = useRef<View>(null);
-    React.useImperativeHandle(forwardedRef, () => buttonRef.current as View);
+    const buttonRef = useRef<HostInstance>(null);
+    React.useImperativeHandle(forwardedRef, () => buttonRef.current as HostInstance);
     const {
       preferredFocus,
       onFocus: rememberFocus,
@@ -201,7 +202,9 @@ const TVFocusableImpl = React.forwardRef<View, TVFocusableProps>(
         accessibilityState={accessibilityState}
         style={[
           style,
-          animatedStyle,
+          // Animated only on TV. AnimatedPressable is a TV/phone union, which
+          // cannot express a Reanimated style in its style prop type.
+          animatedStyle as unknown as StyleProp<ViewStyle>,
           isFocused && focusedStyle,
           isFocused ? {zIndex: 999} : undefined,
         ]}>
@@ -235,7 +238,7 @@ export interface TVFocusGuideProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const MobileFocusable = React.forwardRef<View, TVFocusableProps>(
+const MobileFocusable = React.forwardRef<HostInstance, TVFocusableProps>(
   (props, ref) => {
     const navigation = React.useContext(NavigationContext);
     const {
@@ -287,7 +290,7 @@ const TVFocusGuideImpl: React.FC<TVFocusGuideProps> = ({
   );
   React.useLayoutEffect(() => {
     const next = (destinations || [])
-      .map(ref => (ref.current ? findNodeHandle(ref.current) : null))
+      .map(ref => (ref.current ? getNodeHandle(ref.current) : null))
       .filter((handle): handle is number => handle != null);
     setDestinationHandles(previous =>
       previous.length === next.length &&

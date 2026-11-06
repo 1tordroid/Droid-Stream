@@ -1,6 +1,23 @@
 const fs = require('fs');
 const path = require('path');
-const { withDangerousMod } = require('expo/config-plugins');
+const { withDangerousMod, withGradleProperties } = require('expo/config-plugins');
+
+// AGP 9 reads a bare "-keep class X" rule strictly: X's default constructor is
+// no longer kept. Many library consumer rules rely on it (Room in WorkManager
+// 2.8, Notifee, Firebase and ML Kit component registrars, expo-modules-core),
+// and release builds then crash at start with "Failed to create an instance
+// of class androidx.work.impl.WorkDatabase". Keep the AGP 8 reading until
+// those libraries ship explicit constructor rules (AGP 10 drops this switch).
+const STRICT_KEEP_RULES = 'android.r8.strictFullModeForKeepRules';
+
+const withLenientKeepRules = config =>
+  withGradleProperties(config, cfg => {
+    cfg.modResults = cfg.modResults.filter(
+      item => !(item.type === 'property' && item.key === STRICT_KEEP_RULES),
+    );
+    cfg.modResults.push({ type: 'property', key: STRICT_KEEP_RULES, value: 'false' });
+    return cfg;
+  });
 
 const RULES = `
 # Add any project specific keep options here:
@@ -33,6 +50,7 @@ const SMB_RULES = `
 `;
 
 module.exports = function withProguardRules(config) {
+  config = withLenientKeepRules(config);
   return withDangerousMod(config, [
     'android',
     async (cfg) => {

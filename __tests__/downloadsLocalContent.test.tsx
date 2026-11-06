@@ -94,7 +94,6 @@ jest.mock('../src/lib/zustand/downloadsStore', () => ({
 
 import Downloads from '../src/screens/downloads/Downloads';
 import useLocalContentStore from '../src/lib/zustand/localContentStore';
-import {localContentLink} from '../src/lib/localContent/library';
 
 const localTitle = (id: string, name: string, extra = {}) => ({
   id,

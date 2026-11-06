@@ -9,11 +9,20 @@ const proxyApiUrl =
 module.exports = () => {
   const IS_PLAYSTORE = process.env.APP_VARIANT === 'playstore';
   const IS_TV = process.env.EXPO_TV === '1' || process.env.APP_VARIANT === 'tv';
+  // Local test builds that install beside the release app, so an update can
+  // be tested without touching the installed app or its data.
+  const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
+  const APP_NAME = IS_PREVIEW ? 'Droid Stream Preview' : 'Droid Stream';
   // Distinct from Vega (com.vega / vega.app) so both apps can be installed.
-  // The Play build drops REQUEST_INSTALL_PACKAGES, so it uses its own id.
+  // The Play build drops REQUEST_INSTALL_PACKAGES, so it uses its own id. The
+  // preview gets its own package as well (not just an application id suffix):
+  // launcher aliases, the video player alias and notification taps build class
+  // names from the package, so the code namespace must match it.
   const PACKAGE_NAME = IS_PLAYSTORE
     ? 'com.tordroid.droidstream.play'
-    : 'com.tordroid.droidstream';
+    : IS_PREVIEW
+      ? 'com.tordroid.droidstream.preview'
+      : 'com.tordroid.droidstream';
   const plugins = [
     './plugins/with-custom-native-modules.js',
       [
@@ -77,6 +86,11 @@ module.exports = () => {
           // libtorrent4j's native library is built for API 28 and calls libc
           // functions (getentropy, aligned_alloc) missing before Android 9.
           minSdkVersion: 28,
+          // Windows only. React Native 0.88's codegen object paths pass 260
+          // characters, and the Ninja in the default CMake 3.22.1 cannot open
+          // them. CMake 3.31.6 ships Ninja 1.12, which can when Windows long
+          // paths are on. Linux CI keeps the default CMake.
+          ...(process.platform === 'win32' ? {cmakeVersion: '3.31.6'} : {}),
           usePrecompiledHeaders: true,
           // ByeDPI and WARP run bundled binaries from nativeLibraryDir, so the
           // .so files must be extracted on install.
@@ -113,12 +127,6 @@ module.exports = () => {
     ],
 
     [
-      'expo-dev-client',
-      {
-        launchMode: 'most-recent',
-      },
-    ],
-    [
       'expo-font',
       {fonts: ['./assets/fonts/Inter_400Regular.ttf', './assets/fonts/Inter_500Medium.ttf', './assets/fonts/Inter_700Bold.ttf', './assets/fonts/Inter_800ExtraBold.ttf', './assets/fonts/Inter_400Regular_bold.ttf', './assets/fonts/Inter_500Medium_bold.ttf', './assets/fonts/Inter_700Bold_bold.ttf', './assets/fonts/Inter_800ExtraBold_bold.ttf', './assets/fonts/Inter_400Regular_italic.ttf', './assets/fonts/Inter_400Regular_bold_italic.ttf']},
     ],
@@ -137,7 +145,7 @@ module.exports = () => {
   ];
   return {
     expo: {
-      name: 'Droid Stream',
+      name: APP_NAME,
       // com.vega, vegaapp, and vega-cast stay so existing provider, share,
       // and Vega Cast links still open this install.
       scheme: [
@@ -147,21 +155,21 @@ module.exports = () => {
         'vegaapp',
         'vega-cast',
       ],
-      displayName: 'Droid Stream',
+      displayName: APP_NAME,
       jsEngine: 'hermes',
       newArchEnabled: true,
       autolinking: {exclude: ['expo-splash-screen']},
       plugins,
       slug: 'droid-stream',
       icon: './assets/icon.png',
-      version: '5.3.4',
+      version: '5.4.0',
       userInterfaceStyle: 'dark',
       experiments: {
         reactCompiler: true,
       },
       android: {
         package: PACKAGE_NAME,
-        versionCode: 219,
+        versionCode: 220,
         permissions: [
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',

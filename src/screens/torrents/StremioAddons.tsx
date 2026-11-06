@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {ActivityIndicator, Clipboard, Image, Linking, ScrollView, Switch, View} from 'react-native';
+import {ActivityIndicator, Image, Linking, ScrollView, Switch, View} from 'react-native';
+import {readText} from '../../lib/clipboard';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
@@ -85,7 +86,7 @@ const StremioAddons = () => {
         <TextInput accessibilityLabel="Add-on URL" value={url} onChangeText={setUrl} placeholder="https://…/manifest.json or stremio://…" placeholderTextColor={colors.outline}
           autoCapitalize="none" autoCorrect={false} style={{color: colors.onSurface, minHeight: 48, borderBottomWidth: 1, borderColor: colors.outlineVariant}} />
         <View style={{flexDirection: 'row', gap: 8, marginTop: 8}}>
-          <Chip label="Paste" icon="clipboard-text" onPress={async () => setUrl(await Clipboard.getString())} />
+          <Chip label="Paste" icon="clipboard-text" onPress={async () => setUrl(await readText())} />
           <Chip label="Add" icon="plus" onPress={() => add(url)} />
           {busy ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
@@ -138,7 +139,7 @@ const StremioAddons = () => {
         <TextInput accessibilityLabel="Plugin repository URL" value={repoUrl} onChangeText={setRepoUrl} placeholder="https://…/manifest.json" placeholderTextColor={colors.outline}
           autoCapitalize="none" autoCorrect={false} style={{color: colors.onSurface, minHeight: 48, borderBottomWidth: 1, borderColor: colors.outlineVariant}} />
         <View style={{flexDirection: 'row', gap: 8, marginTop: 8}}>
-          <Chip label="Paste" icon="clipboard-text" accessibilityLabel="Paste repository URL" onPress={async () => setRepoUrl(await Clipboard.getString())} />
+          <Chip label="Paste" icon="clipboard-text" accessibilityLabel="Paste repository URL" onPress={async () => setRepoUrl(await readText())} />
           <Chip label="Add repository" icon="plus" onPress={() => addRepo(repoUrl)} />
           {busy ? <ActivityIndicator color={colors.primary} /> : null}
         </View>

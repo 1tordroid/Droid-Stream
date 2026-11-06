@@ -10,7 +10,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
-import {DeviceEventEmitter, NativeModules, Platform, ToastAndroid, View} from 'react-native';
+import {DeviceEventEmitter, NativeModules, Platform, ToastAndroid, View, type HostInstance} from 'react-native';
 import {settingsStorage} from '../../lib/storage';
 import {useFocusEffect} from '@react-navigation/native';
 import * as Brightness from 'expo-brightness';
@@ -114,7 +114,7 @@ const AnimatedVideoPlayer = (
     skips,
   } = props;
 
-  const localVideoView = useRef<View>(null);
+  const localVideoView = useRef<HostInstance>(null);
   const ambientView = props.nativeVideoViewRef || localVideoView;
   const [ambientConfig, setAmbientConfig] = useState(() => ({enabled: settingsStorage.isAmbientVideoEnabled(), intensity: settingsStorage.getAmbientIntensity(), spread: settingsStorage.getAmbientSpread(), responseMs: settingsStorage.getAmbientResponseMs()}));
   const [ambientViewport, setAmbientViewport] = useState({width: 0, height: 0});

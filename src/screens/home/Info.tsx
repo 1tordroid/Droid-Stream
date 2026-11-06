@@ -12,10 +12,10 @@ import {
   Linking,
   RefreshControl,
   ToastAndroid,
-  UIManager,
   View,
-  findNodeHandle,
+  type HostInstance,
 } from 'react-native';
+import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {HomeStackParamList, TabStackParamList} from '../../App';
 import {isSafeExternalUrl} from '../../lib/sandbox/urlGuard';
@@ -83,10 +83,10 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
   const [readMore, setReadMore] = useState(false);
   const [storyVisible, setStoryVisible] = useState(false);
   const screenFocused = useIsFocused();
-  const backButtonRef = useRef<View>(null);
+  const backButtonRef = useRef<HostInstance>(null);
   const registerBackFocus = useCallback(() => {
     if (!isTV || !screenFocused) return;
-    const handle = findNodeHandle(backButtonRef.current);
+    const handle = getNodeHandle(backButtonRef.current);
     if (handle) useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
   }, [screenFocused]);
 
@@ -95,14 +95,14 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     // The back button takes first focus through hasTVPreferredFocus. On return
     // from Player, the focused episode restores itself, so do not move focus.
     return () => {
-      const handle = findNodeHandle(backButtonRef.current);
+      const handle = getNodeHandle(backButtonRef.current);
       const store = useTVNavigationStore.getState();
       if (handle && store.activeScreenFocusHandle === handle) {
         store.setActiveScreenFocusHandle(null);
       }
     };
   }, []));
-  const exploreRef = useRef<View>(null);
+  const exploreRef = useRef<HostInstance>(null);
   const playRef = useRef<(() => boolean) | null>(null);
   const playMain = useCallback(() => {
     if (!playRef.current?.()) ToastAndroid.show('Still loading. Try again in a moment.', ToastAndroid.SHORT);
@@ -111,9 +111,9 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     setStoryVisible(false);
     if (isTV) {
       setTimeout(() => {
-        const handle = findNodeHandle(exploreRef.current);
+        const handle = getNodeHandle(exploreRef.current);
         if (handle) {
-          UIManager.dispatchViewManagerCommand(handle, 'requestTVFocus', []);
+          requestTVFocusByHandle(handle);
         }
       }, 100);
     }
@@ -194,7 +194,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     setRefreshVersion(version => version + 1);
     return Promise.race([
       refetch(),
-      new Promise(resolve => setTimeout(resolve, 10000)),
+      new Promise<void>(resolve => setTimeout(resolve, 10000)),
     ]).catch(cause => {
       ToastAndroid.show(cause instanceof Error ? cause.message : 'Unable to refresh this title', ToastAndroid.LONG);
     }).finally(() => {

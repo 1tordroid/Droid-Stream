@@ -1,7 +1,8 @@
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useMemo, useState} from 'react';
-import {Image, Linking, View, findNodeHandle} from 'react-native';
+import {Image, Linking, View, type HostInstance} from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import LinearGradient from 'react-native-linear-gradient';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import SkeletonLoader from '../../../components/Skeleton';
@@ -20,10 +21,10 @@ interface ContentOverviewProps {
   logo?: string;
   onBack: () => void;
   onOpenMenu?: () => void;
-  backButtonRef?: React.RefObject<View | null>;
+  backButtonRef?: React.RefObject<HostInstance | null>;
   onBackButtonLayout?: () => void;
   onOpenStory?: () => void;
-  exploreRef?: React.RefObject<View | null>;
+  exploreRef?: React.RefObject<HostInstance | null>;
   onOpenWeb?: () => void;
   onSearchTitle: () => void;
   /** Opens Find streams: Stremio add-ons, torrent sites, and debrid caches. */
@@ -56,7 +57,7 @@ const HeaderIconButton = ({
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   onPress: () => void;
-  focusRef?: React.RefObject<View | null>;
+  focusRef?: React.RefObject<HostInstance | null>;
   onLayout?: () => void;
   preferredFocus?: boolean;
 }) => {
@@ -68,7 +69,7 @@ const HeaderIconButton = ({
       onLayout={onLayout}
       onFocus={() => {
         if (isTV && focusRef?.current) {
-          const handle = findNodeHandle(focusRef.current);
+          const handle = getNodeHandle(focusRef.current);
           if (handle) useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
         }
       }}
@@ -96,7 +97,7 @@ const InfoAction = ({
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   onPress: () => void;
-  focusRef?: React.RefObject<View | null>;
+  focusRef?: React.RefObject<HostInstance | null>;
 }) => {
   const colors = useM3Colors();
 
@@ -105,7 +106,7 @@ const InfoAction = ({
       ref={focusRef}
       onFocus={() => {
         if (isTV && focusRef?.current) {
-          const handle = findNodeHandle(focusRef.current);
+          const handle = getNodeHandle(focusRef.current);
           if (handle) {
             useTVNavigationStore.getState().setActiveScreenFocusHandle(handle);
           }

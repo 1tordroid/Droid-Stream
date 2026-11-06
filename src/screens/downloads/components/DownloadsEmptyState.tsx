@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
-import {View, findNodeHandle} from 'react-native';
+import {View} from 'react-native';
+import {getNodeHandle} from '../../../lib/tv/focus';
 import {TVFocusable} from '../../../components/tv';
 import AppText from '../../../components/ui/Text';
 import {isTV} from '../../../lib/tv';
@@ -47,7 +48,7 @@ export const DownloadsEmptyState: React.FC<DownloadsEmptyStateProps> = ({
           onPress={onExplore}
           onFocus={() => {
             if (exploreButtonRef?.current) {
-              const handle = findNodeHandle(exploreButtonRef.current);
+              const handle = getNodeHandle(exploreButtonRef.current);
               if (handle) {
                 useTVNavigationStore
                   .getState()
