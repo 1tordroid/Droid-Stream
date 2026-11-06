@@ -3329,7 +3329,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +    static {
 +        boolean available = false;
 +        try {
-+            available = androidx.media3.decoder.ffmpeg.FfmpegLibrary.isAvailable();
++            available = Boolean.TRUE.equals(Class.forName("androidx.media3.decoder.ffmpeg.FfmpegLibrary").getMethod("isAvailable").invoke(null));
 +        } catch (NoClassDefFoundError | Exception ignored) {}
 +        FFMPEG_AUDIO_AVAILABLE = available;
 +    }
