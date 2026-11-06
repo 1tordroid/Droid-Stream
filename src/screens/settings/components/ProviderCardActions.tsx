@@ -1,12 +1,7 @@
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import React, {useEffect, useRef} from 'react';
-import {
-  ActivityIndicator,
-  findNodeHandle,
-  Text,
-  UIManager,
-  View,
-} from 'react-native';
+import {ActivityIndicator, findNodeHandle, UIManager, View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import {isTV} from '../../../lib/tv';
 import {TVFocusable, TVFocusGuide} from '../../../components/tv';
 import {useM3Colors} from '../../../theme/M3PaletteContext';

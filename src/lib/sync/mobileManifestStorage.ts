@@ -22,7 +22,7 @@ const listDirectory = (uri: string): Promise<DirectoryEntry[]> => {
     | {listDirectory?: (directory: string) => Promise<DirectoryEntry[]>}
     | undefined;
   if (!storage?.listDirectory) {
-    throw new Error('Update Vega to enable safe sync folder lookup');
+    throw new Error('Update Droid Stream to enable safe sync folder lookup');
   }
   return storage.listDirectory(uri);
 };
@@ -38,7 +38,7 @@ const createDocument = (uri: string, name: string, directory: boolean) => {
       }
     | undefined;
   if (!storage?.createDocument) {
-    throw new Error('Update Vega to enable safe sync document creation');
+    throw new Error('Update Droid Stream to enable safe sync document creation');
   }
   return storage.createDocument(uri, name, directory);
 };
@@ -161,7 +161,7 @@ const writeMobileSyncManifestNow = async (
   }
   const directory = await getSyncDirectory(location, true);
   if (!directory) {
-    throw new Error('Unable to create Vega sync directory');
+    throw new Error('Unable to create the sync directory');
   }
   const fileName = `vega-${manifest.deviceId}.json`;
   const existing = await findChild(directory, fileName, 'file');
@@ -178,12 +178,12 @@ const writeMobileSyncManifestNow = async (
     | {writeManifest: (uri: string, text: string) => Promise<void>}
     | undefined;
   if (!writer)
-    throw new Error('Update Vega to enable safe sync document writes');
+    throw new Error('Update Droid Stream to enable safe sync document writes');
   await writer.writeManifest(fileUri, content);
   const written =
     await FileSystem.StorageAccessFramework.readAsStringAsync(fileUri);
   if (written !== content || !parseSyncManifest(written)) {
-    throw new Error('Vega sync manifest verification failed');
+    throw new Error('Sync manifest verification failed');
   }
   return true;
 };

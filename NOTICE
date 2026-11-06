@@ -15,3 +15,19 @@ respective authors; see the git history for attribution.
 
 This software includes third-party libraries, such as FFmpeg, libtorrent and
 React Native, under their own licenses.
+
+The optional VLC playback engine dynamically links libVLC and the VLC for
+Android media library, both under the GNU Lesser General Public License
+version 2.1. Droid Stream does not modify those libraries. Their source is
+available from VideoLAN (https://www.videolan.org/).
+
+SMB browsing uses SMBJ (com.hierynomus:smbj) under the Apache License 2.0.
+Credentials for network sources are kept in an encrypted on-device store.
+
+Direct magnet playback and the Torrents tab use one libtorrent session
+through libtorrent4j (org.libtorrent4j:libtorrent4j), both under the BSD
+3-Clause License. The stream is served to the player from http://127.0.0.1
+only. Seeding is off unless the user turns it on. NanoHTTPD
+(org.nanohttpd:nanohttpd) serves that local stream under the BSD license.
+OkHttp (com.squareup.okhttp3:okhttp), Apache License 2.0, performs the
+segmented downloads.

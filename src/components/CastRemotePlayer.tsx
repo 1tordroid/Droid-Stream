@@ -1,12 +1,6 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import {
-  ImageBackground,
-  LayoutChangeEvent,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ImageBackground, LayoutChangeEvent, Pressable, TouchableOpacity, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import GoogleCast, {
   CastButton,
@@ -179,7 +173,7 @@ const CastRemotePlayer = ({
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-white text-lg font-semibold" numberOfLines={1}>
-              {title || 'Vega'}
+              {title || 'Droid Stream'}
             </Text>
             {!!subtitle && (
               <Text className="text-white/65 text-xs mt-0.5" numberOfLines={1}>

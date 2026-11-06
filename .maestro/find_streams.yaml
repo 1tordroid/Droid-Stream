@@ -1,0 +1,16 @@
+appId: com.tordroid.droidstream
+name: Find streams identifies a title and lists sources
+tags: [streams, phone]
+---
+- runFlow: _launch.yaml
+- tapOn: "Torrents"
+- tapOn: "Find streams"
+- tapOn: "Title to find"
+- inputText: "Big Buck Bunny"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Big Buck Bunny.*"
+    timeout: 30000
+- takeScreenshot: find_streams
+- tapOn: "Stremio add-ons"
+- assertVisible: "Popular add-ons"

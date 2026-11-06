@@ -1,103 +1,129 @@
-![vega-high-resolution-logo-transparent](https://github.com/Zenda-Cross/vega-app/assets/143804558/b2eb446f-8e7f-4800-81e1-3320c82f33de)
+![Droid Stream](assets/brand/logo.png)
 
-# Vega-App
-Android app for streaming and casting media.
+# Droid Stream
+
+Android app for streaming and casting media, built by **Tordroid**. Universal Labs is the tagline.
+
+Based on Vega by [vega-org](https://github.com/vega-org/vega-app).
+
+- Website: https://tordroid.com
+- Support: https://t.me/Tordroid_admin
+- Releases: https://github.com/1tordroid/Droid-Stream/releases
+
+Droid Stream installs beside the original Vega app. Its Android application id is `com.tordroid.droidstream` (Play builds use `com.tordroid.droidstream.play`).
+
 ### Features
-- Stream and Download.
-- Cast support: Google Cast/DLNA with custom remuxer supports embedded audio and sub track change support.
-- WatchList.
-- External player and Downloader support.
-- Sync with desktop app
-- Create custom plugins.
-<br>
+- Stream and download with the same provider plugins Vega runs.
+- Torrents: search many sites at once, stream while downloading, open magnets and `.torrent` files from other apps, RSS feeds, and schedule, Wi-Fi and VPN rules.
+- Debrid and cloud: TorBox, Real-Debrid, AllDebrid, Premiumize, Offcloud, Debrid-Link and PikPak.
+- Stremio add-ons such as Torrentio, Comet, MediaFusion and OpenSubtitles, with one ranked stream list and Play best.
+- Your own servers: SMB, WebDAV, Jellyfin, Emby and Plex.
+- Built-in player or VLC, skip intro and credits (AniSkip for anime), and subtitles matched by file hash.
+- Watch sync with Trakt, Simkl and AniList.
+- Multi-connection downloader with a queue, HLS downloads and checksum checks.
+- Cast support: Google Cast/DLNA, plus Vega Cast so existing Vega receivers still pair.
+- Watch list, Library and a local video library with posters.
+- External player and downloader support.
+- Sync with the Vega desktop app.
+- In-app updates from this repository's GitHub Releases.
 
-[![Discord](https://custom-icon-badges.demolab.com/badge/-Join_Discord-6567a5?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/cr42m6maWy)
+## Plugins
 
-___
+Droid Stream runs the provider extensions Vega runs. The rebrand does not change the module shape, the sandbox, or the identifiers those plugins already use.
 
-## Download ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/vega-org/vega-app/total?link=https%3A%2F%2Fgithub.com%2Fvega-org%2Fvega-app%2Freleases&label=Github%20Downloads)
-<!-- > <sub>Download Universal version if you are confused about armeabi-v7a or arm64-v8a or follow this guide https://vega.8man.in/guide/.</sub> -->
+On a fresh install the default source is the official catalog. In **Settings → Extensions**, add `vega-org` (or paste `https://github.com/vega-org/vega-providers`). That resolves to:
 
-<a href="https://play.google.com/store/apps/details?id=vega.app">
-  <img src="https://appure.io/badges/playstore/en.svg" width="200" alt="Get it on Google Play">
-</a>
+`https://raw.githubusercontent.com/vega-org/vega-providers/refs/heads/main`
 
-[![Download Apk](https://custom-icon-badges.demolab.com/badge/-Download_From_Github-black?style=for-the-badge&logo=download&logoColor=white)](https://github.com/vega-org/vega-app/releases/latest)
+Short names keep Vega's repository name, so the same author still works on GitHub, Codeberg (`author@cb`), Bitbucket (`author@bb`), and GitLab (`author@gl`). A full repo URL or any other `http`/`https` link to a `manifest.json` adds a custom source. Private GitHub sources and custom manifest URLs can take an access token. Other people can also send a source with the intent action `vega.intent.action.ADD_SOURCE` (a `url` extra, and an optional `token` extra).
 
-[![Download Apk](https://custom-icon-badges.demolab.com/badge/-Website-tomato?style=for-the-badge&logo=download&logoColor=white)](https://vega-app.in/#mobile)
+The app downloads `manifest.json` from the source, then each provider's files:
 
-## Vega for Desktop 
-https://github.com/vega-org/vega-desktop
+| File | Required | Export |
+| --- | --- | --- |
+| `posts.js` | yes | `getPosts`, `getSearchPosts` |
+| `meta.js` | yes | `getMeta` |
+| `stream.js` | yes | `getStream` |
+| `catalog.js` | yes | `catalog`, `genres` |
+| `episodes.js` | no | `getEpisodes` |
+| `settings.js` | no | `getSettingsSchema` |
 
-## Vega for Web
-https://web.vega-app.in
+Files live in `dist/{value}/` unless the manifest entry sets a relative `path`. Each function receives `providerContext` (`axios`, `cheerio`, `Crypto`, `commonHeaders`, `getBaseUrl`, `openWebView`, `getCookies`, `kvStore`). A module may start with the Vega version header, which is still checked as-is:
 
+```js
+// @vega-provider myProvider
+// @vega-version 1.0.0
+```
 
-<br>
+These stay compatible with existing plugins and are not renamed:
 
-##
-<!--  ![Screenshots](https://github.com/user-attachments/assets/b86af756-e66e-4ae7-b2af-61b25cfd8d4e) -->
-<!--<img width="2712" height="1220" alt="Screenshot_2026-08-11-20-07-17-817_com vega" src="https://github.com/user-attachments/assets/e7de4085-fcb1-4504-92e3-a4f011adc879" /> -->
-Play any local or remote video
-<img width="2946" height="1324" alt="Untitled design" src="https://github.com/user-attachments/assets/76b6adee-861d-4cc9-88c7-d029d0ab2137" />
+- Provider storage keys (`providerSources`, `installedProviders`, `providerModules`, and the `provider_kv` / `provider_cookies` stores).
+- Deep links `com.vega://`, `vegaapp://`, and `vega-cast://`, in addition to `droidstream://`.
+- The add-source intent action `vega.intent.action.ADD_SOURCE`.
+- Backup files still use `"app": "vega"` so a Vega provider backup restores here.
+- Sync with Vega desktop still uses the `.vega-sync` folder and `vega-phone.json`.
+- Vega Cast still speaks the `vega-cast:` protocol and the public cast service.
 
+## Updates
 
+On launch, and from **Settings → About → Check for updates**, the app reads the latest stable release of `1tordroid/Droid-Stream` and compares its `vX.Y.Z` tag with the installed version. A newer release opens a dialog with the changelog. **Download and install** saves the APK and starts Android's package installer, asking for permission to install unknown apps when that is turned off. **Skip this version** hides that tag on later automatic checks. Checking again from Settings still shows it.
 
-___
+The release APK is chosen by filename: `mobile` on a phone, `tv` on Android TV, then `universal`, then any `.apk`. The tag workflow publishes one file named `DroidStream-universal-vX.Y.Z.apk`, which both builds accept. Play builds do not include the installer permission, so they hide this updater.
 
-## Stack
-<p align="left">
-     
-[![React-Native](https://custom-icon-badges.demolab.com/badge/-React_Native-287aad?style=for-the-badge&logo=react&logoColor=white)](https://reactnative.dev/)
-[![TypeScript](https://custom-icon-badges.demolab.com/badge/Typescript-3078C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![NativeWind](https://custom-icon-badges.demolab.com/badge/Native_Wind-0CA6E9?style=for-the-badge&logo=tailwind&logoColor=white)](https://www.nativewind.dev/)
-[![React-Navigation](https://custom-icon-badges.demolab.com/badge/React_Navigation-6838d9?style=for-the-badge&logo=menu&logoColor=white)](https://reactnavigation.org/)
-[![Expo-Modules](https://custom-icon-badges.demolab.com/badge/Expo_Modules-black?style=for-the-badge&logo=expo&logoColor=white)](https://docs.expo.dev/modules/overview/)
-[![React-Native-Video](https://custom-icon-badges.demolab.com/badge/React_native_video-38d9c9?style=for-the-badge&logo=video&logoColor=white)](https://thewidlarzgroup.github.io/react-native-video/)
-[![MMKV-Storage](https://custom-icon-badges.demolab.com/badge/MMKV_Storage-yellow?style=for-the-badge&logo=zap&logoColor=white)](https://github.com/mrousavy/react-native-mmkv)
+Pushing a tag such as `v5.3.3` runs `.github/workflows/release.yml`, which builds a signed release APK and publishes it on that GitHub Release. The tag must be higher than the version in `app.config.js` (`version` / `versionCode`).
 
+### Release signing
 
+The release workflow fails closed until these repository secrets exist. It will not publish an APK signed with the debug key.
 
-</p>
+| Secret | Purpose |
+| --- | --- |
+| `KEYSTORE_BASE64` | Base64 of the upload keystore (`base64 -w 0 your.keystore`) |
+| `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Key alias |
+| `KEY_PASSWORD` | Key password |
+| `TMDB_API_KEY` | Optional. Bundled TMDB key. Users can set their own in Settings. |
+| `PROXY_API_URL` | Optional. Metadata proxy URL baked into the build. |
 
-## Build and Dev
-0. Set-up React Native environment if you haven't already. [Guide](https://reactnative.dev/docs/set-up-your-environment)
+Nightly and action builds read the same keystore secrets from the `nightly` GitHub environment. Keep using one upload key so updates install over previous Droid Stream releases.
 
-1. clone
-     ```bash
-     git clone https://github.com/vega-org/vega-app.git
-     ```
-     ```
-     cd vega-app
-     ```
+## Build
+
+0. Set up a React Native environment. [Guide](https://reactnative.dev/docs/set-up-your-environment)
+
+1. Clone
+
+```bash
+git clone https://github.com/1tordroid/Droid-Stream.git
+cd Droid-Stream
+```
+
 2. Install
-     ```
-     npm install
-     ```
-3. Prebuild
-   ```
-    npx expo prebuild -p android --clean
-   ```
-5. Open metro dev server
-Dev
-     ```
-     npm run android
-     ```
-Build apk/aab
-https://reactnative.dev/docs/signed-apk-android
+
+```bash
+npm install
+```
+
+3. Prebuild and run
+
+```bash
+npx expo prebuild -p android --clean
+npm run android
+```
+
+`extra.eas.projectId` in `app.config.js` is still the upstream Expo project. Replace it with a Tordroid project before using EAS.
+
+Testing on a phone, CI, the release steps and a map of the code are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+Regenerate launcher, splash, player, plugin, and website-button art with:
+
+```bash
+python3 scripts/generate-brand-assets.py
+```
 
 ---
+
 > [!IMPORTANT]
-> Vega App does not host, store, or provide any media content. It is not affiliated with or connected to any external providers or extensions. All content accessed through the app is managed and sourced directly by the user via third-party tools or integrations. Vega App has no control over it.
+> Droid Stream does not host, store, or provide any media content. It is not affiliated with or connected to any external providers or extensions. All content accessed through the app is managed and sourced directly by the user via third-party tools or integrations. Droid Stream has no control over it.
 
-
-## Leave a star if this was helpful
-
-<a href="https://www.star-history.com/?repos=vega-org%2Fvega-app&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=vega-org/vega-app&type=date&theme=dark&legend=top-left&sealed_token=ajfKjwdP9VUHI3OOuOW40FrTlJWZRFXQqjUVf51d1HcT6QFCcR2mvv8ykA_FM5u7a9rqhzNtERwdQjth0A63L5tRJ6ImisXf5ktSU4eYU-SB1m3-xp5HOQ" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=vega-org/vega-app&type=date&legend=top-left&sealed_token=ajfKjwdP9VUHI3OOuOW40FrTlJWZRFXQqjUVf51d1HcT6QFCcR2mvv8ykA_FM5u7a9rqhzNtERwdQjth0A63L5tRJ6ImisXf5ktSU4eYU-SB1m3-xp5HOQ" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=vega-org/vega-app&type=date&legend=top-left&sealed_token=ajfKjwdP9VUHI3OOuOW40FrTlJWZRFXQqjUVf51d1HcT6QFCcR2mvv8ykA_FM5u7a9rqhzNtERwdQjth0A63L5tRJ6ImisXf5ktSU4eYU-SB1m3-xp5HOQ" />
- </picture>
-</a>
-
+Droid Stream is a noncommercial fork of Vega. Vega is licensed under the PolyForm Noncommercial License 1.0.0. See `LICENSE` and `NOTICE`. Personal and other noncommercial use is free. This project does not add ads, payments, or other commercial features. Do not remove the `Required Notice:` lines.

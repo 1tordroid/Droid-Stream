@@ -16,6 +16,7 @@ export type VerificationWindowPolicy = 'ask' | 'allow' | 'block';
 export enum SettingsKeys {
   // UI preferences
   PRIMARY_COLOR = 'primaryColor',
+  THEME_MODE = 'themeMode',
   IS_CUSTOM_THEME = 'isCustomTheme',
   SHOW_TAB_BAR_LABELS = 'showTabBarLabels',
   HIDE_DOWNLOADS_TAB = 'hideDownloadsTab',
@@ -31,6 +32,7 @@ export enum SettingsKeys {
   // Update settings
   AUTO_CHECK_UPDATE = 'autoCheckUpdate',
   AUTO_DOWNLOAD = 'autoDownload',
+  SKIPPED_UPDATE_TAG = 'skippedUpdateTag',
   AUTO_UPDATE_PROVIDERS = 'autoUpdateProviders',
   VERIFICATION_WINDOWS = 'verificationWindows',
 
@@ -53,6 +55,12 @@ export enum SettingsKeys {
   FORWARD_BUFFER_MB = 'forwardBufferMB',
   BACK_BUFFER_MB = 'backBufferMB',
   SEEK_INTERVAL = 'seekInterval',
+  PLAYER_ENGINE = 'playerEngine',
+  DIRECT_TORRENT_WIFI_ONLY = 'directTorrentWifiOnly',
+  DIRECT_TORRENT_KEEP_FILE = 'directTorrentKeepFile',
+  ADVANCED_MODE = 'advancedMode',
+  TIPS_SEEN = 'tipsSeen',
+  CLIPBOARD_GRABBER = 'clipboardGrabber',
   PLAYBACK_SPEED = 'playbackSpeed',
   DEFAULT_RESIZE_MODE = 'defaultResizeMode',
   PLAYER_CONTROL_LAYOUT = 'playerControlLayout',
@@ -85,7 +93,7 @@ export enum SettingsKeys {
 
   LIST_VIEW_TYPE = 'viewType',
 
-  // Telemetry (privacy)
+  // Unused since analytics were removed; kept so older backups restore cleanly.
   TELEMETRY_OPT_IN = 'telemetryOptIn',
 
   // Metadata services
@@ -132,8 +140,8 @@ export const BUFFER_LIMITS = {
 } as const;
 /** Connections one download may open; servers that refuse extra ones lower it. */
 export const MIN_DOWNLOAD_CONNECTIONS = 1;
-export const MAX_DOWNLOAD_CONNECTIONS = 16;
-const DEFAULT_DOWNLOAD_CONNECTIONS = 4;
+export const MAX_DOWNLOAD_CONNECTIONS = 32;
+const DEFAULT_DOWNLOAD_CONNECTIONS = 8;
 
 const isValidConnectionCount = (value: number | undefined): value is number =>
   Number.isInteger(value) &&
@@ -249,7 +257,7 @@ export class SettingsStorage {
 
   // Theme settings
   getPrimaryColor(): string {
-    return mainStorage.getString(SettingsKeys.PRIMARY_COLOR) || '#FFFFFF';
+    return mainStorage.getString(SettingsKeys.PRIMARY_COLOR) || '#F5B82E';
   }
 
   setPrimaryColor(color: string): void {
@@ -276,6 +284,14 @@ export class SettingsStorage {
    * Accent source for the Material 3 palette. `wallpaper` follows Material You
    * (Android 12+), `custom` derives the palette from the stored seed color.
    */
+  getThemeMode(): 'amoled' | 'dark' {
+    return mainStorage.getString(SettingsKeys.THEME_MODE) === 'dark' ? 'dark' : 'amoled';
+  }
+
+  setThemeMode(mode: 'amoled' | 'dark'): void {
+    mainStorage.setString(SettingsKeys.THEME_MODE, mode);
+  }
+
   getAccentSource(): 'wallpaper' | 'custom' {
     return mainStorage.getString(SettingsKeys.ACCENT_SOURCE) === 'wallpaper'
       ? 'wallpaper'
@@ -374,6 +390,15 @@ export class SettingsStorage {
 
   setAutoDownloadEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.AUTO_DOWNLOAD, enabled);
+  }
+
+  /** GitHub release tag the user chose to ignore, for example `v5.4.0`. */
+  getSkippedUpdateTag(): string | undefined {
+    return mainStorage.getString(SettingsKeys.SKIPPED_UPDATE_TAG);
+  }
+
+  setSkippedUpdateTag(tag: string): void {
+    mainStorage.setString(SettingsKeys.SKIPPED_UPDATE_TAG, tag);
   }
 
   // Player settings
@@ -495,6 +520,57 @@ export class SettingsStorage {
   getSeekInterval(): number {
     const value = mainStorage.getNumber(SettingsKeys.SEEK_INTERVAL);
     return isValidSeekInterval(value) ? value : DEFAULT_SEEK_INTERVAL;
+  }
+
+  getPlayerEngine(): 'builtin' | 'vlc' {
+    return mainStorage.getString(SettingsKeys.PLAYER_ENGINE) === 'vlc'
+      ? 'vlc'
+      : 'builtin';
+  }
+
+  setPlayerEngine(engine: 'builtin' | 'vlc'): void {
+    mainStorage.setString(SettingsKeys.PLAYER_ENGINE, engine);
+  }
+
+  isDirectTorrentWifiOnly(): boolean {
+    return mainStorage.getBool(SettingsKeys.DIRECT_TORRENT_WIFI_ONLY, true);
+  }
+
+  setDirectTorrentWifiOnly(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.DIRECT_TORRENT_WIFI_ONLY, enabled);
+  }
+
+  keepDirectTorrentFile(): boolean {
+    return mainStorage.getBool(SettingsKeys.DIRECT_TORRENT_KEEP_FILE, false);
+  }
+
+  setKeepDirectTorrentFile(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.DIRECT_TORRENT_KEEP_FILE, enabled);
+  }
+
+  isAdvancedMode(): boolean {
+    return mainStorage.getBool(SettingsKeys.ADVANCED_MODE, false);
+  }
+
+  setAdvancedMode(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.ADVANCED_MODE, enabled);
+  }
+
+  hasSeenTips(): boolean {
+    return mainStorage.getBool(SettingsKeys.TIPS_SEEN, false);
+  }
+
+  setTipsSeen(): void {
+    mainStorage.setBool(SettingsKeys.TIPS_SEEN, true);
+  }
+
+  clipboardGrabber(): 'ask' | 'on' | 'off' {
+    const value = mainStorage.getString(SettingsKeys.CLIPBOARD_GRABBER);
+    return value === 'on' || value === 'off' ? value : 'ask';
+  }
+
+  setClipboardGrabber(value: 'ask' | 'on' | 'off'): void {
+    mainStorage.setString(SettingsKeys.CLIPBOARD_GRABBER, value);
   }
 
   setSeekInterval(seconds: number): void {
@@ -793,15 +869,6 @@ export class SettingsStorage {
 
   setListViewType(type: number): void {
     mainStorage.setString(SettingsKeys.LIST_VIEW_TYPE, type.toString());
-  }
-
-  // Telemetry / Privacy
-  isTelemetryOptIn(): boolean {
-    return mainStorage.getBool(SettingsKeys.TELEMETRY_OPT_IN, true);
-  }
-
-  setTelemetryOptIn(enabled: boolean): void {
-    mainStorage.setBool(SettingsKeys.TELEMETRY_OPT_IN, enabled);
   }
 
   getTmdbApiKey(): string {

@@ -1,14 +1,3 @@
-const fs = require('fs');
-const path = require('path');
-
-const androidGoogleServicesFile = './google-services.json';
-const iosGoogleServicesFile = './GoogleService-Info.plist';
-const hasAndroidGoogleServices = fs.existsSync(
-  path.resolve(__dirname, androidGoogleServicesFile),
-);
-const hasIosGooglePlist = fs.existsSync(
-  path.resolve(__dirname, iosGoogleServicesFile),
-);
 const tmdbApiKey =
   process.env.TMDB_API_KEY || process.env.EXPO_PUBLIC_TMDB_API_KEY || '';
 const proxyApiUrl =
@@ -20,16 +9,17 @@ const proxyApiUrl =
 module.exports = () => {
   const IS_PLAYSTORE = process.env.APP_VARIANT === 'playstore';
   const IS_TV = process.env.EXPO_TV === '1' || process.env.APP_VARIANT === 'tv';
-  const HAS_FIREBASE =
-    !IS_PLAYSTORE && (hasAndroidGoogleServices || hasIosGooglePlist);
-  const PACKAGE_NAME = IS_PLAYSTORE ? 'vega.app' : 'com.vega';
-  const APP_SCHEME = IS_PLAYSTORE ? 'vegaapp' : 'com.vega';
+  // Distinct from Vega (com.vega / vega.app) so both apps can be installed.
+  // The Play build drops REQUEST_INSTALL_PACKAGES, so it uses its own id.
+  const PACKAGE_NAME = IS_PLAYSTORE
+    ? 'com.tordroid.droidstream.play'
+    : 'com.tordroid.droidstream';
   const plugins = [
     './plugins/with-custom-native-modules.js',
       [
         'expo-camera',
         {
-          cameraPermission: 'Allow Vega to scan receiver QR codes.',
+          cameraPermission: 'Allow Droid Stream to scan receiver QR codes.',
           recordAudioAndroid: false,
         },
       ],
@@ -37,6 +27,7 @@ module.exports = () => {
     './plugins/with-saf-copy-module.js',
     './plugins/with-uri-permission-module.js',
     './plugins/with-proguard-rules.js',
+    './plugins/with-no-focus-highlight.js',
     './plugins/with-jvm-args.js',
     './plugins/with-android-notification-icons.js',
     './plugins/with-notifee-service.js',
@@ -44,8 +35,7 @@ module.exports = () => {
     './plugins/with-native-scroll-performance.js',
     './plugins/with-android-signing.js',
     './plugins/with-android-okhttp.js',
-    ...(HAS_FIREBASE ? ['@react-native-firebase/app'] : []),
-    ...(HAS_FIREBASE ? ['@react-native-firebase/crashlytics'] : []),
+    'react-native-vlc-media-player',
     [
       'react-native-video',
       {
@@ -128,7 +118,10 @@ module.exports = () => {
         launchMode: 'most-recent',
       },
     ],
-    'expo-font',
+    [
+      'expo-font',
+      {fonts: ['./assets/fonts/Inter_400Regular.ttf', './assets/fonts/Inter_500Medium.ttf', './assets/fonts/Inter_700Bold.ttf', './assets/fonts/Inter_800ExtraBold.ttf', './assets/fonts/Inter_400Regular_bold.ttf', './assets/fonts/Inter_500Medium_bold.ttf', './assets/fonts/Inter_700Bold_bold.ttf', './assets/fonts/Inter_800ExtraBold_bold.ttf', './assets/fonts/Inter_400Regular_italic.ttf', './assets/fonts/Inter_400Regular_bold_italic.ttf']},
+    ],
     'expo-status-bar',
     ...(IS_TV
       ? [
@@ -144,25 +137,31 @@ module.exports = () => {
   ];
   return {
     expo: {
-      name: 'Vega',
-      scheme: [APP_SCHEME, 'vega-cast'],
-      displayName: 'Vega',
+      name: 'Droid Stream',
+      // com.vega, vegaapp, and vega-cast stay so existing provider, share,
+      // and Vega Cast links still open this install.
+      scheme: [
+        'droidstream',
+        'com.tordroid.droidstream',
+        'com.vega',
+        'vegaapp',
+        'vega-cast',
+      ],
+      displayName: 'Droid Stream',
       jsEngine: 'hermes',
       newArchEnabled: true,
       autolinking: {exclude: ['expo-splash-screen']},
       plugins,
-      slug: 'vega',
-      version: '5.3.2',
+      slug: 'droid-stream',
+      icon: './assets/icon.png',
+      version: '5.3.4',
       userInterfaceStyle: 'dark',
       experiments: {
         reactCompiler: true,
       },
       android: {
-        ...(!IS_PLAYSTORE && hasAndroidGoogleServices
-          ? {googleServicesFile: androidGoogleServicesFile}
-          : {}),
         package: PACKAGE_NAME,
-        versionCode: 217,
+        versionCode: 219,
         permissions: [
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',
@@ -174,6 +173,7 @@ module.exports = () => {
           'WRITE_SETTINGS',
           'WAKE_LOCK',
           'POST_NOTIFICATIONS',
+          'RECEIVE_BOOT_COMPLETED',
         ],
         blockedPermissions: [
           // Casting uses WebRTC data channels, not microphone capture.
@@ -197,16 +197,13 @@ module.exports = () => {
         allowBackup: true,
         adaptiveIcon: {
           foregroundImage: './assets/adaptive_icon.png',
+          monochromeImage: './assets/adaptive_icon_monochrome.png',
           backgroundColor: '#000000',
         },
         launchMode: 'singleTask',
         supportsPictureInPicture: true,
       },
-      ios: {
-        ...(!IS_PLAYSTORE && hasIosGooglePlist
-          ? {googleServicesFile: iosGoogleServicesFile}
-          : {}),
-      },
+      ios: {},
       platforms: ['ios', 'android'],
       extra: {
         vegaCastServiceUrl:
@@ -220,7 +217,6 @@ module.exports = () => {
         eas: {
           projectId: '40d98354-d3c8-4616-ab2e-70d9c297091f',
         },
-        hasFirebase: HAS_FIREBASE,
         isPlayStore: IS_PLAYSTORE,
         isTV: IS_TV,
         tmdbApiKey,

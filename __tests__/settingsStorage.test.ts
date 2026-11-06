@@ -45,7 +45,6 @@ describe('settings defaults', () => {
     expect(settingsStorage.showMediaControls()).toBe(true);
     expect(settingsStorage.showHamburgerMenu()).toBe(true);
     expect(settingsStorage.isSwipeGestureEnabled()).toBe(true);
-    expect(settingsStorage.isTelemetryOptIn()).toBe(true);
     expect(settingsStorage.isDohEnabled()).toBe(true);
     expect(settingsStorage.showTabBarLabels()).toBe(true);
     expect(settingsStorage.showPlayerEpisodeSidebar()).toBe(true);

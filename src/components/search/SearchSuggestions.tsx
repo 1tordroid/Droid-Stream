@@ -1,5 +1,5 @@
 import React, {memo, useCallback, useState, useRef, useEffect} from 'react';
-import {View, ScrollView, Pressable, findNodeHandle} from 'react-native';
+import {Image, View, ScrollView, Pressable, findNodeHandle} from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import AppText from '../ui/Text';
@@ -74,30 +74,41 @@ const SuggestionItem = memo(
           alignItems: 'center',
           borderRadius: 20,
           marginBottom: 8,
-          paddingHorizontal: 16,
-          paddingVertical: 14,
+          paddingHorizontal: 12,
+          paddingVertical: item.poster ? 8 : 14,
           backgroundColor: isFocused
             ? colors.surfaceContainerHigh
             : colors.surfaceContainerLow,
           borderWidth: 2.5,
           borderColor: isFocused ? focusBorderColor : 'transparent',
         }}>
-        <MaterialCommunityIcons
-          name={item.type === 'tv' ? 'television' : 'filmstrip'}
-          size={22}
-          color={isFocused ? colors.primary : colors.onSurfaceVariant}
-        />
-        <AppText
-          role="bodyLarge"
-          numberOfLines={1}
-          style={{
-            flex: 1,
-            marginLeft: 12,
-            color: colors.onSurface,
-            fontWeight: isFocused ? '700' : '400',
-          }}>
-          {item.title}
-        </AppText>
+        {item.poster ? (
+          <Image
+            source={{uri: item.poster}}
+            accessibilityIgnoresInvertColors
+            style={{width: 44, height: 64, borderRadius: 8, backgroundColor: colors.surfaceContainerHighest}}
+          />
+        ) : (
+          <MaterialCommunityIcons
+            name={item.type === 'tv' ? 'television' : 'filmstrip'}
+            size={22}
+            color={isFocused ? colors.primary : colors.onSurfaceVariant}
+          />
+        )}
+        <View style={{flex: 1, marginLeft: 12}}>
+          <AppText
+            role="bodyLarge"
+            numberOfLines={1}
+            style={{
+              color: colors.onSurface,
+              fontWeight: isFocused ? '700' : '400',
+            }}>
+            {item.title}
+          </AppText>
+          <AppText role="bodySmall" numberOfLines={1} style={{color: colors.onSurfaceVariant}}>
+            {[item.year, item.type === 'tv' ? 'Series' : 'Movie'].filter(Boolean).join(' · ')}
+          </AppText>
+        </View>
         {onFill && (
           <Pressable
             onPress={() => onFill(item.title)}
@@ -162,7 +173,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
 
   const handleItemFocus = useCallback((index: number) => {
     scrollViewRef.current?.scrollTo({
-      y: index * 60,
+      y: index * 88,
       animated: true,
     });
   }, []);

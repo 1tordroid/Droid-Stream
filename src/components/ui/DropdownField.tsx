@@ -12,16 +12,8 @@ import {
 } from '@expo/ui/jetpack-compose';
 import {clip, fillMaxWidth, menuAnchor, padding, Shapes} from '@expo/ui/jetpack-compose/modifiers';
 import React, {useState, useEffect} from 'react';
-import {
-  BackHandler,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text as RNText,
-  View,
-  ViewStyle,
-} from 'react-native';
+import {BackHandler, Modal, Pressable, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
+import {RawText as RNText} from './Text';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
 import {LEGACY_TERTIARY_BACKGROUND} from '../../theme/seeds';
 import {isTV} from '../../lib/tv';
@@ -284,10 +276,10 @@ const DropdownField = <T,>({
               bottomEnd: 16,
             },
           })}
-          textStyle={{fontSize: 14, color: colors.onSurface}}
+          textStyle={{fontSize: 14, color: colors.onSurface, fontFamily: 'Inter_400Regular'}}
           colors={{
-            focusedContainerColor: LEGACY_TERTIARY_BACKGROUND,
-            unfocusedContainerColor: LEGACY_TERTIARY_BACKGROUND,
+            focusedContainerColor: colors.surfaceContainer,
+            unfocusedContainerColor: colors.surfaceContainer,
             focusedTextColor: colors.onSurface,
             unfocusedTextColor: colors.onSurface,
             focusedIndicatorColor: colors.primary,
@@ -300,7 +292,8 @@ const DropdownField = <T,>({
               color={colors.onSurface}
               maxLines={1}
               overflow="ellipsis"
-              softWrap={false}>
+              softWrap={false}
+              style={{fontFamily: 'Inter_400Regular'}}>
               {selectedLabel}
             </Text>
           </TextField.Placeholder>
@@ -353,7 +346,7 @@ const DropdownField = <T,>({
                       maxLines={showFullOptionLabels ? undefined : 2}
                       overflow={showFullOptionLabels ? undefined : 'ellipsis'}
                       softWrap={showFullOptionLabels}
-                      style={{fontWeight: selected ? '700' : '400'}}>
+                      style={{fontFamily: selected ? 'Inter_700Bold' : 'Inter_400Regular'}}>
                       {getLabel(option)}
                     </Text>
                   </DropdownMenuItem.Text>

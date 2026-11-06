@@ -3,6 +3,7 @@ jest.mock('react-native', () => {
   Object.defineProperty(rn, 'findNodeHandle', {configurable: true, value: jest.fn(() => 123)});
   return rn;
 });
+jest.mock('../src/lib/tv/useTVFocusBorderColor', () => ({useTVFocusBorderColor: () => '#ffffff'}));
 jest.mock('expo-blur', () => ({BlurView: 'BlurView'}));
 import React from 'react';
 import renderer, {act} from 'react-test-renderer';

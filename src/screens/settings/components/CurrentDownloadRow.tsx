@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {Image, Text, View} from 'react-native';
+import {Image, View} from 'react-native';
+import {RawText as Text} from '../../../components/ui/Text';
 import {TVFocusable} from '../../../components/tv';
 import {useTVFocusBorderColor} from '../../../lib/tv/useTVFocusBorderColor';
 import {
@@ -13,6 +14,7 @@ import type {
   DownloadStatus,
 } from '../../../lib/zustand/downloadsStore';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
+import {getDownloadPlayerParams} from '../../../lib/downloadPlayback';
 import DownloadProgressBar from './DownloadProgressBar';
 import DownloadConnectionsPanel from './DownloadConnectionsPanel';
 import useDownloadConnectionsStore from '../../../lib/zustand/downloadConnectionsStore';
@@ -49,6 +51,7 @@ const CurrentDownloadRow = ({
   onResume,
   onRetry,
   onStartNow,
+  onWatch,
   firstActionRef,
   onFirstActionLayout,
 }: {
@@ -59,6 +62,7 @@ const CurrentDownloadRow = ({
   onResume: () => void;
   onRetry: () => void;
   onStartNow: () => void;
+  onWatch?: () => void;
   firstActionRef?: React.RefObject<View | null>;
   onFirstActionLayout?: () => void;
 }) => {
@@ -194,6 +198,36 @@ const CurrentDownloadRow = ({
       )}
 
       <View className="mt-3 flex-row justify-end gap-2">
+        {onWatch && getDownloadPlayerParams(item) && (
+          <TVFocusable
+            testID={`watch-download-${item.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Watch ${item.title}`}
+            onPress={onWatch}
+            borderRadius={14}
+            focusScale={1.05}
+            focusBorderColor={focusBorderColor}
+            style={{
+              alignItems: 'center',
+              backgroundColor: colors.primaryContainer,
+              borderRadius: 14,
+              flexDirection: 'row',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+            }}>
+            <MaterialCommunityIcons
+              name="play"
+              size={18}
+              color={colors.onPrimaryContainer}
+            />
+            <Text
+              className="ml-1 text-sm font-bold"
+              numberOfLines={1}
+              style={{color: colors.onPrimaryContainer}}>
+              Watch
+            </Text>
+          </TVFocusable>
+        )}
         {item.status === 'queued' && (
           <TVFocusable
             testID={`start-now-download-${item.id}`}

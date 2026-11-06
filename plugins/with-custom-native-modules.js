@@ -33,7 +33,7 @@ allprojects {
     'android',
     async cfg => {
       const projectRoot = cfg.modRequest.projectRoot;
-      const packageName = cfg.android?.package || 'com.vega';
+      const packageName = cfg.android?.package || 'com.tordroid.droidstream';
       const packagePath = packageName.replace(/\./g, '/');
       const targetDir = path.join(
         projectRoot,
@@ -111,6 +111,7 @@ allprojects {
       'RemoteDeliveryPackage()',
       'DlnaPackage()',
       'VideoIntentPackage()',
+      'SmbPackage()',
     ];
 
     for (const pkg of packagesToAdd) {
@@ -156,6 +157,13 @@ allprojects {
     let contents = cfg.modResults.contents;
 
     // Add okhttp-dnsoverhttps if not present
+    if (!contents.includes('com.hierynomus:smbj')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match => `${match}\n    implementation 'com.hierynomus:smbj:0.13.0'\n`,
+      );
+    }
+
     if (!contents.includes('okhttp-dnsoverhttps')) {
       // Find the dependencies block
       contents = contents.replace(
@@ -215,6 +223,22 @@ allprojects {
       );
     }
 
+    if (!contents.includes('androidx.documentfile:documentfile')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match => `${match}\n    implementation 'androidx.documentfile:documentfile:1.0.1'\n`,
+      );
+    }
+
+    if (!contents.includes("module: 'bcprov-jdk18on'")) {
+      contents += `
+configurations.configureEach {
+    // libtorrent4j and another dependency both ship Bouncy Castle.
+    exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
+}
+`;
+    }
+
     if (!contents.includes('libtorrent4j:2.1.0-39')) {
       contents = contents.replace(
         /dependencies\s*\{/,
@@ -260,6 +284,78 @@ allprojects {
         s => s.$ && (s.$['android:name'] === serviceName || s.$['android:name'] === 'com.vega.RemoteDeliveryService'),
       );
       if (deliveryService) deliveryService.$['android:stopWithTask'] = 'false';
+      const extras = [
+        {name: '.DownloadForegroundService', type: 'dataSync'},
+        {name: '.TorrentForegroundService', type: 'dataSync'},
+      ];
+      for (const extra of extras) {
+        if (!app.service.some(service => service.$?.['android:name'] === extra.name)) {
+          app.service.push({
+            $: {
+              'android:name': extra.name,
+              'android:exported': 'false',
+              'android:foregroundServiceType': extra.type,
+            },
+          });
+        }
+      }
+      if (!app.receiver) app.receiver = [];
+      for (const name of ['.DownloadActionReceiver', '.DownloadBootReceiver']) {
+        if (!app.receiver.some(receiver => receiver.$?.['android:name'] === name)) {
+          const receiver = {
+            $: {'android:name': name, 'android:exported': name.endsWith('BootReceiver') ? 'true' : 'false'},
+          };
+          if (name.endsWith('BootReceiver')) {
+            receiver['intent-filter'] = [{action: [{$: {'android:name': 'android.intent.action.BOOT_COMPLETED'}}]}];
+          } else {
+            receiver['intent-filter'] = [{action: [{$: {'android:name': 'droidstream.DOWNLOAD'}}]}];
+          }
+          app.receiver.push(receiver);
+        }
+      }
+      if (!app['activity-alias']) app['activity-alias'] = [];
+      if (!app['activity-alias'].some(alias => alias.$?.['android:name'] === '.TorrentOpener')) {
+        app['activity-alias'].push({
+          $: {
+            'android:name': '.TorrentOpener',
+            'android:targetActivity': '.MainActivity',
+            'android:exported': 'true',
+            'android:enabled': 'true',
+            'android:label': '@string/app_name',
+          },
+          'intent-filter': [
+            {
+              action: [{$: {'android:name': 'android.intent.action.VIEW'}}],
+              category: [
+                {$: {'android:name': 'android.intent.category.DEFAULT'}},
+                {$: {'android:name': 'android.intent.category.BROWSABLE'}},
+              ],
+              data: [{$: {'android:scheme': 'magnet'}}],
+            },
+            {
+              action: [{$: {'android:name': 'android.intent.action.VIEW'}}],
+              category: [
+                {$: {'android:name': 'android.intent.category.DEFAULT'}},
+                {$: {'android:name': 'android.intent.category.BROWSABLE'}},
+              ],
+              data: [
+                {$: {'android:scheme': 'content', 'android:mimeType': 'application/x-bittorrent'}},
+                {$: {'android:scheme': 'file', 'android:mimeType': 'application/x-bittorrent'}},
+                {$: {'android:scheme': 'content', 'android:mimeType': '*/*', 'android:pathPattern': '.*\\\\.torrent'}},
+                {$: {'android:scheme': 'file', 'android:mimeType': '*/*', 'android:pathPattern': '.*\\\\.torrent'}},
+              ],
+            },
+            {
+              action: [{$: {'android:name': 'android.intent.action.SEND'}}],
+              category: [{$: {'android:name': 'android.intent.category.DEFAULT'}}],
+              data: [
+                {$: {'android:mimeType': 'text/plain'}},
+                {$: {'android:mimeType': 'application/x-bittorrent'}},
+              ],
+            },
+          ],
+        });
+      }
     }
     return cfg;
   });

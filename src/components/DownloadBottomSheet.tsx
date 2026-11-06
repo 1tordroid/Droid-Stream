@@ -1,18 +1,7 @@
 import {usesExternalApp} from '../lib/externalApps';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import {
-  Text,
-  TouchableOpacity,
-  ToastAndroid,
-  View,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  UIManager,
-  findNodeHandle,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import {TouchableOpacity, ToastAndroid, View, Modal, ScrollView, StyleSheet, UIManager, findNodeHandle, type StyleProp, type ViewStyle} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import React, { useEffect, useRef } from 'react';
 import { Stream } from '../lib/providers/types';
 import BottomSheet, {
@@ -512,7 +501,7 @@ const DownloadBottomSheet = ({
 
           {/* External / Internal Button */}
           <SheetButton
-            accessibilityLabel={`${isAlwaysExternal ? 'Download in Vega' : 'Open externally'}: ${item.server || 'Unknown Server'}`}
+            accessibilityLabel={`${isAlwaysExternal ? 'Download in Droid Stream' : 'Open externally'}: ${item.server || 'Unknown Server'}`}
             activeOpacity={0.7}
             onPress={() => {
               if (isAlwaysExternal) {

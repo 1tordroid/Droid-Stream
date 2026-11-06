@@ -5,15 +5,22 @@ import {TVFocusable} from '../../../components/tv';
 import {isTV} from '../../../lib/tv';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 
-export default function SynopsisText({synopsis, expanded, onToggle}: {
+export const SYNOPSIS_PREVIEW_LENGTH = 240;
+export const isSynopsisExpandable = (synopsis: string): boolean =>
+  synopsis.length > SYNOPSIS_PREVIEW_LENGTH;
+
+export default function SynopsisText({synopsis, expanded, onToggle, inlineToggle = true}: {
   synopsis: string;
   expanded: boolean;
   onToggle: () => void;
+  /** False when the parent shows the toggle elsewhere, such as the heading row. */
+  inlineToggle?: boolean;
 }) {
   const colors = useM3Colors();
-  const expandable = synopsis.length > 240;
-  const text = expandable && !expanded
-    ? `${synopsis.slice(0, 240).trimEnd()}...`
+  const truncatable = isSynopsisExpandable(synopsis);
+  const expandable = truncatable && inlineToggle;
+  const text = truncatable && !expanded
+    ? `${synopsis.slice(0, SYNOPSIS_PREVIEW_LENGTH).trimEnd()}...`
     : synopsis;
   const content = (
     <AppText role="bodyLarge" style={{color: colors.onSurfaceVariant, lineHeight: 24}}>

@@ -13,6 +13,7 @@ import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
 import AppText from '../../components/ui/Text';
+import MoreOptions from '../../components/MoreOptions';
 import SettingsSection from '../../components/ui/SettingsSection';
 import SettingsPage from '../../components/ui/SettingsPage';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
@@ -92,6 +93,7 @@ export default function PlayerSettings({navigation}: Props) {
   const [askLocalFileFirst, setAskLocalFileFirst] = useState<boolean>(() =>
     settingsStorage.isAskLocalFileFirst(),
   );
+  const [playerEngine, setPlayerEngine] = useState(() => settingsStorage.getPlayerEngine());
 
   return (
     <TVFocusGuide
@@ -137,12 +139,35 @@ export default function PlayerSettings({navigation}: Props) {
             Playback, controls, appearance, and subtitles
           </AppText>
 
+          <MoreOptions id="player-engine">
+          <SettingsSection title="Engine">
+            <SettingsRow
+              title="Built-in player"
+              description="Default for provider streams"
+              icon={playerEngine === 'builtin' ? 'check-circle' : 'circle-outline'}
+              onPress={() => {
+                settingsStorage.setPlayerEngine('builtin');
+                setPlayerEngine('builtin');
+              }}
+            />
+            <SettingsRow
+              title="VLC"
+              description="Direct MKV, ISO, AVI, MOV, HEVC, and embedded subtitles"
+              icon={playerEngine === 'vlc' ? 'check-circle' : 'circle-outline'}
+              divider={false}
+              onPress={() => {
+                settingsStorage.setPlayerEngine('vlc');
+                setPlayerEngine('vlc');
+              }}
+            />
+          </SettingsSection>
           <SettingsSection title="Customize player">
             <SettingsRow title="Control layout" description="Arrange, move, and hide controls"
               icon="view-dashboard-outline" onPress={() => navigation.navigate('PlayerControlSettings')} />
             <SettingsRow title="Subtitle style" description="Font, colors, background, placement, and more"
               icon="subtitles-outline" divider={false} onPress={() => navigation.navigate('SubTitlesPreferences')} />
           </SettingsSection>
+          </MoreOptions>
           <SettingsSection title="Control appearance">
             {getPlayerControlStyleRows({value: controlStyle, color: colors.primary,
               onChange: next => {settingsStorage.setPlayerControlStyle(next); setControlStyle(next);},
@@ -152,7 +177,7 @@ export default function PlayerSettings({navigation}: Props) {
             {supportsVideoIntents && (
               <SettingsSwitchRow
                 title="Open videos from other apps"
-                description="Show Vega in Android’s Open with and video sharing options"
+                description="Show Droid Stream in Android’s Open with and video sharing options"
                 value={openVideosFromOtherApps}
                 onValueChange={async next => {
                   if (updatingVideoIntents.current) return;

@@ -1,12 +1,6 @@
 import ScreenSafeArea from '../../components/ui/ScreenSafeArea';
-import {
-  View,
-  ScrollView,
-  findNodeHandle,
-  Keyboard,
-  TextInput,
-  BackHandler,
-} from 'react-native';
+import {View, ScrollView, findNodeHandle, Keyboard, BackHandler, Linking, Pressable} from 'react-native';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
 
 interface ProviderItemProps {
   item: ProviderExtension;
@@ -18,6 +12,7 @@ interface ProviderItemProps {
 }
 
 import useTVNavigationStore from '../../lib/zustand/tvNavigationStore';
+import {socialLinks} from '../../lib/constants';
 
 const ProviderItem = React.memo(
   ({
@@ -100,7 +95,7 @@ const ProviderItem = React.memo(
     );
   },
 );
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
   settingsStorage,
   ProviderExtension,
@@ -120,8 +115,9 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import RenderProviderFlagIcon from '../../components/RenderProviderFLagIcon';
-import useNavigationPreferencesStore from '../../lib/zustand/navigationPreferencesStore';
-import GitHubStarButton from './components/GitHubStarButton';
+import FeatureSearchPanel from '../../components/FeatureSearchPanel';
+import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
+import BrandLinkButtons from './components/BrandLinkButtons';
 import DnsPreference from './components/DnsPreference';
 import SettingsRow from '../../components/ui/SettingsRow';
 import SettingsSection from '../../components/ui/SettingsSection';
@@ -146,9 +142,8 @@ const Settings = ({navigation}: Props) => {
   const provider = useContentStore(state => state.provider);
   const setProvider = useContentStore(state => state.setProvider);
   const installedProviders = useContentStore(state => state.installedProviders);
-  const hideDownloadsTab = useNavigationPreferencesStore(
-    state => state.hideDownloadsTab,
-  );
+  const [searching, setSearching] = useState(false);
+  const [advanced, setAdvanced] = useState(() => settingsStorage.isAdvancedMode());
 
   const handleProviderSelect = useCallback(
     (item: ProviderExtension) => {
@@ -240,13 +235,19 @@ const Settings = ({navigation}: Props) => {
                 Settings
               </AppText>
             ) : (
-              <Animated.View>
+              <>
+              <Animated.View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
                 <AppText
                   role="headlineLargeEmphasized"
                   className="mb-6 text-m3-on-background">
                   Settings
                 </AppText>
+                <Pressable accessibilityRole="button" accessibilityLabel="Search settings" onPress={() => setSearching(value => !value)} style={{minHeight: 48, justifyContent: 'center', marginBottom: 24}}>
+                  <MaterialIcons name="search" size={28} color={colors.primary} />
+                </Pressable>
               </Animated.View>
+              {searching ? <FeatureSearchPanel autoFocus /> : null}
+              </>
             )}
 
             {/* Content provider section */}
@@ -314,6 +315,15 @@ const Settings = ({navigation}: Props) => {
             {/* Main options section */}
             <AnimatedSection delay={200}>
               <SettingsSection title="Options">
+                <SettingsSwitchRow
+                  title="Advanced mode"
+                  description="Shows speed limits, player engine, subtitles, and other extra controls"
+                  value={advanced}
+                  onValueChange={next => {
+                    settingsStorage.setAdvancedMode(next);
+                    setAdvanced(next);
+                  }}
+                />
                 <SettingsRow
                   title="Appearance"
                   // description="Accent colors and launcher icon"
@@ -325,18 +335,35 @@ const Settings = ({navigation}: Props) => {
                   icon="play-circle-outline"
                   onPress={() => navigation.navigate('PlayerSettings')}
                 />
-                {hideDownloadsTab && (
-                  <SettingsRow
-                    title="Downloads"
-                    icon="download-circle-outline"
-                    onPress={() => navigation.navigate('DownloadsStack')}
-                  />
-                )}
+                <SettingsRow
+                  title="Languages"
+                  description="Preferred audio and subtitle languages"
+                  icon="translate"
+                  onPress={() => navigation.navigate('Languages')}
+                />
+                <SettingsRow
+                  title="Watch sync"
+                  description="Trakt, Simkl, AniList, and AniSkip"
+                  icon="sync"
+                  onPress={() => navigation.navigate('WatchSync')}
+                />
+                <SettingsRow
+                  title="Downloads"
+                  description="Search, filter, and open saved files"
+                  icon="download-circle-outline"
+                  onPress={() => navigation.navigate('DownloadsStack')}
+                />
                 <SettingsRow
                   title="Preferences"
                   icon="tune-variant"
-                  divider={false}
                   onPress={() => navigation.navigate('Preferences')}
+                />
+                <SettingsRow
+                  title="Video library"
+                  description="Scan device videos into a poster grid"
+                  icon="movie-open-outline"
+                  divider={false}
+                  onPress={() => navigation.navigate('LocalLibrary')}
                 />
               </SettingsSection>
             </AnimatedSection>
@@ -358,11 +385,23 @@ const Settings = ({navigation}: Props) => {
             <AnimatedSection delay={400}>
               <SettingsSection title="About">
                 <SettingsRow
-                  title="About Vega"
+                  title="About Droid Stream"
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
                 />
-                <GitHubStarButton primary={colors.primary} />
+                <SettingsRow
+                  title="Credits"
+                  description="Projects behind Droid Stream"
+                  icon="heart-outline"
+                  onPress={() => navigation.navigate('Credits')}
+                />
+                <SettingsRow
+                  title="Support"
+                  description="Telegram"
+                  icon="send"
+                  onPress={() => Linking.openURL(socialLinks.telegram)}
+                />
+                <BrandLinkButtons />
               </SettingsSection>
             </AnimatedSection>
           </View>

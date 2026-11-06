@@ -1,0 +1,7 @@
+# Maestro on-device flows for Droid Stream (phone and Android TV).
+# Run all:   maestro test .maestro
+# Run one:   maestro test .maestro/torrent_search.yaml
+flows:
+  - "*"
+excludeTags:
+  - util

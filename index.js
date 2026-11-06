@@ -18,12 +18,6 @@ if (!__DEV__) {
 }
 installVegaLog(__DEV__);
 
-// Enable react-native-firebase debug mode for Analytics DebugView in dev
-if (__DEV__) {
-  // eslint-disable-next-line no-undef
-  globalThis.RNFBDebug = true;
-}
-
 notifee.onBackgroundEvent(async ({type, detail}) => {
   const notificationService =
     require('./src/lib/services/Notification').default;

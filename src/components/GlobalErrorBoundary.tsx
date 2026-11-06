@@ -1,19 +1,12 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Dimensions,
-  Clipboard,
-} from 'react-native';
+import {View, ScrollView, Dimensions, Clipboard} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import useThemeStore from '../lib/zustand/themeStore';
 import TVTouchable from './tv/TVTouchable';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
-import Constants from 'expo-constants';
 import {showAppDialog} from '../lib/zustand/appDialogStore';
-import {getCrashlytics, isFirebaseNativeReady} from '../lib/utils/firebaseSafe';
 import BootSplash from 'react-native-bootsplash';
 
 interface GlobalErrorBoundaryProps {
@@ -62,22 +55,6 @@ export default class GlobalErrorBoundary extends React.Component<
 
     // Log error details for debugging
     this.logErrorDetails(error, errorInfo);
-
-    // Report to Crashlytics
-    try {
-      const hasFirebase =
-        Boolean(Constants?.expoConfig?.extra?.hasFirebase) &&
-        isFirebaseNativeReady();
-      if (hasFirebase) {
-        const crashlytics = getCrashlytics();
-        crashlytics &&
-          crashlytics().setAttributes({
-            app_version: String(Application.nativeApplicationVersion || ''),
-            build_version: String(Application.nativeBuildVersion || ''),
-          });
-        crashlytics && crashlytics().recordError(error);
-      }
-    } catch {}
   }
 
   logErrorDetails = (error: Error, errorInfo: React.ErrorInfo) => {
@@ -317,7 +294,7 @@ const ErrorFallbackUI: React.FC<ErrorFallbackUIProps> = ({
             {Application.nativeBuildVersion})
           </Text>
           <Text className="text-gray-600 text-xs text-center mt-1">
-            If this keeps happening, report on github or discord
+            If this keeps happening, report it on GitHub or Telegram
           </Text>
         </View>
       </ScrollView>

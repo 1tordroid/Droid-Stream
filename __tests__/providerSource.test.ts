@@ -29,6 +29,7 @@ const GH = 'https://raw.githubusercontent.com';
 
 const cases: Array<[string, string, string]> = [
   ['foo', 'foo', `${GH}/foo/vega-providers/refs/heads/main`],
+  ['vega-org', 'vega-org', `${GH}/vega-org/vega-providers/refs/heads/main`],
   ['@foo', 'foo', `${GH}/foo/vega-providers/refs/heads/main`],
   ['foo@gh', 'foo', `${GH}/foo/vega-providers/refs/heads/main`],
   ['foo@cb', 'foo@cb', 'https://codeberg.org/foo/vega-providers/raw/branch/main'],

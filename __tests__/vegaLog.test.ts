@@ -32,9 +32,6 @@ describe('vegaLog', () => {
 
   it('drops library deprecation noise and collapses repeated lines', async () => {
     installVegaLog(false);
-    console.warn(
-      'This method is deprecated (as well as all React Native Firebase namespaced API) and will be removed',
-    );
     console.warn('InteractionManager has been deprecated and will be removed');
     console.error('Error in posts function: timed out');
     console.error('Error in posts function: timed out');

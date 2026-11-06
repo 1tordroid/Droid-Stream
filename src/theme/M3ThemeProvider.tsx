@@ -5,38 +5,36 @@ import {getMaterialColors} from '@expo/ui/jetpack-compose';
 import {M3_COLOR_ROLES, roleToCssVar} from './colors';
 import {
   createCoherentAccentRoles,
+  BRAND_SEED,
   DEFAULT_SEED,
   LEGACY_NEUTRAL_SURFACE_ROLES,
 } from './seeds';
 import {M3HostThemeContext, M3PaletteContext} from './M3PaletteContext';
 import useThemeStore from '../lib/zustand/themeStore';
+import {THEME_ROLES} from './themeMode';
 
 export const FIXED_THEME_PRIMARY = '#E4E4E4';
 
 export const M3ThemeProvider = ({children}: {children: React.ReactNode}) => {
   const primary = useThemeStore(state => state.primary);
   const source = useThemeStore(state => state.source);
+  const mode = useThemeStore(state => state.mode);
   const palette = useMemo(() => {
     const generatedPalette = getMaterialColors({
       scheme: 'dark',
       ...(source === 'custom' ? {seedColor: primary} : {}),
     });
     const customAccentRoles =
-      source === 'custom' && primary.toUpperCase() === DEFAULT_SEED
-        ? createCoherentAccentRoles(DEFAULT_SEED)
+      source === 'custom' && [DEFAULT_SEED, BRAND_SEED].includes(primary.toUpperCase())
+        ? createCoherentAccentRoles(primary.toUpperCase())
         : {};
     return {
       ...generatedPalette,
       ...customAccentRoles,
       ...LEGACY_NEUTRAL_SURFACE_ROLES,
-      background: '#000000',
-      onBackground: '#F2F2F2',
-      onSurface: '#F2F2F2',
-      onSurfaceVariant: '#C4C4C4',
-      outline: '#909090',
-      outlineVariant: '#454545',
+      ...THEME_ROLES[mode],
     } as const;
-  }, [primary, source]);
+  }, [primary, source, mode]);
   const hostTheme = useMemo(
     () => ({
       colorScheme: 'dark' as const,

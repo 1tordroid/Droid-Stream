@@ -1,15 +1,7 @@
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import React, {useEffect, useState} from 'react';
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  TextInput,
-  View,
-} from 'react-native';
+import {Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, View} from 'react-native';
+import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import Text from '../../../components/ui/Text';
 import {TVFocusable} from '../../../components/tv';
 import {socialLinks} from '../../../lib/constants';
@@ -215,23 +207,23 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
           <Text
             className="text-sm mt-[4px]"
             style={{color: colors.onSurfaceVariant, lineHeight: 20}}>
-            How to create provider{' '}
+            How to create a provider{' '}
             <Text
               accessibilityRole="link"
               style={{color: '#38BDF8', fontSize: 14, lineHeight: 20}}
-              onPress={() => Linking.openURL(socialLinks.github + '#vega-app')}>
+              onPress={() => Linking.openURL(socialLinks.github + '#plugins')}>
               here
             </Text>
           </Text>
           <Text
             className="text-sm mt-[4px]"
             style={{color: colors.onSurfaceVariant, lineHeight: 20}}>
-            or join Discord for support{' '}
+            or message Tordroid on{' '}
             <Text
               accessibilityRole="link"
               style={{color: '#38BDF8', fontSize: 14, lineHeight: 20}}
-              onPress={() => Linking.openURL(socialLinks.discord)}>
-              Discord
+              onPress={() => Linking.openURL(socialLinks.telegram)}>
+              Telegram
             </Text>
           </Text>
           <TextInput

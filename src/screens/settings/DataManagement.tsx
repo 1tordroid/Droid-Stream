@@ -110,7 +110,7 @@ export default function DataManagement({navigation}: Props) {
     showAppDialog({
       title: 'Erase all local data?',
       message:
-        'This permanently erases every Vega MMKV store, including settings, installed provider data, Library, Continue watching, download records, and cached state. This cannot be undone. Downloaded media files on disk are not deleted.',
+        'This permanently erases every Droid Stream store, including settings, installed provider data, Library, Continue watching, download records, and cached state. This cannot be undone. Downloaded media files on disk are not deleted.',
       variant: 'error',
       actions: [
         {label: 'Cancel'},
@@ -150,7 +150,7 @@ export default function DataManagement({navigation}: Props) {
             backup.providers !== undefined && 'providers',
             backup.history !== undefined && 'watch history',
             backup.progress !== undefined && 'watch progress',
-          ].filter(Boolean).join(', ')}. Sections absent from the backup stay unchanged. Vega will restart after restoring.`,
+          ].filter(Boolean).join(', ')}. Sections absent from the backup stay unchanged. Droid Stream will restart after restoring.`,
         actions: [
           {label: 'Cancel'},
           {

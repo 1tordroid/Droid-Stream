@@ -1,6 +1,6 @@
 import {scheduleWhenIdle} from '../../../lib/performance/idleWork';
 import React, {useEffect, useMemo, useState} from 'react';
-import {View} from 'react-native';
+import {Image, View} from 'react-native';
 import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
 import {
   extensionStorage,
@@ -247,7 +247,12 @@ const ProviderSourceManager = ({
             borderRadius: 20,
             borderWidth: isTV ? 1 : 0,
           }}>
-          <MaterialCommunityIcons name="plus" size={28} color={primary} />
+          <Image
+            source={require('../../../../assets/brand/plugin-button.png')}
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            style={{height: 48, width: 48}}
+          />
         </TVFocusable>
       </View>
 

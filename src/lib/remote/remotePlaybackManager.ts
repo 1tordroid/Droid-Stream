@@ -1035,7 +1035,7 @@ class RemotePlaybackManager {
       await this.awaitPlaybackOperation(
         remoteDeliveryService
           .startForegroundService({
-            title: payload.title || 'Vega Media',
+            title: payload.title || 'Droid Stream',
             subtitle: targetSubtitle,
             artwork: payload.artwork,
             isPlaying: true,
@@ -1121,7 +1121,7 @@ class RemotePlaybackManager {
   }
 
   /** Cast only: serve remuxed streams as HLS so the receiver seeks by itself. */
-  /** Whether the phone volume keys change the receiver volume while Vega is open. */
+  /** Whether the phone volume keys change the receiver volume while Droid Stream is open. */
   isVolumeKeysEnabled(): boolean {
     return mainStorage.getBool(VOLUME_KEYS_KEY, false);
   }
@@ -1433,7 +1433,7 @@ class RemotePlaybackManager {
           : {}),
         mediaTracks: mediaTracks.length > 0 ? mediaTracks : undefined,
         metadata: {
-          title: payload.title || 'Vega Media',
+          title: payload.title || 'Droid Stream',
           subtitle: payload.subtitle || undefined,
           images: hasValidArtwork ? [{url: payload.artwork!}] : undefined,
           type: 'generic',
@@ -1575,7 +1575,7 @@ class RemotePlaybackManager {
                   this.loadOnDlna(
                     device,
                     prep.streamUrl,
-                    this.activePayload.title || 'Vega Playback',
+                    this.activePayload.title || 'Droid Stream',
                     newSubUrl,
                     prep.timelineOffsetSeconds || 0,
                     prep.durationSeconds || this.sourceDuration,
@@ -1612,7 +1612,7 @@ class RemotePlaybackManager {
                   this.loadOnDlna(
                     device,
                     this.activePlayUrl,
-                    this.activePayload?.title || 'Vega Playback',
+                    this.activePayload?.title || 'Droid Stream',
                     newSubUrl,
                     previousOffset,
                     this.sourceDuration,
@@ -1655,7 +1655,7 @@ class RemotePlaybackManager {
                   this.loadOnDlna(
                     device,
                     previousPlayUrl,
-                    this.activePayload?.title || 'Vega Playback',
+                    this.activePayload?.title || 'Droid Stream',
                     restoredSubUrl,
                     previousOffset,
                     previousDuration,

@@ -134,6 +134,9 @@ export const providerFetch = async (
   try {
     throwIfProviderAborted(signal);
     const headers = normalizeHeaders(request.headers ?? []);
+    // Setting this by hand turns off automatic decompression, so providers
+    // would receive compressed bytes they cannot read.
+    deleteHeader(headers, 'accept-encoding');
     const body = request.body ?? {kind: 'none'};
     if (
       body.kind === 'base64' &&

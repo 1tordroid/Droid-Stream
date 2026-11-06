@@ -1,5 +1,5 @@
 name: 🐞 Bug Report
-description: Report a bug or issue with the Vega app
+description: Report a bug or issue with Droid Stream
 labels: [bug]
 body:
 
@@ -28,7 +28,7 @@ body:
     - type: input
       id: vega-version
       attributes:
-          label: Vega version
+          label: Droid Stream version
           description: Specify the version of the app you are using.
           placeholder: |
               Example: "1.0"

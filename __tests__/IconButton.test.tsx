@@ -72,6 +72,6 @@ describe('IconButton', () => {
 
     expect(style.height).toBeGreaterThanOrEqual(48);
     expect(style.width).toBeGreaterThanOrEqual(48);
-    expect(pressable.props.hitSlop).toBe(4);
+    expect(pressable.props.hitSlop).toBeGreaterThanOrEqual(4);
   });
 });

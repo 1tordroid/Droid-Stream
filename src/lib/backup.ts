@@ -358,13 +358,15 @@ export const parseBackup = (text: string): VegaBackup => {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('This file is not a Vega backup');
+    throw new Error('This file is not a Droid Stream backup');
   }
+  // `vega` is the on-disk backup id shared with Vega, so provider backups
+  // made by either app still restore. Do not rename it.
   if (data?.app !== 'vega' || typeof data.version !== 'number') {
-    throw new Error('This file is not a Vega backup');
+    throw new Error('This file is not a Droid Stream backup');
   }
   if (data.version > BACKUP_VERSION) {
-    throw new Error('This backup was made by a newer version of Vega');
+    throw new Error('This backup was made by a newer version of Droid Stream');
   }
   const {settings, providers, library, history, progress} = data;
   const settingsValid = settings !== undefined && settings !== null &&

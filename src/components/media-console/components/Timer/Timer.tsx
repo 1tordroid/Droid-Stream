@@ -1,5 +1,5 @@
 import React, {ReactNode} from 'react';
-import {Text} from 'react-native';
+import {RawText as Text} from '../../../ui/Text';
 import {styles} from './styles';
 import {Control} from '../Control';
 

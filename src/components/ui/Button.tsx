@@ -8,7 +8,8 @@ import {
 } from '@expo/ui/jetpack-compose';
 import {defaultMinSize} from '@expo/ui/jetpack-compose/modifiers';
 import React, {ReactNode} from 'react';
-import {ColorValue, Pressable, StyleSheet, Text as RNText, View, ViewStyle} from 'react-native';
+import {ColorValue, Pressable, StyleSheet, View, ViewStyle} from 'react-native';
+import {RawText as RNText} from './Text';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
 import {isTV} from '../../lib/tv';
 import {TVFocusable} from '../tv/TVFocusable';
@@ -174,7 +175,7 @@ const Button = React.forwardRef<View, ButtonProps>(({
           ]}>
           <Text
             color={String(buttonColors.contentColor)}
-            style={{typography: 'labelLarge', fontWeight: '700'}}>
+            style={{typography: 'labelLarge', fontWeight: '700', fontFamily: 'Inter_700Bold'}}>
             {children}
           </Text>
         </ButtonComponent>

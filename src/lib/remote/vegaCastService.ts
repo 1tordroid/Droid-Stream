@@ -124,7 +124,7 @@ class VegaCastService {
     const check=()=>{if(generation!==this.pairingGeneration)throw new Error('Pairing canceled');};
     this.pairing={invitation:typeof input==='string'?input:'',pairing:true};this.publish();
     try {
-      const request=await this.request(serviceUrl,{op:'pair',...(discoveryToken?{receiverId,discoveryToken}:{code}),name:Constants.deviceName?.trim()||'Vega Mobile'});check();
+      const request=await this.request(serviceUrl,{op:'pair',...(discoveryToken?{receiverId,discoveryToken}:{code}),name:Constants.deviceName?.trim()||'Droid Stream'});check();
       this.pairing={...this.pairing,confirmation:request.confirmation};this.publish();
       const deadline=Date.now()+120_000;
       while(Date.now()<deadline){
@@ -174,7 +174,7 @@ class VegaCastService {
         if(this.current)void this.request(this.current.serviceUrl,{op:'send',auth:this.auth(),message:{type:'RTC_ERROR',mediaId:message.mediaId,transportId:message.transportId,error:text}}).catch(()=>{});
       };
       if(delivery)void delivery.signal(message).catch(error=>negotiationError(error.message||'Phone could not create the encrypted connection'));
-      else if(message.type==='RTC_OFFER')negotiationError('Phone delivery session is no longer available. Select the stream again in Vega Mobile.');
+      else if(message.type==='RTC_OFFER')negotiationError('Phone delivery session is no longer available. Select the stream again in Droid Stream.');
       return;
     }
     if(message.type==='ACK'){

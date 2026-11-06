@@ -8,9 +8,9 @@ const updateDraft = require('../update-action-build-release.cjs');
 
 function fixture({draft = true, existing = true, latest = 'commit', missingAab = false} = {}) {
   const artifactDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'vega-action-build-'));
-  fs.writeFileSync(path.join(artifactDirectory, 'vega-tv.apk'), 'apk');
-  fs.writeFileSync(path.join(artifactDirectory, 'apk-name.txt'), 'vega-v5.3.0.apk');
-  if (!missingAab) fs.writeFileSync(path.join(artifactDirectory, 'vega-tv-playstore.aab'), 'aab');
+  fs.writeFileSync(path.join(artifactDirectory, 'droid-stream-tv.apk'), 'apk');
+  fs.writeFileSync(path.join(artifactDirectory, 'apk-name.txt'), 'DroidStream-v5.3.0.apk');
+  if (!missingAab) fs.writeFileSync(path.join(artifactDirectory, 'droid-stream-tv-playstore.aab'), 'aab');
   const calls = [], release = {id: 12, draft, tag_name: 'action-build'};
   const record = name => async args => {calls.push([name, args]); return {data: release};};
   const github = {rest: {
@@ -70,7 +70,7 @@ test('reuses the existing draft and replaces both fixed asset names', async () =
   const f = fixture(); await updateDraft(f.args);
   assert.equal(f.calls.filter(([name]) => name === 'create').length, 0);
   assert.deepEqual(f.calls.filter(([name]) => name === 'delete').map(([, args]) => args.asset_id), [21, 22]);
-  assert.deepEqual(f.calls.filter(([name]) => name === 'upload').map(([, args]) => args.name), ['vega-v5.3.0.apk', 'vega-tv-playstore.aab']);
+  assert.deepEqual(f.calls.filter(([name]) => name === 'upload').map(([, args]) => args.name), ['DroidStream-v5.3.0.apk', 'droid-stream-tv-playstore.aab']);
   const metadata = f.calls.find(([name]) => name === 'update')[1];
   assert.equal(metadata.body.includes('Both builds support TV'), false);
   assert.equal(metadata.body.includes('com.vega'), false);
@@ -103,7 +103,7 @@ test('a missing build preserves the previous draft and assets', async () => {
   assert.deepEqual(f.calls, []);
 });
 
-for (const [kind, packageName] of [['apk', 'com.vega'], ['aab', 'vega.app']]) {
+for (const [kind, packageName] of [['apk', 'com.tordroid.droidstream'], ['aab', 'com.tordroid.droidstream.play']]) {
   for (const quote of ["'", '"']) {
     test(`collector accepts ${kind} with ${quote} quoted applicationId and rejects wrong package`, () => {
       const {spawnSync} = require('node:child_process');

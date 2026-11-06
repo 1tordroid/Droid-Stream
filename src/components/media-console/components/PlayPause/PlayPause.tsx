@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, {createRef} from 'react';
-import {Platform, TouchableHighlight} from 'react-native';
+import {Image, Platform, TouchableHighlight} from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {Control} from '../Control';
 import {NullControl} from '../NullControl';
@@ -53,15 +53,23 @@ export const PlayPause = ({
         resetControlTimeout={resetControlTimeout}
         style={styles.playContainer}
         controlRef={playPauseRef}
+        accessibilityRole="button"
+        accessibilityLabel={paused ? 'Play' : 'Pause'}
         {...(Platform.isTV ? {hasTVPreferredFocus: showControls} : {})}>
         {buffering ? (
           <Loader color={primaryColor} />
+        ) : paused ? (
+          <Image
+            source={require('../../../../../assets/brand/play-button.png')}
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            style={{height: 96 * controlScale, width: 96 * controlScale}}
+          />
         ) : (
           <MaterialIcons
-            name={paused ? 'play-arrow' : 'pause'}
+            name="pause"
             size={70 * controlScale}
             color="rgba(255,255,255,0.94)"
-            style={Platform.isTV && paused ? {marginLeft: 4} : undefined}
           />
         )}
       </Control>

@@ -1,4 +1,4 @@
-import {Text} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import {SvgUri} from 'react-native-svg';
 import {FLAGS} from '../lib/constants';
 import React from 'react';

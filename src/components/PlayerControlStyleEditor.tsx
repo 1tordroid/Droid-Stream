@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Platform, Switch, Text, View} from 'react-native';
+import {Platform, Switch, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {Host, Slider} from '@expo/ui/jetpack-compose';
 import {fillMaxWidth} from '@expo/ui/jetpack-compose/modifiers';

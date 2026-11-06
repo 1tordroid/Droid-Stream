@@ -27,7 +27,7 @@ describe('Vega Cast selection and QR pairing',()=>{
   const receiver=service.getReceivers()[0];
   expect(receiver.name).toBe('Living room');expect(receiver.paired).toBe(false);
   expect(await service.pair(receiver)).toBe('screen');
-  expect(requests.find(item=>item.op==='pair')).toEqual({op:'pair',receiverId:'screen',discoveryToken:'selection-token',name:'Vega Mobile'});
+  expect(requests.find(item=>item.op==='pair')).toEqual({op:'pair',receiverId:'screen',discoveryToken:'selection-token',name:'Droid Stream'});
   expect(service.getReceivers()[0].paired).toBe(true);
   expect(service.getReceivers()[0].token).toBeUndefined();
  });
@@ -35,7 +35,7 @@ describe('Vega Cast selection and QR pairing',()=>{
   await expect(service.pair('123456')).rejects.toThrow();
   expect(requests).toEqual([]);
   await service.pair('vega-cast://pair?server=https%3A%2F%2Fcast.example%2Fvega-cast%2Fv1&code=123456');
-  expect(requests[0]).toEqual({op:'pair',code:'123456',name:'Vega Mobile'});
+  expect(requests[0]).toEqual({op:'pair',code:'123456',name:'Droid Stream'});
  });
  it('does not save or connect a grant after pairing is canceled',async()=>{
   let complete:(value:unknown)=>void=()=>{};

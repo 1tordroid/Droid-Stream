@@ -1,5 +1,8 @@
 package com.vega
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import com.facebook.react.bridge.*
 import org.libtorrent4j.*
@@ -30,16 +33,27 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             "udp://tracker.tiny-vps.com:6969/announce",
             "udp://tracker.openbittorrent.com:6969/announce"
         )
-        private var sessionManager: SessionManager? = null
-        private var streamServer: TorrentStreamServer? = null
-        private val torrentHandles = mutableMapOf<String, TorrentHandle>()
-        private val torrentSavePaths = mutableMapOf<String, String>()
-        private val torrentOutputPaths = mutableMapOf<String, String>()
+        internal var sessionManager: SessionManager? = null
+        internal var streamServer: TorrentStreamServer? = null
+        internal val torrentHandles = mutableMapOf<String, TorrentHandle>()
+        internal val torrentSavePaths = mutableMapOf<String, String>()
+        internal val torrentOutputPaths = mutableMapOf<String, String>()
+        internal var addPublicTrackers = true
+        internal var transfersAllowed = true
+        internal var preferPex = true
+        internal val userStopped = mutableSetOf<String>()
+        internal val policyPaused = mutableSetOf<String>()
+
+        internal fun saveDirectory(context: Context): File {
+            val dir = context.getExternalFilesDir("torrents") ?: File(context.filesDir, "torrents")
+            dir.mkdirs()
+            return dir
+        }
     }
 
     override fun getName(): String = "TorrentModule"
 
-    private fun ensureSession(): SessionManager {
+    internal fun ensureSession(): SessionManager {
         sessionManager?.let { if (it.isRunning) return it }
 
         val sm = SessionManager(false)
@@ -59,6 +73,10 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         sp.setBoolean(settings_pack.bool_types.strict_end_game_mode.swigValue(), false)
         sp.setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true)
         sp.setBoolean(settings_pack.bool_types.announce_to_all_tiers.swigValue(), true)
+        // Finished torrents are not kept active as seeds. Piece upload while a
+        // download is still running is unchanged.
+        sp.setInteger(settings_pack.int_types.active_seeds.swigValue(), 0)
+        sp.setInteger(settings_pack.int_types.seed_time_limit.swigValue(), 1)
         
         sm.start(SessionParams(sp))
         sessionManager = sm
@@ -66,7 +84,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         return sm
     }
 
-    private fun ensureServer(): TorrentStreamServer {
+    internal fun ensureServer(): TorrentStreamServer {
         streamServer?.let { return it }
         val server = TorrentStreamServer()
         server.sessionManager = ensureSession()
@@ -76,7 +94,8 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         return server
     }
 
-    private fun withPublicTrackers(magnet: String): String {
+    internal fun withPublicTrackers(magnet: String): String {
+        if (!addPublicTrackers) return magnet
         val builder = StringBuilder(magnet)
         for (tracker in PUBLIC_TRACKERS) {
             val encoded = java.net.URLEncoder.encode(tracker, "UTF-8")
@@ -85,6 +104,17 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             }
         }
         return builder.toString()
+    }
+
+    @ReactMethod
+    fun isOnWifi(promise: Promise) {
+        try {
+            val manager = reactApplicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val capabilities = manager.getNetworkCapabilities(manager.activeNetwork)
+            promise.resolve(capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
     }
 
     @ReactMethod
@@ -107,10 +137,15 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     fun addTorrent(magnetOrUrl: String, outputFolder: String?, fileName: String?, promise: Promise) {
         Thread {
             try {
+                val isRemote = magnetOrUrl.startsWith("magnet:") ||
+                    magnetOrUrl.startsWith("http://") ||
+                    magnetOrUrl.startsWith("https://")
+                // A local .torrent file already holds its metadata and info hash.
+                val fileInfo = if (isRemote) null else TorrentInfo(File(magnetOrUrl))
                 val expectedHash = if (magnetOrUrl.startsWith("magnet:")) {
                     Regex("btih:([a-fA-F0-9]{40})", RegexOption.IGNORE_CASE)
                         .find(magnetOrUrl)?.groupValues?.get(1)?.lowercase()
-                } else null
+                } else fileInfo?.infoHash()?.toHex()?.lowercase()
 
                 val sm = ensureSession()
                 val server = ensureServer()
@@ -199,14 +234,12 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 sm.addListener(listener)
 
                 VegaLog.d(TAG, "Starting download: $magnetOrUrl -> $downloadDir")
-                if (magnetOrUrl.startsWith("magnet:") ||
-                    magnetOrUrl.startsWith("http://") ||
-                    magnetOrUrl.startsWith("https://")) {
+                if (fileInfo == null) {
                     val source = if (magnetOrUrl.startsWith("magnet:")) withPublicTrackers(magnetOrUrl) else magnetOrUrl
                     sm.download(source, File(downloadDir), TorrentFlags.AUTO_MANAGED)
                 } else {
-                    val ti = TorrentInfo(File(magnetOrUrl))
-                    sm.download(ti, File(downloadDir))
+                    sm.download(fileInfo, File(downloadDir))
+                    metadataLatch.countDown()
                 }
 
                 VegaLog.d(TAG, "Waiting for metadata (45s timeout)...")

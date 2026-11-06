@@ -85,7 +85,7 @@ jobs:
           APP_VARIANT: tv
         run: npm run build:sandbox && npx expo prebuild --platform android --clean --no-install
 
-      - name: Build signed TV APK (com.vega)
+      - name: Build signed TV APK (com.tordroid.droidstream)
         env:
           APP_VARIANT: tv
         shell: bash
@@ -98,14 +98,14 @@ jobs:
             -Pkotlin.compiler.execution.strategy=in-process
           cd ..
           python3 scripts/check-tv-device-support.py
-          node scripts/collect-action-build.cjs apk "$RUNNER_TEMP/action-build-files/vega-tv.apk"
+          node scripts/collect-action-build.cjs apk "$RUNNER_TEMP/action-build-files/droid-stream-tv.apk"
 
       - name: Generate Play Store TV project
         env:
           APP_VARIANT: playstore
         run: npm run build:sandbox && npx expo prebuild --platform android --clean --no-install
 
-      - name: Build signed Play Store TV AAB (vega.app)
+      - name: Build signed Play Store TV AAB (com.tordroid.droidstream.play)
         env:
           APP_VARIANT: playstore
         shell: bash
@@ -118,7 +118,7 @@ jobs:
             -Pkotlin.compiler.execution.strategy=in-process
           cd ..
           python3 scripts/check-tv-device-support.py
-          node scripts/collect-action-build.cjs aab "$RUNNER_TEMP/action-build-files/vega-tv-playstore.aab"
+          node scripts/collect-action-build.cjs aab "$RUNNER_TEMP/action-build-files/droid-stream-tv-playstore.aab"
 
       # No Actions artifact upload: binaries stay in the draft release only.
       - name: Replace the Action build draft assets

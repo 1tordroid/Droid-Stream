@@ -1,0 +1,21 @@
+appId: com.tordroid.droidstream
+name: Debrid and watch sync screens open
+tags: [settings, phone]
+---
+- runFlow: _launch.yaml
+- tapOn: "Torrents"
+- tapOn: "Debrid and cloud services"
+- assertVisible: "Debrid and cloud"
+- assertVisible: "TorBox"
+- scrollUntilVisible:
+    element: "PikPak"
+    direction: DOWN
+- assertVisible: "PikPak"
+- back
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Watch sync"
+    direction: DOWN
+- tapOn: "Watch sync"
+- assertVisible: "AniSkip for anime"
+- assertVisible: "Trakt"

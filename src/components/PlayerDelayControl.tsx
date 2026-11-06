@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, {useEffect, useRef, useState} from 'react';
-import {Pressable, Text, View} from 'react-native';
+import {Pressable, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 
 /** Largest delay either way, in milliseconds. */

@@ -14,6 +14,16 @@ export const formatDownloadBytes = (bytes: number): string => {
 export const formatDownloadSpeed = (bytesPerSecond: number): string =>
   `${formatDownloadBytes(bytesPerSecond)}/s`;
 
+export const formatDownloadEta = (remainingBytes: number, bytesPerSecond: number): string => {
+  if (remainingBytes <= 0) return 'Done';
+  if (bytesPerSecond <= 0) return '';
+  const seconds = Math.ceil(remainingBytes / bytesPerSecond);
+  if (seconds < 60) return `${seconds}s left`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m left`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m left`;
+};
+
 export const formatDownloadProgressLabel = (item: {
   sourceType?: string | null;
   videoType?: string | null;

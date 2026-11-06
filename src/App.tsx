@@ -5,7 +5,11 @@ import {
   flushInteractionCommits,
   scheduleWhenIdle,
 } from './lib/performance/idleWork';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo} from 'react';
+import {M3ThemeProvider} from './theme/M3ThemeProvider';
+import {THEME_ROLES} from './theme/themeMode';
+import useThemeStore from './lib/zustand/themeStore';
+import {startTransferRules} from './lib/torrent/transferPolicy';
 import './global.css';
 import Home from './screens/home/Home';
 import Info from './screens/home/Info';
@@ -14,6 +18,23 @@ import {getInitialVideoIntent, subscribeVideoIntent, setVideoIntentsEnabled, sup
 import Settings from './screens/settings/Settings';
 import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
+import LocalLibrary from './screens/LocalLibrary';
+import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
+import Credits from './screens/settings/Credits';
+import CloudFiles from './screens/library/CloudFiles';
+import Sources from './screens/Sources';
+import LibraryHub from './screens/library/LibraryHub';
+import Torrents from './screens/torrents/Torrents';
+import TorrentDetails from './screens/torrents/TorrentDetails';
+import TorrentOptions from './screens/torrents/TorrentOptions';
+import TorrentSearch from './screens/torrents/TorrentSearch';
+import TorrentSources from './screens/torrents/TorrentSources';
+import DebridSettings from './screens/torrents/DebridSettings';
+import StreamFinder from './screens/torrents/StreamFinder';
+import StremioAddons from './screens/torrents/StremioAddons';
+import WatchSync from './screens/settings/WatchSync';
+import LanguageSettings from './screens/settings/LanguageSettings';
+import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
 import ScrollList from './screens/ScrollList';
@@ -29,7 +50,10 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import WebView from './screens/WebView';
 import SearchResults from './screens/SearchResults';
 // import DisableProviders from './screens/settings/DisableProviders';
-import About, {checkForUpdate} from './screens/settings/About';
+import About from './screens/settings/About';
+import {checkForUpdate} from './lib/updates/checkForUpdate';
+import {startLinkIntake} from './lib/linkIntake';
+import FirstRunTips from './components/FirstRunTips';
 import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
 import {enableFreeze, enableScreens} from 'react-native-screens';
@@ -38,7 +62,6 @@ import PlayerSettings from './screens/settings/PlayerSettings';
 import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
 import DataManagement from './screens/settings/DataManagement';
-import {M3ThemeProvider} from './theme/M3ThemeProvider';
 import {AppState, Linking, LogBox, useWindowDimensions} from 'react-native';
 import {vegaCastService} from './lib/remote/vegaCastService';
 import {EpisodeLink, Stream} from './lib/providers/types';
@@ -76,7 +99,6 @@ import {
   reconcileDownloadState,
 } from './lib/downloadReconciliation';
 import useDownloadsStore from './lib/zustand/downloadsStore';
-import useNavigationPreferencesStore from './lib/zustand/navigationPreferencesStore';
 import {
   initializeSyncService,
   publishSyncManifest,
@@ -85,11 +107,6 @@ import {
 import StreamingTabBar from './components/navigation/StreamingTabBar';
 import AppDialogHost from './components/AppDialogHost';
 import {RemoteVolumeToast} from './components/remote-player/RemoteVolumeToast';
-import {
-  getAnalytics,
-  getCrashlytics,
-  isFirebaseNativeReady,
-} from './lib/utils/firebaseSafe';
 
 enableScreens(true);
 enableFreeze(true);
@@ -137,6 +154,8 @@ export type RootStackParamList = {
     alwaysCast?: boolean;
     // Plays first, before online servers load (an unfinished download).
     initialStream?: Stream;
+    /** What is playing, when known: used for Trakt/Simkl/AniList, AniSkip, and subtitles. */
+    meta?: import('./lib/watchMeta').WatchMeta;
   };
 };
 
@@ -153,9 +172,25 @@ export type SearchStackParamList = {
 };
 
 export type WatchListStackParamList = {
+  LibraryHome: undefined;
+  DebridSettings: undefined;
+  CloudFiles: undefined;
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
+  LocalLibrary: undefined;
+  Sources: {kind?: string; openId?: string} | undefined;
   Info: {link: string; provider?: string; poster?: string};
+};
+
+export type TorrentsStackParamList = {
+  Torrents: {highlight?: string} | undefined;
+  TorrentDetails: {infoHash: string; highlight?: string};
+  TorrentOptions: {highlight?: string} | undefined;
+  TorrentSearch: {query?: string; category?: import('./lib/torrentSearch/types').TorrentCategory} | undefined;
+  TorrentSources: undefined;
+  DebridSettings: undefined;
+  StreamFinder: import('./lib/streams/finder').WantedVideo | undefined;
+  StremioAddons: undefined;
 };
 
 export type SettingsStackParamList = {
@@ -170,6 +205,11 @@ export type SettingsStackParamList = {
   Extensions: {addSource?: string; requestId?: number} | undefined;
   DownloadsStack: undefined;
   DataManagement: undefined;
+  LocalLibrary: undefined;
+  OpenSourceLicenses: undefined;
+  Credits: undefined;
+  WatchSync: undefined;
+  Languages: undefined;
 };
 
 export type DownloadsStackParamList = {
@@ -181,8 +221,8 @@ export type DownloadsStackParamList = {
 export type TabStackParamList = {
   HomeStack: undefined;
   SearchStack: undefined;
+  TorrentsStack: undefined;
   WatchListStack: undefined;
-  DownloadsStack: undefined;
   SettingsStack: undefined;
 };
 const Tab = createBottomTabNavigator<TabStackParamList>();
@@ -192,6 +232,7 @@ const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
 const WatchListStack = createNativeStackNavigator<WatchListStackParamList>();
+const TorrentsStack = createNativeStackNavigator<TorrentsStackParamList>();
 const DownloadsStack = createNativeStackNavigator<DownloadsStackParamList>();
 const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -224,14 +265,10 @@ export const openDownloadsScreen = (): void => {
     return;
   }
   pendingDownloadsNavigation = false;
-  if (settingsStorage.hideDownloadsTab()) {
-    navigationRef.navigate('TabStack', {
-      screen: 'SettingsStack',
-      params: {screen: 'DownloadsStack'},
-    });
-    return;
-  }
-  navigationRef.navigate('TabStack', {screen: 'DownloadsStack'});
+  navigationRef.navigate('TabStack', {
+    screen: 'SettingsStack',
+    params: {screen: 'DownloadsStack'},
+  });
 };
 
 // Opens Extensions with the add source dialog prefilled. The user still
@@ -259,6 +296,15 @@ const stackScreenOptions = {
   animationDuration: 200,
   freezeOnBlur: true,
 } as const;
+
+// Pages without their own artwork or safe area stay below the status bar.
+const useTopInsetOptions = () => {
+  const insets = useSafeAreaInsets();
+  return useMemo(
+    () => ({contentStyle: {flex: 1, paddingTop: isTV ? 0 : insets.top}}),
+    [insets.top],
+  );
+};
 
 const rootStackScreenOptions = {
   ...stackScreenOptions,
@@ -312,20 +358,6 @@ const playerScreenOptions = ({route}: {route: {params?: object}}) => {
   };
 };
 
-const logScreenView = async () => {
-  try {
-    const route = navigationRef.getCurrentRoute();
-    if (route?.name) {
-      const analytics = getAnalytics();
-      analytics &&
-        (await analytics().logScreenView({
-          screen_name: route.name,
-          screen_class: 'Navigation',
-        }));
-    }
-  } catch {}
-};
-
 type TabIconProps = {focused: boolean; color: string; size: number};
 type TabIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -350,10 +382,6 @@ const searchTabOptions = {
 const watchListTabOptions = {
   title: 'Library',
   tabBarIcon: makeTabIcon('bookmark', 'bookmark-outline'),
-};
-const downloadsTabOptions = {
-  title: 'Downloads',
-  tabBarIcon: makeTabIcon('download', 'download-outline'),
 };
 const settingsTabOptions = {
   title: 'Settings',
@@ -392,14 +420,42 @@ function SearchStackScreen() {
 }
 
 function WatchListStackScreen() {
+  const subpageOptions = useTopInsetOptions();
+
   return (
     <WatchListStack.Navigator
       screenListeners={navigationWorkListeners}
       screenOptions={stackScreenOptions}>
+      <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
+      <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
+      <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
+      <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
+      <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />
       <WatchListStack.Screen name="LocalContent" component={LocalContent} />
       <WatchListStack.Screen name="Info" component={Info} />
     </WatchListStack.Navigator>
+  );
+}
+
+function TorrentsStackScreen() {
+  const subpageOptions = useTopInsetOptions();
+  const screenOptions = useMemo(
+    () => ({...stackScreenOptions, ...subpageOptions}),
+    [subpageOptions],
+  );
+
+  return (
+    <TorrentsStack.Navigator screenListeners={navigationWorkListeners} screenOptions={screenOptions}>
+      <TorrentsStack.Screen name="Torrents" component={Torrents} />
+      <TorrentsStack.Screen name="TorrentDetails" component={TorrentDetails} />
+      <TorrentsStack.Screen name="TorrentOptions" component={TorrentOptions} />
+      <TorrentsStack.Screen name="TorrentSearch" component={TorrentSearch} />
+      <TorrentsStack.Screen name="TorrentSources" component={TorrentSources} />
+      <TorrentsStack.Screen name="DebridSettings" component={DebridSettings} />
+      <TorrentsStack.Screen name="StreamFinder" component={StreamFinder} />
+      <TorrentsStack.Screen name="StremioAddons" component={StremioAddons} />
+    </TorrentsStack.Navigator>
   );
 }
 
@@ -419,11 +475,7 @@ function DownloadsStackScreen() {
 }
 
 function SettingsStackScreen() {
-  const insets = useSafeAreaInsets();
-  const subpageOptions = useMemo(
-    () => ({contentStyle: {flex: 1, paddingTop: isTV ? 0 : insets.top}}),
-    [insets.top],
-  );
+  const subpageOptions = useTopInsetOptions();
 
   return (
     <SettingsStack.Navigator
@@ -466,6 +518,11 @@ function SettingsStackScreen() {
         component={SubtitlePreference}
         options={subpageOptions}
       />
+      <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
+      <SettingsStack.Screen name="Credits" component={Credits} options={subpageOptions} />
+      <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
+      <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
+      <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }
@@ -475,9 +532,6 @@ function TabStack() {
   // Use the navigator's native detach policy until retention is touch-safe.
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
   const isLargeScreen = isTV || Math.min(windowWidth, windowHeight) >= 600;
-  const hideDownloadsTab = useNavigationPreferencesStore(
-    state => state.hideDownloadsTab,
-  );
   const screenOptions = useMemo(
     () => ({
       animation: isTV ? ('shift' as const) : ('fade' as const),
@@ -506,17 +560,15 @@ function TabStack() {
         options={searchTabOptions}
       />
       <Tab.Screen
+        name="TorrentsStack"
+        component={TorrentsStackScreen}
+        options={{title: 'Torrents', tabBarIcon: makeTabIcon('magnet', 'magnet-on')}}
+      />
+      <Tab.Screen
         name="WatchListStack"
         component={WatchListStackScreen}
         options={watchListTabOptions}
       />
-      {!hideDownloadsTab && (
-        <Tab.Screen
-          name="DownloadsStack"
-          component={DownloadsStackScreen}
-          options={downloadsTabOptions}
-        />
-      )}
       <Tab.Screen
         name="SettingsStack"
         component={SettingsStackScreen}
@@ -533,15 +585,19 @@ const App = () => {
     const subscription=Linking.addEventListener('url',event=>{vegaCastService.handleInvitation(event.url);});
     return()=>subscription.remove();
   },[]);
-  const [hasFirebase] = useState(
-    () =>
-      Boolean(Constants?.expoConfig?.extra?.hasFirebase) &&
-      isFirebaseNativeReady(),
-  );
-
   useEffect(() => {
     syncParallelStreaming();
   }, []);
+
+  // Magnets and links opened from other apps, and copied magnets.
+  useEffect(
+    () =>
+      startLinkIntake((screen, params) => {
+        if (!navigationRef.isReady()) return;
+        (navigationRef.navigate as (name: string, params?: object) => void)(screen, params);
+      }),
+    [],
+  );
 
   // Safety fallback to ensure splash is hidden
   useEffect(() => {
@@ -576,6 +632,8 @@ const App = () => {
     }
     return useDownloadsStore.persist.onFinishHydration(reconcile);
   }, []);
+
+  useEffect(() => startTransferRules(), []);
 
   // One AppState listener and one timer. They were registered twice, so every
   // foreground, background and 30 s tick ran the sync twice.
@@ -613,46 +671,6 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const optIn = settingsStorage.isTelemetryOptIn();
-    if (hasFirebase) {
-      try {
-        const crashlytics = getCrashlytics();
-        crashlytics && crashlytics().setCrashlyticsCollectionEnabled(optIn);
-      } catch {}
-      try {
-        const analytics = getAnalytics();
-        analytics && analytics().setAnalyticsCollectionEnabled(optIn);
-      } catch {}
-      try {
-        const analytics = getAnalytics();
-        analytics &&
-          analytics().setConsent({
-            analytics_storage: optIn,
-            ad_storage: optIn,
-            ad_user_data: optIn,
-            ad_personalization: optIn,
-          });
-      } catch {}
-
-      // Mark app open
-      try {
-        const analytics = getAnalytics();
-        analytics && analytics().logAppOpen();
-      } catch {}
-      // Example user property: theme
-      try {
-        const analytics = getAnalytics();
-        analytics &&
-          analytics().setUserProperty('theme_preference', 'fixed-neutral');
-      } catch {}
-
-      // Initial Crashlytics log
-      try {
-        const crashlytics = getCrashlytics();
-        crashlytics && crashlytics().log('App mounted');
-      } catch {}
-    }
-
     const unsubscribe = notifee.onForegroundEvent(({type, detail}) => {
       notificationService.actionHandler({type, detail});
     });
@@ -677,7 +695,7 @@ const App = () => {
     return () => {
       unsubscribe();
     };
-  }, [hasFirebase]);
+  }, []);
 
   // Initialize update service
   useEffect(() => {
@@ -734,17 +752,16 @@ const App = () => {
     } catch (error) {
       console.warn('Failed to open incoming video:', error);
     }
-    // Track initial screen
-    if (hasFirebase) {
-      await logScreenView();
-    }
-  }, [hasFirebase]);
+  }, []);
 
-  const handleNavigationStateChange = useCallback(async () => {
-    if (hasFirebase) {
-      await logScreenView();
-    }
-  }, [hasFirebase]);
+  const themeMode = useThemeStore(state => state.mode);
+  const themedNavigation = useMemo(() => {
+    const background = THEME_ROLES[themeMode].background;
+    return {
+      ...navigationTheme,
+      colors: {...navigationTheme.colors, card: background, border: background},
+    };
+  }, [themeMode]);
 
   return (
     <SafeAreaProvider>
@@ -753,12 +770,12 @@ const App = () => {
         <AppDialogHost />
         <GlobalErrorBoundary>
           <QueryClientProvider client={queryClient}>
-            <GestureHandlerRootView style={{flex: 1, backgroundColor: 'black'}}>
+            <GestureHandlerRootView style={{flex: 1, backgroundColor: THEME_ROLES[themeMode].background}}>
+              <UndoSnackbar />
               <NavigationContainer
                 ref={navigationRef}
                 onReady={handleNavigationReady}
-                onStateChange={handleNavigationStateChange}
-                theme={navigationTheme}>
+                theme={themedNavigation}>
                 <Stack.Navigator
                   screenListeners={navigationWorkListeners}
                   screenOptions={rootStackScreenOptions}>
@@ -775,6 +792,7 @@ const App = () => {
               <VerificationConsentDialog />
               <WafWebViewDialog />
               <RemoteVolumeToast />
+              <FirstRunTips />
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched
                 into it. */}

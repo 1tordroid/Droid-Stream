@@ -21,7 +21,7 @@ module.exports = function withAndroidReleaseGradle(config) {
 if (project.android) {
   // One APK for phone and TV: no variant in the name, so the in-app updater
   // picks the same file on both.
-  def baseAppName = "vega"
+  def baseAppName = "DroidStream"
   project.ext { appName = baseAppName }
 
   project.android.applicationVariants.all { variant ->
@@ -48,7 +48,11 @@ if (project.android) {
     }
     defaultConfig {
       ndk {
-        abiFilters 'armeabi-v7a', 'arm64-v8a'
+        if (project.hasProperty('droidstreamArm64Only')) {
+          abiFilters 'arm64-v8a'
+        } else {
+          abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
       }
     }
     packagingOptions {
@@ -57,6 +61,9 @@ if (project.android) {
       }
       dex {
         useLegacyPackaging true
+      }
+      resources {
+        pickFirsts += ['org/bouncycastle/**', 'META-INF/versions/**']
       }
     }
   }

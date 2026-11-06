@@ -54,6 +54,7 @@ const SliderPosterItem = memo(
         aspectRatio={item.aspectRatio}
         borderRadius={item.borderRadius}
         cornerTag={item.cornerTag || item.tag}
+        badge={item.rating}
         onPress={handlePress}
       />
     );

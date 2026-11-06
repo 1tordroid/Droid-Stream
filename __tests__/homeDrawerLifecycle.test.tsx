@@ -19,6 +19,7 @@ jest.mock('../src/components/Hero', () => 'Hero');
 jest.mock('../src/components/Slider', () => 'Slider');
 jest.mock('../src/components/ProviderDrawer', () => 'ProviderDrawer');
 jest.mock('../src/components/ContinueWatching', () => 'ContinueWatching');
+jest.mock('../src/components/DiscoverRows', () => 'DiscoverRows');
 jest.mock('../src/components/ui/StatusBarScrim', () => 'Scrim');
 jest.mock('../src/components/ui/Text', () => require('react-native').Text);
 jest.mock('../src/components/Touturial', () => 'Tutorial');

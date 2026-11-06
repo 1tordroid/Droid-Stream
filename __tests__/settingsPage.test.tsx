@@ -15,7 +15,10 @@ jest.mock('../src/lib/tv', () => ({isTV: false}));
 jest.mock('@react-navigation/native', () => ({useFocusEffect: (effect: any) => require('react').useEffect(effect, [effect])}));
 jest.mock('../src/lib/storage', () => ({settingsStorage: {getTmdbApiKey: () => '', setTmdbApiKey: jest.fn()}}));
 jest.mock('../src/theme/M3PaletteContext', () => ({useM3Colors: () => ({})}));
-jest.mock('../src/components/ui/Text', () => require('react-native').Text);
+jest.mock('../src/components/ui/Text', () => {
+  const {Text, TextInput} = require('react-native');
+  return {__esModule: true, default: Text, RawText: Text, RawTextInput: TextInput};
+});
 jest.mock('../src/components/ui/SettingsSection', () => ({children}: any) => children);
 jest.mock('../src/components/tv', () => ({TVFocusable: require('react-native').View}));
 jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => 'Icon');

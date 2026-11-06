@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
-import {ActivityIndicator, Pressable, View} from 'react-native';
+import {ActivityIndicator, Image, Pressable, View} from 'react-native';
 import IconButton from '../ui/IconButton';
 import {useRemoteStore} from '../../lib/remote/remoteStore';
 import {remotePlaybackManager} from '../../lib/remote/remotePlaybackManager';
@@ -90,20 +90,27 @@ export const RemoteControls: React.FC = () => {
         android_ripple={{color: colors.onPrimary, borderless: true, radius: 36}}
         style={{
           alignItems: 'center',
-          backgroundColor: colors.primary,
-          borderRadius: 36,
-          height: 72,
+          backgroundColor: isError || isPlaying ? colors.primary : 'transparent',
+          borderRadius: 40,
+          height: 80,
           justifyContent: 'center',
           opacity: centreEnabled || isBuffering ? 1 : 0.38,
-          width: 72,
+          width: 80,
         }}>
         {isBuffering ? (
-          <ActivityIndicator size="small" color={colors.onPrimary} />
-        ) : (
+          <ActivityIndicator size="small" color={colors.onSurface} />
+        ) : isError || isPlaying ? (
           <MaterialCommunityIcons
-            name={isError ? 'refresh' : isPlaying ? 'pause' : 'play'}
+            name={isError ? 'refresh' : 'pause'}
             size={36}
             color={colors.onPrimary}
+          />
+        ) : (
+          <Image
+            source={require('../../../assets/brand/play-button.png')}
+            accessibilityIgnoresInvertColors
+            resizeMode="contain"
+            style={{height: 80, width: 80}}
           />
         )}
       </Pressable>

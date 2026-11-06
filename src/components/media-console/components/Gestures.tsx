@@ -1,4 +1,5 @@
-import { View, Text, Dimensions } from 'react-native';
+import {View, Dimensions} from 'react-native';
+import {RawText as Text} from '../../ui/Text';
 import type { LayoutChangeEvent } from 'react-native';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Animated, {
@@ -542,7 +543,7 @@ const Gestures = ({
   ]);
 
   const handleTap = useCallback(
-    (touchX: number, touchY: number, side: 'left' | 'right') => {
+    (touchX: number, touchY: number, side: 'left' | 'right' | 'center') => {
       // Keep the controls timer from interrupting an active multi-tap seek.
       // It is restarted after the accumulated seek has been applied.
       clearControlTimeout();
@@ -554,12 +555,18 @@ const Gestures = ({
       if (!isDoubleTapRef.current) {
         isDoubleTapRef.current = true;
         initialTapPosition.current = { x: touchX, y: touchY };
-        currentSideRef.current = side;
+        currentSideRef.current = side === 'center' ? null : side;
         tapCountRef.current = 1;
         lastTapTimeRef.current = now;
 
         tapActionTimeout.current = setTimeout(() => {
-          if (tapAnywhereToPause) {
+          // Side taps seek. They must not pause, which is what happened when
+          // a skip tap was treated as the lone tap of a play/pause gesture.
+          if (side === 'left') {
+            rewind(rewindTime);
+          } else if (side === 'right') {
+            forward(rewindTime);
+          } else if (tapAnywhereToPause) {
             togglePlayPause();
           } else {
             toggleControls();
@@ -606,11 +613,20 @@ const Gestures = ({
           resetState();
           isDoubleTapRef.current = true;
           initialTapPosition.current = { x: touchX, y: touchY };
-          currentSideRef.current = side;
+          currentSideRef.current = side === 'center' ? null : side;
           tapCountRef.current = 1;
           lastTapTimeRef.current = now;
 
           tapActionTimeout.current = setTimeout(() => {
+            if (side === 'left') {
+              rewind(rewindTime);
+            } else if (side === 'right') {
+              forward(rewindTime);
+            } else if (tapAnywhereToPause) {
+              togglePlayPause();
+            } else {
+              toggleControls();
+            }
             resetState();
           }, doubleTapTime);
         }
@@ -623,6 +639,8 @@ const Gestures = ({
       toggleControls,
       doubleTapTime,
       rewindTime,
+      rewind,
+      forward,
       handleSkip,
       clearControlTimeout,
       onSkipFeedback,
@@ -892,11 +910,14 @@ const Gestures = ({
         .onEnd((event, success) => {
           'worklet';
           if (success && !is2xActiveShared.value) {
-            const side =
-              event.x < (gestureWidth.value || SCREEN_WIDTH) / 2
+            const width = gestureWidth.value || SCREEN_WIDTH;
+            const zone =
+              event.x < width * 0.3
                 ? 'left'
-                : 'right';
-            runOnJS(handleTap)(event.x, event.y, side);
+                : event.x > width * 0.7
+                  ? 'right'
+                  : 'center';
+            runOnJS(handleTap)(event.x, event.y, zone);
           }
         }),
     [SCREEN_WIDTH, gestureWidth, handleTap, is2xActiveShared],

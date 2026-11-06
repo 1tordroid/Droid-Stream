@@ -45,6 +45,7 @@ private data class HttpDownloadJob(
 ) {
     @Volatile var cancelled = false
     @Volatile var userPaused = false
+    @Volatile var bytesPerSecond = 0
     val calls: MutableSet<Call> = ConcurrentHashMap.newKeySet()
     @Volatile var cancelPromise: Promise? = null
     @Volatile var deleteOnCancel = false
@@ -86,7 +87,32 @@ class HttpDownloadModule(
         private const val MAX_RETRY_DELAY_MS = 30_000L
         private const val BUFFER_SIZE = 512 * 1024
 
-        private const val MAX_CONNECTIONS = 16
+        private const val MAX_CONNECTIONS = 32
+        private val pendingLimits = ConcurrentHashMap<String, Int>()
+
+        internal fun controlAll(action: String) {
+            jobs.values.forEach { job ->
+                when (action) {
+                    "pause" -> {
+                        job.userPaused = true
+                        job.cancelCalls()
+                    }
+                    "resume" -> {
+                        job.userPaused = false
+                        synchronized(job.monitor) { job.monitor.notifyAll() }
+                    }
+                    "cancel" -> {
+                        job.cancelled = true
+                        job.deleteOnCancel = false
+                        job.cancelCalls()
+                        synchronized(job.monitor) {
+                            job.userPaused = false
+                            job.monitor.notifyAll()
+                        }
+                    }
+                }
+            }
+        }
         // A range is split only when both halves get at least this much. Must stay above
         // BUFFER_SIZE: a split point then always lies past the bytes a worker is writing.
         private const val MIN_SPLIT_BYTES = 2L * 1024 * 1024
@@ -188,6 +214,7 @@ class HttpDownloadModule(
             connections = connections.toInt().coerceIn(1, MAX_CONNECTIONS),
             completion = promise,
         )
+        job.bytesPerSecond = pendingLimits[downloadId] ?: 0
         jobs[downloadId] = job
         executor.execute { runJob(job) }
     }
@@ -413,6 +440,103 @@ class HttpDownloadModule(
     }
 
     // Required by NativeEventEmitter.
+    @ReactMethod
+    fun setSpeedLimit(globalBytesPerSecond: Double, downloadId: String?, downloadBytesPerSecond: Double, promise: Promise) {
+        DownloadRateGate.globalBytesPerSecond = globalBytesPerSecond.toInt().coerceAtLeast(0)
+        if (!downloadId.isNullOrEmpty()) {
+            val limit = downloadBytesPerSecond.toInt().coerceAtLeast(0)
+            pendingLimits[downloadId] = limit
+            jobs[downloadId]?.bytesPerSecond = limit
+        }
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun probe(url: String, headers: ReadableMap?, promise: Promise) {
+        executor.execute {
+            try {
+                fun call(builder: Request.Builder): Response {
+                    readableHeaders(headers).forEach { (name, value) -> builder.header(name, value) }
+                    return fileClient.newCall(builder.build()).execute()
+                }
+                var response = call(Request.Builder().url(url).head())
+                if (response.code == 405 || response.code == 501) {
+                    response.close()
+                    response = call(Request.Builder().url(url).header("Range", "bytes=0-0"))
+                }
+                response.use {
+                    val disposition = it.header("Content-Disposition").orEmpty()
+                    val fileName = Regex("filename\\*?=(?:UTF-8''|\"?)([^\";]+)", RegexOption.IGNORE_CASE)
+                        .find(disposition)?.groupValues?.getOrNull(1)?.trim()?.trim('"')
+                    val contentRange = it.header("Content-Range")
+                    val size = parseContentRangeTotal(contentRange).takeIf { total -> total > 0L }
+                        ?: it.header("Content-Length")?.toLongOrNull()
+                        ?: -1L
+                    val result = Arguments.createMap()
+                    result.putString("fileName", fileName ?: Uri.parse(url).lastPathSegment)
+                    result.putDouble("size", size.toDouble())
+                    result.putString("mime", it.header("Content-Type"))
+                    result.putBoolean("acceptRanges", it.code == 206 || it.header("Accept-Ranges")?.contains("bytes", true) == true)
+                    promise.resolve(result)
+                }
+            } catch (error: Exception) {
+                promise.reject("PROBE_FAILED", error.message ?: error.toString(), error)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun checksum(uri: String, algorithm: String, promise: Promise) {
+        executor.execute {
+            try {
+                val name = if (algorithm.equals("MD5", true)) "MD5" else "SHA-256"
+                val digest = java.security.MessageDigest.getInstance(name)
+                val stream = if (uri.startsWith("content:")) {
+                    reactContext.contentResolver.openInputStream(Uri.parse(uri))
+                } else {
+                    FileInputStream(File(uri))
+                } ?: throw IOException("Unable to open the file")
+                stream.use { input ->
+                    val buffer = ByteArray(1024 * 1024)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        digest.update(buffer, 0, read)
+                    }
+                }
+                promise.resolve(digest.digest().joinToString("") { "%02x".format(it) })
+            } catch (error: Exception) {
+                promise.reject("CHECKSUM_FAILED", error.message ?: error.toString(), error)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun networkPolicy(promise: Promise) {
+        try {
+            val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+            val wifi = capabilities?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+            val vpn = capabilities?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+            val battery = reactContext.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+            val status = battery?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)
+            val charging = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING || status == android.os.BatteryManager.BATTERY_STATUS_FULL
+            val saver = (reactContext.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isPowerSaveMode
+            promise.resolve(Arguments.createMap().apply {
+                putBoolean("wifi", wifi)
+                putBoolean("vpn", vpn)
+                putBoolean("charging", charging)
+                putBoolean("powerSave", saver)
+            })
+        } catch (error: Exception) {
+            promise.resolve(Arguments.createMap().apply {
+                putBoolean("wifi", true)
+                putBoolean("vpn", false)
+                putBoolean("charging", true)
+                putBoolean("powerSave", false)
+            })
+        }
+    }
+
     @ReactMethod fun addListener(eventName: String) = Unit
     @ReactMethod fun removeListeners(count: Double) = Unit
 
@@ -834,6 +958,7 @@ class HttpDownloadModule(
                         }
                         downloaded.addAndGet(count.toLong())
                         lastProgressAt = System.currentTimeMillis()
+                        DownloadRateGate.await(count, job.bytesPerSecond)
                     }
                     synchronized(lock) {
                         segment.pos += count
@@ -1035,6 +1160,10 @@ class HttpDownloadModule(
             putDouble("totalBytes", total.toDouble())
             putDouble("speed", speed)
         })
+        val active = jobs.count { !it.value.cancelled && !it.value.userPaused }
+        if (active > 0) {
+            DownloadNotifier.update(reactContext, "$active active · ${speed.toLong() / 1024} KB/s")
+        }
     }
 
     private fun emitState(downloadId: String, state: String, message: String? = null) {

@@ -11,7 +11,9 @@ import {
 } from '@expo/ui/jetpack-compose';
 import {fillMaxWidth} from '@expo/ui/jetpack-compose/modifiers';
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState} from 'react';
-import {View, TextInput, Keyboard, Pressable, BackHandler, Text as RNText, findNodeHandle, UIManager} from 'react-native';
+import {View, Keyboard, Pressable, BackHandler, findNodeHandle, UIManager} from 'react-native';
+import {RawText as RNText} from './Text';
+import {RawTextInput as TextInput} from './Text';
 import {useM3Colors, useM3HostTheme} from '../../theme/M3PaletteContext';
 import {isTV} from '../../lib/tv';
 import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';
@@ -324,7 +326,7 @@ const SearchField = forwardRef<SearchFieldRef, SearchFieldProps>(
           }}
           keyboardActions={{onSearch: onSubmit}}
           shape={Shape.Pill({})}
-          textStyle={{fontSize: 16}}
+          textStyle={{fontSize: 16, fontFamily: 'Inter_400Regular'}}
           colors={{
             focusedContainerColor: colors.surfaceContainerHigh,
             unfocusedContainerColor: colors.surfaceContainerLow,
@@ -342,7 +344,7 @@ const SearchField = forwardRef<SearchFieldRef, SearchFieldProps>(
           }}
           modifiers={[fillMaxWidth()]}>
           <TextField.Placeholder>
-            <Text color={colors.onSurfaceVariant}>{placeholder}</Text>
+            <Text color={colors.onSurfaceVariant} style={{fontFamily: 'Inter_400Regular'}}>{placeholder}</Text>
           </TextField.Placeholder>
           <TextField.LeadingIcon>
             <RNHostView matchContents>

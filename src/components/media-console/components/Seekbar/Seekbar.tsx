@@ -6,15 +6,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  ActivityIndicator,
-  View,
-  GestureResponderHandlers,
-  Image,
-  Platform,
-  Pressable,
-  Text,
-} from 'react-native';
+import {ActivityIndicator, View, GestureResponderHandlers, Image, Platform, Pressable} from 'react-native';
+import {RawText as Text} from '../../../ui/Text';
 import {styles} from './styles';
 import {formatTime} from '../../utils';
 import type {SkipInterval} from '../../../../lib/providers/types';

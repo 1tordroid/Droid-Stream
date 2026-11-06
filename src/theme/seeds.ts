@@ -4,6 +4,8 @@ export type SeedOption = {
 };
 
 export const DEFAULT_SEED = '#FFFFFF';
+/** The gold of the Droid Stream logo, used as the default accent. */
+export const BRAND_SEED = '#F5B82E';
 export const LEGACY_TERTIARY_BACKGROUND = '#171717';
 
 type HexColor = `#${string}`;
@@ -103,6 +105,7 @@ export const LEGACY_NEUTRAL_SURFACE_ROLES = {
  * full Material 3 palette, so every option yields usable contrast in dark mode.
  */
 export const M3_SEEDS: SeedOption[] = [
+  {name: 'Droid Gold', color: BRAND_SEED},
   {name: 'White', color: DEFAULT_SEED},
   {name: 'Tomato', color: '#FF6347'},
   {name: 'Gray', color: '#9E9E9E'},

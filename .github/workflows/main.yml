@@ -74,7 +74,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '22'
           cache: 'npm'
 
       - name: Set up JDK 17
@@ -104,13 +104,13 @@ jobs:
             exit 1
           fi
           if [ "${{ matrix.variant }}" = "playstore" ]; then
-            grep -q 'package="vega.app"' "$MANIFEST"
+            grep -q 'package="com.tordroid.droidstream.play"' "$MANIFEST"
             if grep -q 'REQUEST_INSTALL_PACKAGES' "$MANIFEST"; then
               echo "Installer permission found in Play Store manifest"
               exit 1
             fi
           else
-            grep -q 'package="com.vega"' "$MANIFEST"
+            grep -q 'package="com.tordroid.droidstream"' "$MANIFEST"
           fi
 
   build-android:
@@ -156,7 +156,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -224,7 +224,7 @@ jobs:
 
           # Set the file paths with clean names
           if [ -f "$UNIVERSAL_APK" ]; then
-            UNIVERSAL_APK_NAME="Vega-nightly-v${VERSION}-universal-${BUILD_DATE}.apk"
+            UNIVERSAL_APK_NAME="DroidStream-nightly-v${VERSION}-universal-${BUILD_DATE}.apk"
             cp "$UNIVERSAL_APK" "apks/${UNIVERSAL_APK_NAME}"
             echo "UNIVERSAL_APK_NAME=${UNIVERSAL_APK_NAME}" >> $GITHUB_ENV
             echo "UNIVERSAL_APK_FOUND=true" >> $GITHUB_ENV
@@ -235,7 +235,7 @@ jobs:
           fi
 
           if [ -f "$ARMV7_APK" ]; then
-            ARMV7_APK_NAME="Vega-nightly-v${VERSION}-armv7-${BUILD_DATE}.apk"
+            ARMV7_APK_NAME="DroidStream-nightly-v${VERSION}-armv7-${BUILD_DATE}.apk"
             cp "$ARMV7_APK" "apks/${ARMV7_APK_NAME}"
             echo "ARMV7_APK_NAME=${ARMV7_APK_NAME}" >> $GITHUB_ENV
             echo "ARMV7_APK_FOUND=true" >> $GITHUB_ENV
@@ -246,7 +246,7 @@ jobs:
           fi
 
           if [ -f "$ARMV8_APK" ]; then
-            ARMV8_APK_NAME="Vega-nightly-v${VERSION}-armv8-${BUILD_DATE}.apk"
+            ARMV8_APK_NAME="DroidStream-nightly-v${VERSION}-armv8-${BUILD_DATE}.apk"
             cp "$ARMV8_APK" "apks/${ARMV8_APK_NAME}"
             echo "ARMV8_APK_NAME=${ARMV8_APK_NAME}" >> $GITHUB_ENV
             echo "ARMV8_APK_FOUND=true" >> $GITHUB_ENV
@@ -325,7 +325,7 @@ jobs:
       - name: Upload APKs as GitHub artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Vega-Nightly-v${{ env.APP_VERSION }}-${{ env.BUILD_DATE }}
+          name: DroidStream-Nightly-v${{ env.APP_VERSION }}-${{ env.BUILD_DATE }}
           path: apks/*.apk
           if-no-files-found: warn
 
@@ -392,8 +392,8 @@ jobs:
           {
             "embeds": [
               {
-                "title": "Vega pre-build Build v${APP_VERSION}",
-                "description": "A new pre-build of **Vega App** is ready for testing!",
+                "title": "Droid Stream pre-build v${APP_VERSION}",
+                "description": "A new pre-build of **Droid Stream** is ready for testing!",
                 "color": 3447003,
                 "fields": [
                   {

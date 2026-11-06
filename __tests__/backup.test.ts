@@ -319,9 +319,9 @@ describe('backup', () => {
   });
 
   it('rejects files that are not a Vega backup', () => {
-    expect(() => parseBackup('not json')).toThrow('not a Vega backup');
+    expect(() => parseBackup('not json')).toThrow('not a Droid Stream backup');
     expect(() => parseBackup('{"app":"other","version":1}')).toThrow(
-      'not a Vega backup',
+      'not a Droid Stream backup',
     );
     expect(() =>
       parseBackup(JSON.stringify({app: 'vega', version: BACKUP_VERSION + 1})),

@@ -43,6 +43,29 @@ import DownloadsEmptyState from './components/DownloadsEmptyState';
 import DownloadsSelectionBottomBar from './components/DownloadsSelectionBottomBar';
 import DownloadsSelectionHeader from './components/DownloadsSelectionHeader';
 import {deleteDownloadedMediaGroups} from './utils/deleteDownloadGroups';
+import {matchesDownload, sortDownloads, type DownloadSort, type SourceFilter, type StatusFilter, type TypeFilter} from '../../lib/downloads/query';
+import {ScrollView} from 'react-native';
+import Chip from '../../components/torrentSearch/Chip';
+import {RawTextInput as TextInput} from '../../components/ui/Text';
+
+const FILTER_LABEL: Record<string, string> = {
+  all: 'All',
+  downloading: 'Downloading',
+  completed: 'Completed',
+  paused: 'Paused',
+  failed: 'Failed',
+  video: 'Video',
+  subtitle: 'Subtitles',
+  other: 'Other',
+  vega: 'Vega',
+  torrent: 'Torrent',
+  webdav: 'WebDAV',
+  pikpak: 'PikPak',
+  date: 'Date',
+  name: 'Name',
+  size: 'Size',
+  progress: 'Progress',
+};
 
 const Downloads = () => {
   const insets = useSafeAreaInsets();
@@ -55,6 +78,24 @@ const Downloads = () => {
   const completed = useDownloadsStore(useShallow(selectCompletedDownloads));
   const currentDownloads = useDownloadsStore(useShallow(selectCurrentDownloads));
   const groups = useMemo(() => groupCompletedDownloads(completed), [completed]);
+  const [downloadQuery, setDownloadQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [downloadSort, setDownloadSort] = useState<DownloadSort>('date');
+  const shownGroups = useMemo(() => {
+    const matched = groups
+      .map(group => ({
+        ...group,
+        items: sortDownloads(
+          group.items.filter(item => matchesDownload(item, downloadQuery, statusFilter, typeFilter, sourceFilter)),
+          downloadSort,
+        ),
+      }))
+      .filter(group => group.items.length > 0 || (!downloadQuery ? false : group.title.toLowerCase().includes(downloadQuery.toLowerCase())));
+    if (downloadSort === 'name') matched.sort((left, right) => left.title.localeCompare(right.title));
+    return matched;
+  }, [groups, downloadQuery, statusFilter, typeFilter, sourceFilter, downloadSort]);
   const localTitles = useLocalContentStore(state => state.titles);
   // Imported local content, as listed in Library. It opens the same Info page.
   const localItems = useMemo(
@@ -335,7 +376,7 @@ const Downloads = () => {
       ) : null}
 
       <FlatList
-        data={groups}
+        data={shownGroups}
         key={`downloads-cols-${columns}`}
         numColumns={columns}
         keyExtractor={item => item.id}
@@ -403,10 +444,31 @@ const Downloads = () => {
                   </TVFocusable>
                 ) : null}
               </View>
+              <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 52, paddingHorizontal: 16, marginBottom: 12}}>
+                <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
+                <TextInput value={downloadQuery} onChangeText={setDownloadQuery} placeholder="Search downloads" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search downloads" style={{flex: 1, color: colors.onSurface, marginLeft: 8, fontSize: 16}} />
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 8}}>
+                {(['all', 'downloading', 'completed', 'paused', 'failed'] as StatusFilter[]).map(item => (
+                  <Chip key={`status-${item}`} label={FILTER_LABEL[item] || item} accessibilityLabel={`Status ${item}`} selected={statusFilter === item} onPress={() => setStatusFilter(item)} />
+                ))}
+              </ScrollView>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 12}}>
+                {(['all', 'video', 'subtitle', 'other'] as TypeFilter[]).map(item => (
+                  <Chip key={`type-${item}`} label={item === 'all' ? 'All types' : FILTER_LABEL[item] || item} accessibilityLabel={`Type ${item}`} selected={typeFilter === item} onPress={() => setTypeFilter(item)} />
+                ))}
+                {(['all', 'vega', 'torrent', 'webdav', 'pikpak'] as SourceFilter[]).map(item => (
+                  <Chip key={`source-${item}`} label={item === 'all' ? 'All sources' : FILTER_LABEL[item] || item} accessibilityLabel={`Source ${item}`} selected={sourceFilter === item} onPress={() => setSourceFilter(item)} />
+                ))}
+                {(['date', 'name', 'size', 'progress'] as DownloadSort[]).map(item => (
+                  <Chip key={`sort-${item}`} icon="sort" label={FILTER_LABEL[item] || item} accessibilityLabel={`Sort by ${item}`} selected={downloadSort === item} onPress={() => setDownloadSort(item)} />
+                ))}
+              </ScrollView>
               <CurrentDownloadsSection
                 primary={colors.primary}
                 firstActionRef={currentDownloadActionRef}
                 onFirstActionLayout={updateCurrentDownloadActionNode}
+                include={item => matchesDownload(item, downloadQuery, statusFilter, typeFilter, sourceFilter)}
               />
               <MissingDownloadsSection primary={colors.primary} />
               {groups.length > 0 ? (
@@ -427,6 +489,7 @@ const Downloads = () => {
 
           return (
             <MediaPosterCard
+              fullTitle
               ref={index === 0 ? firstCardRef : undefined}
               onLayout={index === 0 ? updateFirstCardNode : undefined}
               title={item.title}
@@ -483,6 +546,7 @@ const Downloads = () => {
                 const isFirstCard = groups.length === 0 && index === 0;
                 return (
                   <MediaPosterCard
+                    fullTitle
                     ref={isFirstCard ? firstCardRef : undefined}
                     onLayout={isFirstCard ? updateFirstCardNode : undefined}
                     title={item.title}

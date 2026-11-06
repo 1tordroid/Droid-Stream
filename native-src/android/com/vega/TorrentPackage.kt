@@ -9,7 +9,7 @@ import com.facebook.react.uimanager.ViewManager
 
 class TorrentPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(TorrentModule(reactContext))
+        return listOf(TorrentModule(reactContext), TorrentClientModule(reactContext))
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

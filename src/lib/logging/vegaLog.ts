@@ -62,10 +62,7 @@ const flush = () => {
 
 // Library deprecation notices repeat on every screen view. They filled most of
 // the size-limited log file and pushed out the lines a bug report needs.
-const NOISE = [
-  'React Native Firebase namespaced API',
-  'InteractionManager has been deprecated',
-];
+const NOISE = ['InteractionManager has been deprecated'];
 
 // The same line repeated back to back is kept once, with a count.
 let lastMessage = '';

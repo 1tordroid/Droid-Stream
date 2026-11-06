@@ -104,6 +104,8 @@ interface SeasonListProps {
   synopsis?: string;
   refreshVersion?: number;
   quickDownload?: boolean;
+  /** Lets the page's main Play button start the last played or first video. */
+  playRef?: React.MutableRefObject<(() => boolean) | null>;
 }
 
 interface PlayHandlerProps {
@@ -427,6 +429,7 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
   synopsis,
   refreshVersion,
   quickDownload,
+  playRef,
 }) => {
   const manualMetadata = useMetadataOverrideStore(state => state.overrides[metadataOverrideKey(providerValue, routeParams.link)]);
   const colors = useM3Colors();
@@ -1013,6 +1016,27 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
     stickyMenu.link,
     type,
   ]);
+
+  // The Info page's main Play button: the last played video, or the first one.
+  useEffect(() => {
+    if (!playRef) return;
+    playRef.current = () => {
+      const episodeData = playableEpisodes.length ? playableEpisodes : playableDirectLinks;
+      if (!episodeData.length) return false;
+      const lastPlayedLink = readLastPlayedLink(lastPlayedKey);
+      playHandler({
+        linkIndex: Math.max(0, episodeData.findIndex(item => item.link === lastPlayedLink)),
+        type,
+        primaryTitle: metaTitle,
+        seasonTitle: activeSeason?.title || '',
+        episodeData,
+      });
+      return true;
+    };
+    return () => {
+      playRef.current = null;
+    };
+  }, [activeSeason?.title, lastPlayedKey, metaTitle, playHandler, playRef, playableDirectLinks, playableEpisodes, type]);
 
   // Memoized mark as unwatched handler
   const markAsUnwatched = useCallback(() => {

@@ -3,7 +3,7 @@ const path = require('node:path');
 
 const [kind, destination] = process.argv.slice(2);
 if (!['apk', 'aab'].includes(kind) || !destination) throw new Error('Usage: collect-action-build.cjs apk|aab destination');
-const expectedPackage = kind === 'apk' ? 'com.vega' : 'vega.app';
+const expectedPackage = kind === 'apk' ? 'com.tordroid.droidstream' : 'com.tordroid.droidstream.play';
 const gradle = fs.readFileSync('android/app/build.gradle', 'utf8');
 const packageMatch = gradle.match(/^\s*applicationId\s*(?:=\s*)?(["'])([^"']+)\1\s*;?\s*$/m);
 if (packageMatch?.[2] !== expectedPackage) {

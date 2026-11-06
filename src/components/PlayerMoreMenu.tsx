@@ -1,5 +1,6 @@
 import React from 'react';
-import {Modal, ScrollView, Text, View} from 'react-native';
+import {Modal, ScrollView, View} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {TVFocusable, TVFocusGuide} from './tv';
 import {PlayerControl, PlayerControlIcon} from './PlayerControlBar';

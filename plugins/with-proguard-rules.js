@@ -20,6 +20,18 @@ const WEBRTC_RULES = `
 -dontwarn org.webrtc.Dav1dDecoder$Natives
 `;
 
+// smbj (SMB sources) references Kerberos (org.ietf.jgss) and its event bus
+// (mbassador) references javax.el. Android ships neither and Droid Stream
+// uses neither path (NTLM only), so R8 must not fail on them.
+const SMB_RULES = `
+# smbj: optional Kerberos/SPNEGO and mbassador EL filters
+-dontwarn org.ietf.jgss.**
+-dontwarn javax.el.**
+-keep class com.hierynomus.** { *; }
+-keep class net.engio.mbassy.** { *; }
+-keepattributes *Annotation*
+`;
+
 module.exports = function withProguardRules(config) {
   return withDangerousMod(config, [
     'android',
@@ -31,7 +43,7 @@ module.exports = function withProguardRules(config) {
         'proguard-rules.pro'
       );
       
-      const packageName = cfg.android?.package || 'com.vega';
+      const packageName = cfg.android?.package || 'com.tordroid.droidstream';
 
       if (fs.existsSync(proguardRulesFile)) {
         let content = fs.readFileSync(proguardRulesFile, 'utf8');
@@ -44,6 +56,9 @@ module.exports = function withProguardRules(config) {
         }
         if (!content.includes('-dontwarn org.webrtc.Dav1dDecoder$Natives')) {
           content += WEBRTC_RULES;
+        }
+        if (!content.includes('-dontwarn org.ietf.jgss.**')) {
+          content += SMB_RULES;
         }
         fs.writeFileSync(proguardRulesFile, content, 'utf8');
       }

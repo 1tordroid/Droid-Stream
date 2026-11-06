@@ -6,7 +6,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import SkeletonLoader from '../../../components/Skeleton';
 import AppText from '../../../components/ui/Text';
-import SynopsisText from './SynopsisText';
+import SynopsisText, {isSynopsisExpandable} from './SynopsisText';
 import {isTV} from '../../../lib/tv';
 import useTVNavigationStore from '../../../lib/zustand/tvNavigationStore';
 
@@ -26,6 +26,9 @@ interface ContentOverviewProps {
   exploreRef?: React.RefObject<View | null>;
   onOpenWeb?: () => void;
   onSearchTitle: () => void;
+  /** Opens Find streams: Stremio add-ons, torrent sites, and debrid caches. */
+  onFindStreams?: () => void;
+  onPlay?: () => void;
   onToggleLibrary: () => void;
   onToggleSynopsis: () => void;
   providerName: string;
@@ -165,6 +168,8 @@ const ContentOverview = ({
   exploreRef,
   onOpenWeb,
   onSearchTitle,
+  onFindStreams,
+  onPlay,
   onToggleLibrary,
   onToggleSynopsis,
   providerName,
@@ -350,6 +355,18 @@ const ContentOverview = ({
               {providerName}
             </AppText>
           </View>
+          {!synopsisLoading && isSynopsisExpandable(synopsis) ? (
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel={readMore ? 'Show less synopsis' : 'Read more synopsis'}
+              accessibilityState={{expanded: readMore}}
+              onPress={onToggleSynopsis}
+              style={{minHeight: 44, justifyContent: 'center', paddingLeft: 12}}>
+              <AppText role="labelLargeEmphasized" style={{color: colors.primary}}>
+                {readMore ? 'Show less' : 'Read more'}
+              </AppText>
+            </TVFocusable>
+          ) : null}
         </View>
 
         {synopsisLoading ? (
@@ -363,9 +380,22 @@ const ContentOverview = ({
             synopsis={synopsis}
             expanded={readMore}
             onToggle={onToggleSynopsis}
+            inlineToggle={false}
           />
         )}
 
+        {onPlay ? (
+          <TVFocusable
+            accessibilityRole="button"
+            accessibilityLabel="Play"
+            hasTVPreferredFocus
+            onPress={onPlay}
+            borderRadius={28}
+            style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minHeight: 56, borderRadius: 28, marginTop: 18, backgroundColor: colors.primary}}>
+            <MaterialCommunityIcons name="play" size={26} color={colors.onPrimary} />
+            <AppText role="titleMediumEmphasized" style={{color: colors.onPrimary, marginLeft: 8}}>Play</AppText>
+          </TVFocusable>
+        ) : null}
         <View
           style={{
             flexDirection: 'row',
@@ -373,6 +403,9 @@ const ContentOverview = ({
             marginTop: 18,
           }}>
           <InfoAction icon="magnify" label="Search" onPress={onSearchTitle} />
+          {onFindStreams ? (
+            <InfoAction icon="magnet" label="Streams" onPress={onFindStreams} />
+          ) : null}
           {onOpenWeb ? (
             <InfoAction icon="web" label="Web" onPress={onOpenWeb} />
           ) : null}

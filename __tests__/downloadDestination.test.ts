@@ -323,7 +323,7 @@ describe('download destination service', () => {
       location: {
         type: 'path',
         path: '/app-files/Vega Downloads',
-        label: 'Vega app storage',
+        label: 'Droid Stream storage',
       },
       stagingPath,
       fileName: 'movie',

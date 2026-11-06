@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import HdrFormatIcon, {hdrIconWidth} from './HdrFormatIcon';
-import {AppState, findNodeHandle, Modal, NativeModules, Platform, Text, View} from 'react-native';
+import {AppState, findNodeHandle, Modal, NativeModules, Platform, View} from 'react-native';
+import {RawText as Text} from '../../ui/Text';
 import {TVFocusable, TVFocusGuide} from '../../tv';
 
 type HdrStatus = {

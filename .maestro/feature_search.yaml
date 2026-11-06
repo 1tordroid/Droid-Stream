@@ -1,0 +1,11 @@
+appId: com.tordroid.droidstream
+name: Global feature search finds Advanced options
+tags: [settings, phone]
+---
+- runFlow: _launch.yaml
+- tapOn: "Search"
+- tapOn: "Settings & features"
+- inputText: "torbox"
+- assertVisible: "Debrid and cloud"
+- tapOn: "Debrid and cloud"
+- assertVisible: "TorBox"

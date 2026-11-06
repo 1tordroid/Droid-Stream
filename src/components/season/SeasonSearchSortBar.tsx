@@ -1,12 +1,6 @@
 import React, {useState, useEffect} from 'react';
-import {
-  BackHandler,
-  Modal,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {BackHandler, Modal, StyleSheet, TouchableOpacity, View} from 'react-native';
+import {RawTextInput as TextInput} from '../ui/Text';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Text from '../ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';

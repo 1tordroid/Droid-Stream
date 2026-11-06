@@ -1,5 +1,6 @@
 import React, {memo, useEffect, useRef, useState} from 'react';
-import {Modal, ScrollView, Text, View, findNodeHandle, useWindowDimensions} from 'react-native';
+import {Modal, ScrollView, View, findNodeHandle, useWindowDimensions} from 'react-native';
+import {RawText as Text} from './ui/Text';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {settingsStorage} from '../lib/storage';
 import {TVFocusable, TVFocusGuide} from './tv';
