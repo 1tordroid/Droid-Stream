@@ -181,7 +181,6 @@ module.exports = () => {
           'ACCESS_WIFI_STATE',
           'CHANGE_WIFI_MULTICAST_STATE',
           'INTERNET',
-          'WRITE_SETTINGS',
           'WAKE_LOCK',
           'POST_NOTIFICATIONS',
           'RECEIVE_BOOT_COMPLETED',
@@ -189,6 +188,8 @@ module.exports = () => {
         blockedPermissions: [
           // Casting uses WebRTC data channels, not microphone capture.
           'android.permission.RECORD_AUDIO',
+          // No overlay windows: picture-in-picture does not need this.
+          'android.permission.SYSTEM_ALERT_WINDOW',
           'android.permission.MANAGE_EXTERNAL_STORAGE',
           'android.permission.READ_EXTERNAL_STORAGE',
           'android.permission.READ_MEDIA_VIDEO',
