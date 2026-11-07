@@ -6,6 +6,7 @@ import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {isAniSkipEnabled, setAniSkipEnabled} from '../../lib/aniskip';
+import {isServerProgressSyncEnabled, setServerProgressSyncEnabled} from '../../lib/sources/serverProgress';
 import {toast} from '../../lib/torrentSearch/actions';
 import {isTV} from '../../lib/tv/constants';
 import {
@@ -51,6 +52,7 @@ const WatchSync = () => {
   const [settings, setSettings] = useState<SyncSettings>(readSyncSettings);
   const [code, setCode] = useState<{service: SyncServiceId; code: DeviceCode}>();
   const [aniskip, setAniskip] = useState(isAniSkipEnabled);
+  const [serverSync, setServerSync] = useState(isServerProgressSyncEnabled);
   // The pasted AniList token stays here until AniList accepts it.
   const [anilistToken, setAnilistToken] = useState('');
   // Cancels the running poll, including one whose request is still in flight.
@@ -184,6 +186,14 @@ const WatchSync = () => {
           <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>Crowd-sourced intro, recap, and credits times when a show has none</AppText>
         </View>
         <Switch accessibilityLabel="AniSkip for anime" value={aniskip} onValueChange={value => { setAniSkipEnabled(value); setAniskip(value); }} thumbColor={aniskip ? colors.primary : undefined} />
+      </View>
+
+      <View style={{backgroundColor: colors.surfaceContainer, borderRadius: 20, padding: 12, marginTop: 12, flexDirection: 'row', alignItems: 'center'}}>
+        <View style={{flex: 1}}>
+          <AppText role="titleMedium" style={{color: colors.onSurface}}>Sync progress with my servers</AppText>
+          <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>Jellyfin, Emby and Plex get your progress, and their videos continue where you stopped</AppText>
+        </View>
+        <Switch accessibilityLabel="Sync progress with my servers" value={serverSync} onValueChange={value => { setServerProgressSyncEnabled(value); setServerSync(value); }} thumbColor={serverSync ? colors.primary : undefined} />
       </View>
 
       {(Object.keys(HELP) as SyncServiceId[]).map(id => {
