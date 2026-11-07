@@ -48,6 +48,9 @@ const getSubtitle = (item: DownloadItem): string => {
     const place = [item.seasonTitle, item.quality].filter(Boolean).join(' • ');
     return [detail, place].filter(Boolean).join(' • ') || (item.ytdl?.kind === 'audio' ? 'Audio' : 'Video');
   }
+  if (item.sourceType === 'social') {
+    return [item.social?.stage, item.seasonTitle, item.episodeName].filter(Boolean).join(' • ');
+  }
   if (item.type === 'movie') {
     return 'Movie';
   }

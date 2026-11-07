@@ -3,8 +3,7 @@ import {
   downloadOutputExists,
 } from '../../../lib/downloadDestination';
 import {
-  createDownloadDirectoryName,
-  createDownloadSeasonDirectoryName,
+  getDownloadDirectoryNames,
 } from '../../../lib/downloadId';
 import type {DownloadItem} from '../../../lib/zustand/downloadsStore';
 import useDownloadsStore from '../../../lib/zustand/downloadsStore';
@@ -26,12 +25,7 @@ export const deleteDownloadedItemAndSubtitles = async (
     if (subItem.filePath) {
       await deleteDownloadOutput(subItem.filePath, {
         downloadLocation: subItem.downloadLocation,
-        outputDirectoryNames: [
-          createDownloadDirectoryName(subItem.showName || subItem.title),
-          ...[createDownloadSeasonDirectoryName(subItem.seasonTitle)].filter(
-            (name): name is string => Boolean(name),
-          ),
-        ],
+        outputDirectoryNames: getDownloadDirectoryNames(subItem),
       }).catch(() => undefined);
     }
     removeDownload(subItem.id);
@@ -39,12 +33,7 @@ export const deleteDownloadedItemAndSubtitles = async (
 
   const deleted = await deleteDownloadOutput(item.filePath, {
     downloadLocation: item.downloadLocation,
-    outputDirectoryNames: [
-      createDownloadDirectoryName(item.showName || item.title),
-      ...[createDownloadSeasonDirectoryName(item.seasonTitle)].filter(
-        (name): name is string => Boolean(name),
-      ),
-    ],
+    outputDirectoryNames: getDownloadDirectoryNames(item),
   });
   if (deleted || !(await downloadOutputExists(item.filePath))) {
     removeDownload(item.id);

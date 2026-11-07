@@ -19,8 +19,7 @@ import {
   type DownloadBackendContext,
 } from './types';
 import {
-  createDownloadDirectoryName,
-  createDownloadSeasonDirectoryName,
+  getDownloadDirectoryNames,
 } from '../downloadId';
 import type {DownloadItem} from '../zustand/downloadsStore';
 
@@ -376,12 +375,7 @@ export const httpDownloadBackend: DownloadBackend = {
     ) {
       await deleteDownloadOutput(directUri, {
         downloadLocation: record.downloadLocation,
-        outputDirectoryNames: [
-          createDownloadDirectoryName(record.showName || record.title),
-          ...[createDownloadSeasonDirectoryName(record.seasonTitle)].filter(
-            (name): name is string => Boolean(name),
-          ),
-        ],
+        outputDirectoryNames: getDownloadDirectoryNames(record),
       }).catch(() => undefined);
     }
     await cleanupDownloadStaging(downloadId);

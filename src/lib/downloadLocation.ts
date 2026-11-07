@@ -278,6 +278,17 @@ export const getDownloadMimeType = (fileType: string) => {
       return 'text/plain';
     case 'mp3':
       return 'audio/mpeg';
+    case 'm4a':
+      return 'audio/mp4';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
     default:
       return 'application/octet-stream';
   }
