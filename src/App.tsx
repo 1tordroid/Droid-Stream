@@ -88,6 +88,10 @@ import PlayerSettings from './screens/settings/PlayerSettings';
 import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
 import DataManagement from './screens/settings/DataManagement';
+import BackupSync from './screens/settings/BackupSync';
+import SendSetup from './screens/settings/SendSetup';
+import ReceiveSetup from './screens/settings/ReceiveSetup';
+import {startBackupSync} from './lib/backupSync/service';
 import {AppState, Linking, LogBox, useWindowDimensions} from 'react-native';
 import {vegaCastService} from './lib/remote/vegaCastService';
 import {EpisodeLink, Stream} from './lib/providers/types';
@@ -261,6 +265,9 @@ export type SettingsStackParamList = {
   Extensions: {addSource?: string; requestId?: number} | undefined;
   DownloadsStack: undefined;
   DataManagement: undefined;
+  BackupSync: undefined;
+  SendSetup: undefined;
+  ReceiveSetup: undefined;
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
   AdvancedDownloads: undefined;
@@ -605,6 +612,9 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="PlayerSettings" component={PlayerSettings} options={subpageOptions} />
       <SettingsStack.Screen name="PlayerControlSettings" component={PlayerControlSettings} options={subpageOptions} />
       <SettingsStack.Screen name="DataManagement" component={DataManagement} options={subpageOptions} />
+      <SettingsStack.Screen name="BackupSync" component={BackupSync} options={subpageOptions} />
+      <SettingsStack.Screen name="SendSetup" component={SendSetup} options={subpageOptions} />
+      <SettingsStack.Screen name="ReceiveSetup" component={ReceiveSetup} options={subpageOptions} />
       <SettingsStack.Screen
         name="Preferences"
         component={Preferences}
@@ -732,6 +742,9 @@ const App = () => {
 
   // Remote control, command access and browser-like connections (all off by default).
   useEffect(() => startRemoteAccess(), []);
+
+  // Automatic backups to the backup sync folder (off by default).
+  useEffect(() => startBackupSync(), []);
 
   // Safety fallback to ensure splash is hidden
   useEffect(() => {

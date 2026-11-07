@@ -224,6 +224,28 @@ export default function DataManagement({navigation}: Props) {
           />
         </SettingsSection>
 
+        <SettingsSection title="Backup sync and transfer">
+          <SettingsRow
+            title="Backup sync"
+            description="Back up to a WebDAV folder and restore on any device"
+            icon="cloud-sync-outline"
+            onPress={() => navigation.navigate('BackupSync')}
+          />
+          <SettingsRow
+            title={isTV ? 'Receive setup' : 'Send setup'}
+            description={isTV ? 'Get your setup from a phone over Wi-Fi' : 'Send your setup to a TV or another phone over Wi-Fi'}
+            icon={isTV ? 'download-network-outline' : 'upload-network-outline'}
+            onPress={() => navigation.navigate(isTV ? 'ReceiveSetup' : 'SendSetup')}
+          />
+          <SettingsRow
+            title={isTV ? 'Send setup' : 'Receive setup'}
+            description={isTV ? 'Send this setup to another device' : 'Get a setup from another device'}
+            icon={isTV ? 'upload-network-outline' : 'download-network-outline'}
+            divider={false}
+            onPress={() => navigation.navigate(isTV ? 'SendSetup' : 'ReceiveSetup')}
+          />
+        </SettingsSection>
+
         <SettingsSection title="Watch Progress">
           <SettingsRow
             title="Clear watch progress"

@@ -96,6 +96,26 @@ Built and being tested:
   titles (12 on 2 GB devices) for 6 hours, and open Find streams.
   Long-press a poster to edit the rows. Kids profiles skip adult add-ons
   and titles, and open titles in Search.
+- Backup sync (Settings > Data management): back up to a WebDAV folder
+  (a saved WebDAV source, Nextcloud, a NAS, PikPak WebDAV or any other
+  server). Back up now, or automatically once a day or when something
+  changes, on Wi-Fi only if you like. Keeps the last 3, 5, 10 or 20
+  versions of each device. Restore from sync lists the backups of every
+  device: Add to this device keeps what is here and adds what is
+  missing; Replace swaps it.
+- Backups now also carry Live TV playlists and favourites, language
+  choices, the browser's bookmarks and script plugins.
+- With a sync passphrase, backups also carry debrid keys, sign-ins,
+  passwords, PINs and the browser's saved passwords, encrypted with
+  AES-256-GCM (key from the passphrase with PBKDF2, 310,000 rounds).
+  Without a passphrase they are left out, and Settings says so.
+- Send setup: send providers, add-ons, debrid keys, sources, Live TV
+  playlists, player settings and profiles from your phone to a TV or
+  another phone. The TV shows a code and a QR code in Receive setup;
+  scan it or type the code. It goes straight over your home network,
+  encrypted with a key from the code, works without internet, and the
+  TV shows what came and asks before applying. The code works once and
+  for 10 minutes.
 
 ## 5.6.1
 
