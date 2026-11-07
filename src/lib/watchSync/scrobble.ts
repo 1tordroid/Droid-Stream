@@ -1,7 +1,9 @@
 /**
- * Trakt scrobbling: tells Trakt what is playing (start), paused (pause) and
- * when playback ends (stop). Trakt records a watch for a stop at 80% or more
- * and keeps the position as playback progress below that.
+ * Scrobbling to Trakt and Simkl: tells the service what is playing (start),
+ * paused (pause) and when playback ends (stop). Both record a watch for a
+ * stop at 80% or more and keep the position as playback progress below that.
+ * Each service has its own switch (Scrobble while watching), queue and
+ * rate-limit wait.
  *
  * A stop that fails for a passing reason (offline, server error, rate limit)
  * is queued in storage and sent later. Start and pause only describe the
@@ -11,6 +13,7 @@ import type {WatchMeta} from '../watchMeta';
 import {
   claimTraktWatched,
   readSyncSettings,
+  simklAuthedPost,
   syncedKey,
   traktAuthedPost,
   traktMarkWatched,
@@ -24,8 +27,9 @@ const storage = watchSyncStorage;
 
 export type ScrobbleAction = 'start' | 'pause' | 'stop';
 export type ScrobbleOutcome = 'sent' | 'queued' | 'dropped' | 'skipped';
+export type ScrobbleServiceId = 'trakt' | 'simkl';
 
-/** Trakt marks the title watched for a stop at this progress or more. */
+/** Trakt and Simkl mark the title watched for a stop at this progress or more. */
 export const WATCHED_PERCENT = 80;
 
 const MINUTE_MS = 60 * 1000;
@@ -44,21 +48,33 @@ export interface QueuedScrobble {
   queuedAt: number;
 }
 
-/** On while Trakt is connected and syncing, unless scrobbling was turned off. */
-export const scrobbleEnabled = (settings: SyncSettings = readSyncSettings()): boolean => {
-  const trakt = settings.trakt;
-  return Boolean(trakt.enabled && trakt.accessToken && trakt.scrobble !== false);
+/** On while the service is connected and syncing, unless scrobbling was turned off. */
+const serviceScrobbleEnabled = (id: ScrobbleServiceId, settings: SyncSettings = readSyncSettings()): boolean => {
+  const account = settings[id];
+  return Boolean(account.enabled && account.accessToken && account.scrobble !== false);
 };
 
-/** The scrobble request body, or undefined when an episode lacks its season and number. */
-export const scrobbleBody = (meta: WatchMeta, progress: number): Record<string, unknown> | undefined => {
-  if (!meta.title) return undefined;
+/** Trakt scrobbling is on. */
+export const scrobbleEnabled = (settings: SyncSettings = readSyncSettings()): boolean => serviceScrobbleEnabled('trakt', settings);
+
+/** Simkl scrobbling is on. */
+export const simklScrobbleEnabled = (settings: SyncSettings = readSyncSettings()): boolean => serviceScrobbleEnabled('simkl', settings);
+
+const clampProgress = (progress: number) => Math.round(Math.min(100, Math.max(0, Number.isFinite(progress) ? progress : 0)) * 100) / 100;
+
+const idsOf = (meta: WatchMeta): Record<string, string | number> => {
   const ids: Record<string, string | number> = {};
   if (meta.imdbId) ids.imdb = meta.imdbId;
   const tmdb = Number(meta.tmdbId);
   if (Number.isInteger(tmdb) && tmdb > 0) ids.tmdb = tmdb;
-  const item = {title: meta.title, ...(meta.year ? {year: meta.year} : {}), ids};
-  const value = Math.round(Math.min(100, Math.max(0, Number.isFinite(progress) ? progress : 0)) * 100) / 100;
+  return ids;
+};
+
+/** The Trakt scrobble request body, or undefined when an episode lacks its season and number. */
+export const scrobbleBody = (meta: WatchMeta, progress: number): Record<string, unknown> | undefined => {
+  if (!meta.title) return undefined;
+  const item = {title: meta.title, ...(meta.year ? {year: meta.year} : {}), ids: idsOf(meta)};
+  const value = clampProgress(progress);
   if (meta.type === 'series') {
     if (meta.season === undefined || meta.episode === undefined) return undefined;
     return {show: item, episode: {season: meta.season, number: meta.episode}, progress: value};
@@ -66,53 +82,26 @@ export const scrobbleBody = (meta: WatchMeta, progress: number): Record<string, 
   return {movie: item, progress: value};
 };
 
-// ---------------------------------------------------------------- queue and rate limit
-export const readScrobbleQueue = (): QueuedScrobble[] => {
-  try {
-    const saved = JSON.parse(storage.getString('scrobble:queue') || '[]');
-    return Array.isArray(saved) ? saved : [];
-  } catch {
-    return [];
+/**
+ * The Simkl scrobble request body. Anime goes under "anime" with its
+ * MyAnimeList id when known; Simkl maps the season and episode itself.
+ */
+export const simklScrobbleBody = (meta: WatchMeta, progress: number): Record<string, unknown> | undefined => {
+  if (!meta.title) return undefined;
+  const ids = idsOf(meta);
+  if (meta.anime && meta.malId) ids.mal = meta.malId;
+  const item = {title: meta.title, ...(meta.year ? {year: meta.year} : {}), ids};
+  const value = clampProgress(progress);
+  if (meta.type === 'series') {
+    if (meta.season === undefined || meta.episode === undefined) return undefined;
+    return {[meta.anime ? 'anime' : 'show']: item, episode: {season: meta.season, number: meta.episode}, progress: value};
   }
+  return {movie: item, progress: value};
 };
-
-const writeQueue = (queue: QueuedScrobble[]) => {
-  storage.setString('scrobble:queue', JSON.stringify(queue));
-};
-
-/** Keeps the newest stop per title, at most MAX_QUEUE of them. */
-export const enqueueScrobble = (key: string, body: Record<string, unknown>, now = Date.now()): void => {
-  const queue = readScrobbleQueue().filter(entry => entry.key !== key);
-  queue.push({key, body, attempts: 0, nextAt: now, queuedAt: now});
-  writeQueue(queue.slice(-MAX_QUEUE));
-};
-
-const dropQueued = (key: string) => {
-  const queue = readScrobbleQueue();
-  const rest = queue.filter(entry => entry.key !== key);
-  if (rest.length !== queue.length) writeQueue(rest);
-};
-
-const blockedUntil = (): number => Number(storage.getString('scrobble:blockedUntil') || 0) || 0;
-
-/** Trakt asked to slow down (429) or refused for the account limit (420): wait before any scrobble. */
-const backOff = (error: WatchSyncHttpError, now: number) => {
-  const hits = (Number(storage.getString('scrobble:rateHits') || 0) || 0) + 1;
-  storage.setString('scrobble:rateHits', String(hits));
-  const floor = error.status === 420 ? HOUR_MS : MINUTE_MS;
-  const delay = error.retryAfterSeconds ? error.retryAfterSeconds * 1000 : Math.min(MAX_BACKOFF_MS, floor * 2 ** (hits - 1));
-  storage.setString('scrobble:blockedUntil', String(now + Math.max(delay, 1000)));
-};
-
-const clearBackOff = () => {
-  if (storage.getString('scrobble:rateHits')) storage.setString('scrobble:rateHits', '0');
-};
-
-export const scrobbleBlockedUntil = blockedUntil;
 
 type Failure = 'retry' | 'drop' | 'limited' | 'done';
 
-/** How a failed scrobble is handled. 409 means Trakt already has it. */
+/** How a failed scrobble is handled. 409 means the service already has it. */
 const classify = (error: unknown): Failure => {
   if (error instanceof WatchSyncSignedOutError) return 'drop';
   if (!(error instanceof WatchSyncHttpError)) return 'retry';
@@ -123,101 +112,213 @@ const classify = (error: unknown): Failure => {
   return 'drop';
 };
 
-/**
- * Sends one scrobble. A stop that fails for a passing reason is queued;
- * anything else that fails is dropped.
- */
-export const sendScrobble = async (action: ScrobbleAction, meta: WatchMeta, progress: number, now = Date.now()): Promise<ScrobbleOutcome> => {
-  if (!scrobbleEnabled()) return 'skipped';
-  const body = scrobbleBody(meta, progress);
-  if (!body) return 'skipped';
-  const key = syncedKey(meta);
-  if (blockedUntil() > now) {
-    if (action !== 'stop') return 'skipped';
-    enqueueScrobble(key, body, now);
-    return 'queued';
+interface ScrobbleTarget {
+  id: ScrobbleServiceId;
+  /** Storage key prefix for the queue and the rate-limit wait. */
+  prefix: string;
+  enabled: () => boolean;
+  body: (meta: WatchMeta, progress: number) => Record<string, unknown> | undefined;
+  post: (path: string, body: unknown) => Promise<unknown>;
+}
+
+/** The queue, rate-limit wait and sending for one service. */
+export class Scrobbler {
+  private flushing: Promise<number> | undefined;
+
+  constructor(private readonly target: ScrobbleTarget) {}
+
+  get id(): ScrobbleServiceId {
+    return this.target.id;
   }
-  try {
-    await traktAuthedPost(`/scrobble/${action}`, body);
-  } catch (error) {
-    const failure = classify(error);
-    if (failure === 'limited') backOff(error as WatchSyncHttpError, now);
-    if (failure === 'done') {
-      dropQueued(key);
-      return 'sent';
+
+  enabled(): boolean {
+    return this.target.enabled();
+  }
+
+  body(meta: WatchMeta, progress: number): Record<string, unknown> | undefined {
+    return this.target.body(meta, progress);
+  }
+
+  readQueue(): QueuedScrobble[] {
+    try {
+      const saved = JSON.parse(storage.getString(`${this.target.prefix}queue`) || '[]');
+      return Array.isArray(saved) ? saved : [];
+    } catch {
+      return [];
     }
-    if (action === 'stop' && (failure === 'retry' || failure === 'limited')) {
-      enqueueScrobble(key, body, now);
+  }
+
+  private writeQueue(queue: QueuedScrobble[]) {
+    storage.setString(`${this.target.prefix}queue`, JSON.stringify(queue));
+  }
+
+  /** Keeps the newest stop per title, at most MAX_QUEUE of them. */
+  enqueue(key: string, body: Record<string, unknown>, now = Date.now()): void {
+    const queue = this.readQueue().filter(entry => entry.key !== key);
+    queue.push({key, body, attempts: 0, nextAt: now, queuedAt: now});
+    this.writeQueue(queue.slice(-MAX_QUEUE));
+  }
+
+  private dropQueued(key: string) {
+    const queue = this.readQueue();
+    const rest = queue.filter(entry => entry.key !== key);
+    if (rest.length !== queue.length) this.writeQueue(rest);
+  }
+
+  blockedUntil(): number {
+    return Number(storage.getString(`${this.target.prefix}blockedUntil`) || 0) || 0;
+  }
+
+  /** The service asked to slow down (429) or refused for the account limit (420): wait before any scrobble. */
+  private backOff(error: WatchSyncHttpError, now: number) {
+    const hitsKey = `${this.target.prefix}rateHits`;
+    const hits = (Number(storage.getString(hitsKey) || 0) || 0) + 1;
+    storage.setString(hitsKey, String(hits));
+    const floor = error.status === 420 ? HOUR_MS : MINUTE_MS;
+    const delay = error.retryAfterSeconds ? error.retryAfterSeconds * 1000 : Math.min(MAX_BACKOFF_MS, floor * 2 ** (hits - 1));
+    storage.setString(`${this.target.prefix}blockedUntil`, String(now + Math.max(delay, 1000)));
+  }
+
+  private clearBackOff() {
+    const hitsKey = `${this.target.prefix}rateHits`;
+    if (storage.getString(hitsKey)) storage.setString(hitsKey, '0');
+  }
+
+  /**
+   * Sends one scrobble. A stop that fails for a passing reason is queued;
+   * anything else that fails is dropped.
+   */
+  async send(action: ScrobbleAction, meta: WatchMeta, progress: number, now = Date.now()): Promise<ScrobbleOutcome> {
+    if (!this.enabled()) return 'skipped';
+    const body = this.body(meta, progress);
+    if (!body) return 'skipped';
+    const key = syncedKey(meta);
+    if (this.blockedUntil() > now) {
+      if (action !== 'stop') return 'skipped';
+      this.enqueue(key, body, now);
       return 'queued';
     }
-    return 'dropped';
-  }
-  clearBackOff();
-  // What was just sent is newer than a stop still waiting for this title.
-  dropQueued(key);
-  return 'sent';
-};
-
-let flushing: Promise<number> | undefined;
-
-/**
- * Sends the queued stops that are due, oldest first. Stops at the first rate
- * limit. Returns how many are still queued. Runs one at a time.
- */
-export const flushScrobbleQueue = (now = Date.now()): Promise<number> => {
-  if (!flushing) {
-    flushing = flushNow(now).finally(() => {
-      flushing = undefined;
-    });
-  }
-  return flushing;
-};
-
-const flushNow = async (now: number): Promise<number> => {
-  const fresh = readScrobbleQueue().filter(entry => now - entry.queuedAt < MAX_AGE_MS);
-  writeQueue(fresh);
-  if (!fresh.length || !scrobbleEnabled()) return fresh.length;
-  for (const entry of fresh) {
-    if (blockedUntil() > now) break;
-    if (entry.nextAt > now) continue;
-    // A newer stop for the same title may have replaced this one meanwhile.
-    const current = readScrobbleQueue().find(item => item.key === entry.key);
-    if (!current || current.queuedAt !== entry.queuedAt) continue;
     try {
-      await traktAuthedPost('/scrobble/stop', entry.body);
-      clearBackOff();
-      removeEntry(entry);
+      await this.target.post(`/scrobble/${action}`, body);
     } catch (error) {
       const failure = classify(error);
-      if (failure === 'done' || failure === 'drop') {
-        removeEntry(entry);
-        continue;
+      if (failure === 'limited') this.backOff(error as WatchSyncHttpError, now);
+      if (failure === 'done') {
+        this.dropQueued(key);
+        return 'sent';
       }
-      if (failure === 'limited') {
-        backOff(error as WatchSyncHttpError, now);
-        break;
+      if (action === 'stop' && (failure === 'retry' || failure === 'limited')) {
+        this.enqueue(key, body, now);
+        return 'queued';
       }
-      const attempts = entry.attempts + 1;
-      if (attempts >= MAX_ATTEMPTS) removeEntry(entry);
-      else updateEntry({...entry, attempts, nextAt: now + Math.min(MAX_BACKOFF_MS, MINUTE_MS * 2 ** attempts)});
+      return 'dropped';
     }
+    this.clearBackOff();
+    // What was just sent is newer than a stop still waiting for this title.
+    this.dropQueued(key);
+    return 'sent';
   }
-  return readScrobbleQueue().length;
+
+  /**
+   * Sends the queued stops that are due, oldest first. Stops at the first rate
+   * limit. Returns how many are still queued. Runs one at a time.
+   */
+  flush(now = Date.now()): Promise<number> {
+    if (!this.flushing) {
+      this.flushing = this.flushNow(now).finally(() => {
+        this.flushing = undefined;
+      });
+    }
+    return this.flushing;
+  }
+
+  private async flushNow(now: number): Promise<number> {
+    const fresh = this.readQueue().filter(entry => now - entry.queuedAt < MAX_AGE_MS);
+    this.writeQueue(fresh);
+    if (!fresh.length || !this.enabled()) return fresh.length;
+    for (const entry of fresh) {
+      if (this.blockedUntil() > now) break;
+      if (entry.nextAt > now) continue;
+      // A newer stop for the same title may have replaced this one meanwhile.
+      const current = this.readQueue().find(item => item.key === entry.key);
+      if (!current || current.queuedAt !== entry.queuedAt) continue;
+      try {
+        await this.target.post('/scrobble/stop', entry.body);
+        this.clearBackOff();
+        this.removeEntry(entry);
+      } catch (error) {
+        const failure = classify(error);
+        if (failure === 'done' || failure === 'drop') {
+          this.removeEntry(entry);
+          continue;
+        }
+        if (failure === 'limited') {
+          this.backOff(error as WatchSyncHttpError, now);
+          break;
+        }
+        const attempts = entry.attempts + 1;
+        if (attempts >= MAX_ATTEMPTS) this.removeEntry(entry);
+        else this.updateEntry({...entry, attempts, nextAt: now + Math.min(MAX_BACKOFF_MS, MINUTE_MS * 2 ** attempts)});
+      }
+    }
+    return this.readQueue().length;
+  }
+
+  private removeEntry(entry: QueuedScrobble) {
+    this.writeQueue(this.readQueue().filter(item => !(item.key === entry.key && item.queuedAt === entry.queuedAt)));
+  }
+
+  private updateEntry(entry: QueuedScrobble) {
+    this.writeQueue(this.readQueue().map(item => (item.key === entry.key && item.queuedAt === entry.queuedAt ? entry : item)));
+  }
+}
+
+/** Trakt keeps the storage keys it had before Simkl was added. */
+export const traktScrobbler = new Scrobbler({
+  id: 'trakt',
+  prefix: 'scrobble:',
+  enabled: () => scrobbleEnabled(),
+  body: scrobbleBody,
+  post: traktAuthedPost,
+});
+
+export const simklScrobbler = new Scrobbler({
+  id: 'simkl',
+  prefix: 'simkl-scrobble:',
+  enabled: () => simklScrobbleEnabled(),
+  body: simklScrobbleBody,
+  post: simklAuthedPost,
+});
+
+export const SCROBBLERS: readonly Scrobbler[] = [traktScrobbler, simklScrobbler];
+
+// The Trakt functions under their earlier names.
+export const readScrobbleQueue = (): QueuedScrobble[] => traktScrobbler.readQueue();
+export const enqueueScrobble = (key: string, body: Record<string, unknown>, now = Date.now()): void => traktScrobbler.enqueue(key, body, now);
+export const scrobbleBlockedUntil = (): number => traktScrobbler.blockedUntil();
+export const sendScrobble = (action: ScrobbleAction, meta: WatchMeta, progress: number, now = Date.now()): Promise<ScrobbleOutcome> =>
+  traktScrobbler.send(action, meta, progress, now);
+export const flushScrobbleQueue = (now = Date.now()): Promise<number> => traktScrobbler.flush(now);
+
+// The Simkl functions.
+export const readSimklScrobbleQueue = (): QueuedScrobble[] => simklScrobbler.readQueue();
+export const sendSimklScrobble = (action: ScrobbleAction, meta: WatchMeta, progress: number, now = Date.now()): Promise<ScrobbleOutcome> =>
+  simklScrobbler.send(action, meta, progress, now);
+export const flushSimklScrobbleQueue = (now = Date.now()): Promise<number> => simklScrobbler.flush(now);
+
+/** Sends the stops queued for every service. Returns how many are still queued. */
+export const flushAllScrobbleQueues = async (now = Date.now()): Promise<number> => {
+  const left = await Promise.all(SCROBBLERS.map(scrobbler => scrobbler.flush(now).catch(() => scrobbler.readQueue().length)));
+  return left.reduce((sum, count) => sum + count, 0);
 };
-
-const removeEntry = (entry: QueuedScrobble) =>
-  writeQueue(readScrobbleQueue().filter(item => !(item.key === entry.key && item.queuedAt === entry.queuedAt)));
-
-const updateEntry = (entry: QueuedScrobble) =>
-  writeQueue(readScrobbleQueue().map(item => (item.key === entry.key && item.queuedAt === entry.queuedAt ? entry : item)));
 
 // ---------------------------------------------------------------- session
 type SessionState = 'idle' | 'playing' | 'paused' | 'stopped';
 
 /**
- * One title being played. Feed it the position with update(); it sends start
- * when playback runs and pause when it stops running, and stop() ends it.
- * Requests go out in order.
+ * One title being played on one service (Trakt unless given). Feed it the
+ * position with update(); it sends start when playback runs and pause when it
+ * stops running, and stop() ends it. Requests go out in order.
  */
 export class ScrobbleSession {
   private state: SessionState = 'idle';
@@ -225,9 +326,12 @@ export class ScrobbleSession {
   private chain: Promise<unknown> = Promise.resolve();
   private release?: () => void;
 
-  constructor(readonly meta: WatchMeta) {
-    // While this session reports the title, its stop records the watch, not the history POST.
-    if (scrobbleEnabled() && scrobbleBody(meta, 0)) this.release = claimTraktWatched(meta, () => this.finish());
+  constructor(readonly meta: WatchMeta, private readonly scrobbler: Scrobbler = traktScrobbler) {
+    // While this session reports the title to Trakt, its stop records the watch, not the history POST.
+    // Simkl answers a stop after the history entry with 409, so it needs no claim.
+    if (scrobbler.id === 'trakt' && scrobbler.enabled() && scrobbler.body(meta, 0)) {
+      this.release = claimTraktWatched(meta, () => this.finish());
+    }
   }
 
   get current(): {state: SessionState; progress: number} {
@@ -270,7 +374,7 @@ export class ScrobbleSession {
 
   private send(action: ScrobbleAction): Promise<ScrobbleOutcome> {
     const progress = this.progress;
-    const next = this.chain.then(() => sendScrobble(action, this.meta, progress)).catch(() => 'dropped' as const);
+    const next = this.chain.then(() => this.scrobbler.send(action, this.meta, progress)).catch(() => 'dropped' as const);
     this.chain = next;
     return next;
   }

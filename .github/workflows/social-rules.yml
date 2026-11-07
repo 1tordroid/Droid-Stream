@@ -1,0 +1,68 @@
+name: Sign site rules
+
+# Checks rules/social-rules.json (the photo downloader's site rules) and signs
+# it with the SOCIAL_RULES_PRIVATE_KEY secret. Phones take a file only when
+# its signature matches the key built into the app and its "version" is higher.
+# The secret is optional: rules signed locally and committed with their .sig pass as they are.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rules/social-rules.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: social-rules
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      - name: Check the rules
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          previous="$RUNNER_TEMP/previous-social-rules.json"
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            git show "$BEFORE:rules/social-rules.json" > "$previous" 2>/dev/null || rm -f "$previous"
+          fi
+          node scripts/rules/sign-rules.mjs --check --previous "$previous"
+
+      - name: Sign, unless the signature already matches
+        env:
+          SOCIAL_RULES_PRIVATE_KEY: ${{ secrets.SOCIAL_RULES_PRIVATE_KEY }}
+        run: |
+          if node scripts/rules/sign-rules.mjs --verify; then
+            echo "The signature in the repository already matches."
+            exit 0
+          fi
+          # Rules are normally signed on the owner's PC with the key kept there
+          # (node scripts/rules/sign-rules.mjs) and committed together with the .sig.
+          # Without the secret, an unsigned or stale .sig fails the check here.
+          if [ -z "$SOCIAL_RULES_PRIVATE_KEY" ]; then
+            echo "rules/social-rules.json.sig does not match. Sign it locally with scripts/rules/sign-rules.mjs and commit the .sig." >&2
+            exit 1
+          fi
+          node scripts/rules/sign-rules.mjs
+          node scripts/rules/sign-rules.mjs --verify
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add rules/social-rules.json.sig
+          git commit -m 'Sign site rules'
+          # A push made with GITHUB_TOKEN starts no other workflows.
+          git pull --rebase origin main
+          git push origin HEAD:main

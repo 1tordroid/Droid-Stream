@@ -99,4 +99,5 @@ google-services.json
 
 # Local test output from scripts/dev
 phone-shots/
+maestro-output/
 android-build.log

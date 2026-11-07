@@ -1,6 +1,6 @@
 appId: com.tordroid.droidstream
 name: Every tab opens
-tags: [smoke, phone]
+tags: [smoke, phone, ci]
 ---
 - runFlow: _launch.yaml
 - tapOn: "Search"

@@ -1,5 +1,6 @@
 import {Buffer} from 'buffer';
 import {isSourceAuthStatus, SOURCE_SERVICE_NAMES as NAMES, SourceAuthError} from './authErrors';
+import {rememberPlexPart, rememberPlexParts} from './plexParts';
 
 export interface LibraryItem {
   id: string;
@@ -196,19 +197,24 @@ export const listPlex = async (server: string, token: string, path = '/library/s
     title: item.title,
     kind: 'folder',
   }));
+  const parts: [string | undefined, string | undefined][] = [];
   const entries: LibraryItem[] = (container.Metadata || []).map((item: PlexItem) => {
     const video = item.type === 'movie' || item.type === 'episode';
     // The media part is the playable file. The server needs the token on it too.
     // A metadata address is not playable, so a listing without the part leaves
     // playUrl out and resolvePlexPlayUrl reads the part when the video is opened.
     const part = item.Media?.[0]?.Part?.[0]?.key;
+    const playUrl = video && part ? withPlexToken(`${root}${part}`, token) : undefined;
+    // The player reads skip markers from the item, so remember which item the part plays.
+    if (playUrl) parts.push([playUrl, item.ratingKey]);
     return {
       id: video ? String(item.ratingKey) : pathOf(String(item.key || item.ratingKey || item.title)),
       title: item.title,
       kind: video ? 'video' : 'folder',
-      playUrl: video && part ? withPlexToken(`${root}${part}`, token) : undefined,
+      playUrl,
     };
   });
+  rememberPlexParts(root, parts);
   return [...folders, ...entries];
 };
 
@@ -224,5 +230,7 @@ export const resolvePlexPlayUrl = async (server: string, token: string, ratingKe
   const item: PlexItem | undefined = data?.MediaContainer?.Metadata?.[0];
   const part = item?.Media?.[0]?.Part?.[0]?.key;
   if (!part) throw new Error('Plex has no playable file for this video.');
-  return withPlexToken(`${root}${part}`, token);
+  const playUrl = withPlexToken(`${root}${part}`, token);
+  rememberPlexPart(root, playUrl, ratingKey);
+  return playUrl;
 };

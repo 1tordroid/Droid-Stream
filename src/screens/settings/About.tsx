@@ -22,8 +22,9 @@ import {
 import {useRemoteStore} from '../../lib/remote/remoteStore';
 import {socialLinks} from '../../lib/constants';
 import BrandLinkButtons from './components/BrandLinkButtons';
-import {checkForUpdate} from '../../lib/updates/checkForUpdate';
+import {checkForUpdate, currentBuild, LEAVE_BETA_MESSAGE} from '../../lib/updates/checkForUpdate';
 import {editionName, versionLabel} from '../../lib/appVersion';
+import ProblemReportSheet from '../../components/ProblemReportSheet';
 
 export {checkForUpdate};
 
@@ -39,11 +40,15 @@ const About = ({navigation}: any) => {
   const [autoCheckUpdate, setAutoCheckUpdate] = useState<boolean>(
     settingsStorage.isAutoCheckUpdateEnabled(),
   );
+  const [betaUpdates, setBetaUpdates] = useState(
+    settingsStorage.isBetaUpdatesEnabled(),
+  );
   const [detailedLogging, setDetailedLoggingState] = useState(
     isDetailedLoggingEnabled,
   );
   const [exportingLogs, setExportingLogs] = useState(false);
   const [clearingLogs, setClearingLogs] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const handleClearLogs = async () => {
     setClearingLogs(true);
@@ -178,6 +183,18 @@ const About = ({navigation}: any) => {
                   settingsStorage.setAutoCheckUpdateEnabled(next);
                 }}
               />
+              <SettingsSwitchRow
+                title="Get beta builds"
+                description="Nightly builds come first and may have bugs. Turn this off to go back to stable updates; you'll get the next stable release when it is newer."
+                value={betaUpdates}
+                onValueChange={next => {
+                  setBetaUpdates(next);
+                  settingsStorage.setBetaUpdatesEnabled(next);
+                  if (!next && currentBuild().channel === 'nightly') {
+                    ToastAndroid.show(LEAVE_BETA_MESSAGE, ToastAndroid.LONG);
+                  }
+                }}
+              />
               <SettingsRow
                 title="Check for updates"
                 description="Compare this build with the latest GitHub release"
@@ -245,6 +262,12 @@ const About = ({navigation}: any) => {
               onPress={exportingLogs || clearingLogs ? undefined : exportLogs}
             />
             <SettingsRow
+              title="Send a problem report"
+              description="Opens a GitHub issue with the app and phone details filled in. You choose whether to add logs."
+              icon="bug-outline"
+              onPress={() => setReportOpen(true)}
+            />
+            <SettingsRow
               title="Clear logs"
               description="Clear old logs before reproducing a problem."
               icon="delete-outline"
@@ -255,6 +278,7 @@ const About = ({navigation}: any) => {
           </SettingsSection>
         )}
       </ScrollView>
+      {!isTV && <ProblemReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} />}
     </TVFocusGuide>
   );
 };

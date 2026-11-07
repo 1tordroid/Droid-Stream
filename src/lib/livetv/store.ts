@@ -2,6 +2,7 @@ import {MMKVLoader} from 'react-native-mmkv-storage';
 import {parseM3U, type LiveChannel, type ParsedPlaylist} from './m3u';
 import {DEFAULT_FILTERS, detectLanguages, parseResolution, sanitizeFilters, type ChannelFilters} from './filters';
 import {profileKey} from '../profiles/scope';
+import {catchupAttrsOf} from './catchup';
 
 const storage = new MMKVLoader().withInstanceID('droid-stream-livetv').initialize();
 
@@ -10,8 +11,12 @@ export const JIOTV_DEFAULT_PORT = 5001;
 /** A cached playlist older than this loads again in the background. */
 export const PLAYLIST_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const RECENT_LIMIT = 20;
+/** World playlists kept in the cache; older ones are dropped. */
+const WORLD_CACHE_LIMIT = 6;
+export const NO_FREE_CHANNELS = 'No free channels listed for this country.';
 
-export type LiveSourceKind = 'iptv-org' | 'jiotv' | 'playlist';
+/** 'world' is iptv-org's free list for one country (see world.ts). */
+export type LiveSourceKind = 'iptv-org' | 'jiotv' | 'playlist' | 'world';
 
 export interface LiveSource {
   id: string;
@@ -27,10 +32,12 @@ export interface UserPlaylist {
 }
 
 /** What the grid needs to replay a channel from Favourites or Recent. */
-export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'headers' | 'drm' | 'resolution'> & {
+export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'tvgName' | 'headers' | 'drm' | 'resolution'> & {
   sourceId: string;
   /** Kept so filters still work on Favourites and Recent. */
   languages?: string[];
+  /** Only the catch-up attributes, so the guide can replay from Favourites and Recent. */
+  attrs?: Record<string, string>;
 };
 
 const KEYS = {
@@ -49,6 +56,10 @@ const KEYS = {
   },
   cache: (sourceId: string) => `cache:${sourceId}`,
   epg: (sourceId: string) => `epgUrl:${sourceId}`,
+  /** World source ids with a cached playlist, newest first. */
+  worldCaches: 'worldCaches',
+  /** Channel count of each World source when it last loaded. */
+  worldCounts: 'worldCounts',
 };
 
 const readJson = <T>(key: string, fallback: T): T => {
@@ -195,18 +206,42 @@ export const loadPlaylist = async (
         : 'Could not load the playlist. Check your connection.',
     );
   }
+  const world = source.kind === 'world';
   if (!response.ok) {
     if (cached) return cached;
+    // iptv-org has no file for a country with no channels.
+    if (world && response.status === 404) {
+      rememberWorldCount(source.id, 0);
+      throw new Error(NO_FREE_CHANNELS);
+    }
     throw new Error(`The playlist server answered ${response.status}.`);
   }
   const playlist = parseM3U(await response.text());
   if (!playlist.channels.length) {
     if (cached) return cached;
-    throw new Error('No channels found in this playlist.');
+    if (world) rememberWorldCount(source.id, 0);
+    throw new Error(world ? NO_FREE_CHANNELS : 'No channels found in this playlist.');
   }
   const entry = {url: source.url, fetchedAt: Date.now(), playlist};
   writeJson(KEYS.cache(source.id), entry);
+  if (world) rememberWorldCache(source.id, playlist.channels.length);
   return entry;
+};
+
+// ---- World playlists ----
+
+/** Channel counts of World sources that loaded before, as {sourceId: count}. */
+export const worldChannelCounts = (): Record<string, number> => readJson<Record<string, number>>(KEYS.worldCounts, {});
+
+const rememberWorldCount = (sourceId: string, count: number) =>
+  writeJson(KEYS.worldCounts, {...worldChannelCounts(), [sourceId]: count});
+
+/** Keeps the newest World playlists cached and drops the rest. */
+const rememberWorldCache = (sourceId: string, count: number) => {
+  rememberWorldCount(sourceId, count);
+  const list = [sourceId, ...readJson<string[]>(KEYS.worldCaches, []).filter(id => id !== sourceId)];
+  for (const old of list.slice(WORLD_CACHE_LIMIT)) storage.removeItem(KEYS.cache(old));
+  writeJson(KEYS.worldCaches, list.slice(0, WORLD_CACHE_LIMIT));
 };
 
 // ---- Favourites and recent ----
@@ -214,6 +249,7 @@ export const loadPlaylist = async (
 const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedChannel => {
   const resolution = channel.resolution || parseResolution(channel.name, 'attrs' in channel ? channel.attrs : undefined, channel.tvgId);
   const languages = detectLanguages(channel);
+  const attrs = catchupAttrsOf(channel.attrs);
   return {
     id: channel.id,
     name: channel.name,
@@ -221,10 +257,12 @@ const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedCh
     logo: channel.logo,
     group: channel.group,
     tvgId: channel.tvgId,
+    ...(channel.tvgName ? {tvgName: channel.tvgName} : {}),
     headers: channel.headers,
     ...(channel.drm ? {drm: true} : {}),
     ...(resolution ? {resolution} : {}),
     ...(languages.length ? {languages} : {}),
+    ...(attrs ? {attrs} : {}),
     sourceId,
   };
 };

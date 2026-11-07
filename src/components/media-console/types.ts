@@ -96,6 +96,8 @@ export interface VideoPlayerProps extends ReactVideoProps {
   seekbarScale?: number;
   /** Temporarily freeze playback without changing the user's pause state. */
   playbackSuspended?: boolean;
+  /** Each new number starts playback, even after a pause made on these controls (Go live). */
+  playRequest?: number;
   /** A live stream: the seekbar follows the moving DVR window from progress events. */
   live?: boolean;
 

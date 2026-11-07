@@ -56,6 +56,7 @@ const BACKUP_SETTINGS: Record<string, SettingType> = {
   [SettingsKeys.NOTIFICATIONS_ENABLED]: 'bool',
   [SettingsKeys.AUTO_CHECK_UPDATE]: 'bool',
   [SettingsKeys.AUTO_DOWNLOAD]: 'bool',
+  [SettingsKeys.BETA_UPDATES]: 'bool',
   [SettingsKeys.OPEN_VIDEOS_FROM_OTHER_APPS]: 'bool',
   [SettingsKeys.SHOW_MEDIA_CONTROLS]: 'bool',
   [SettingsKeys.SHOW_HAMBURGER_MENU]: 'bool',

@@ -35,6 +35,7 @@ import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import ContinueWatching from '../../components/ContinueWatching';
 import DiscoverRows from '../../components/DiscoverRows';
+import TraktContinueRow from '../../components/TraktContinueRow';
 import StatusBarScrim from '../../components/ui/StatusBarScrim';
 import {isTV} from '../../lib/tv/constants';
 import useNavigationPreferencesStore from '../../lib/zustand/navigationPreferencesStore';
@@ -383,6 +384,8 @@ const Home = ({navigation}: Props) => {
                     onOpenDrawer={openDrawer}
                   />
                   {showContinueWatching && <ContinueWatching />}
+                  {/* Opens Find streams, which a kids profile does not have. */}
+                  {showContinueWatching && !kidsProfile && <TraktContinueRow />}
                 </>
               }
               ListFooterComponent={

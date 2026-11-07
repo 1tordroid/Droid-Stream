@@ -1,6 +1,6 @@
 import {VLCPlayer} from 'react-native-vlc-media-player';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React, {useMemo, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Image, Pressable, ToastAndroid, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import AppText from '../../components/ui/Text';
@@ -11,7 +11,37 @@ import {
   readShowMarkers,
   writeShowMarkers,
 } from '../../lib/playback/introMarkers';
+import {
+  clearSeasonMarks,
+  fetchSegments,
+  gatherSegments,
+  getSkipModes,
+  mediaServerItemKey,
+  NO_FETCHED_SEGMENTS,
+  readSeasonMarks,
+  writeSeasonMarks,
+  type FetchedSegments,
+} from '../../lib/playback/skipSources';
+import {actionFor, segmentAt, segmentId, setMark, skipLabel, withoutOff} from '../../lib/playback/skipSegmentModel';
 import type {SkipInterval} from '../../lib/providers/types';
+import {guessWatchMeta, type WatchMeta} from '../../lib/watchMeta';
+import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
+
+/** Skip times the provider gave with the episode or stream. */
+export const providerSkipsOf = (params: any): SkipInterval[] => {
+  const episode = params.episodeList?.[params.linkIndex || 0];
+  return [episode?.skip, episode?.skips, params.initialStream?.skip, params.initialStream?.skips].filter(Array.isArray).flat();
+};
+
+/** What is playing, read as the built-in player reads it: given by the caller, or guessed from the titles. */
+const watchMetaOf = (params: any): WatchMeta | undefined =>
+  params.meta ||
+  guessWatchMeta({
+    primaryTitle: params.primaryTitle,
+    secondaryTitle: params.secondaryTitle,
+    episodeTitle: params.episodeList?.[params.linkIndex || 0]?.title,
+    type: params.type,
+  });
 
 type Track = {id: number; name: string};
 
@@ -42,8 +72,48 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
   const [markers, setMarkers] = useState(() => readShowMarkers(showKey));
   const seekSeconds = settingsStorage.getSeekInterval();
 
-  const skips = useMemo(() => markersToSkips(markers), [markers]);
-  const activeSkip = skips.find(item => time >= item.from && time < item.to);
+  // The same skip times and settings as the built-in player: the provider,
+  // the media server, AniSkip, IntroDB, then the season marks, with the older
+  // per-show marks last. Kinds set to Off are left out.
+  const watchMeta = useMemo(() => watchMetaOf(params), [params]);
+  const season = watchMeta?.season;
+  const [seasonMarks, setSeasonMarks] = useState(() => readSeasonMarks(showKey, season));
+  useEffect(() => setSeasonMarks(readSeasonMarks(showKey, season)), [showKey, season]);
+  const [skipModes] = useState(getSkipModes);
+  const [fetched, setFetched] = useState<FetchedSegments>(NO_FETCHED_SEGMENTS);
+  const episodeLink: string | undefined = params.episodeList?.[params.linkIndex || 0]?.link;
+  const streamUrls = useMemo(() => [uri, episodeLink], [uri, episodeLink]);
+  const serverItemKey = useMemo(() => mediaServerItemKey(streamUrls), [streamUrls]);
+  useEffect(() => {
+    let live = true;
+    fetchSegments({streamUrls, meta: watchMeta})
+      .then(found => {
+        if (live) setFetched(found);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+    // Only what the lookups use.
+  }, [serverItemKey, watchMeta?.title, watchMeta?.season, watchMeta?.episode, watchMeta?.imdbId]);
+  const providerSkips = useMemo(() => providerSkipsOf(params), [params]);
+  const segments = useMemo(
+    () =>
+      withoutOff(
+        gatherSegments({
+          provider: providerSkips,
+          fetched,
+          marks: seasonMarks,
+          legacy: markersToSkips(markers),
+          durationSeconds: duration,
+        }),
+        skipModes,
+      ),
+    [providerSkips, fetched, seasonMarks, markers, duration, skipModes],
+  );
+  const activeSkip = segmentAt(segments, time);
+  const [showMarksMenu, setShowMarksMenu] = useState(false);
+  const autoSkipped = useRef(new Set<string>());
 
   const seekTo = (seconds: number) => {
     if (!duration) return;
@@ -52,8 +122,41 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
     setTime(next);
   };
 
-  const remember = (patch: Partial<typeof markers>) => {
-    const next = {...markers, chapters: markers.chapters, ...patch};
+  // Entering a segment set to Auto skips it once; seeking back into it shows the button.
+  const activeSkipId = activeSkip ? segmentId(activeSkip) : undefined;
+  useEffect(() => {
+    // Seeking needs the runtime, so nothing is skipped before the video loaded.
+    if (!activeSkip || !activeSkipId || !duration) return;
+    if (actionFor(activeSkip, skipModes, autoSkipped.current.has(activeSkipId)) !== 'auto') return;
+    autoSkipped.current.add(activeSkipId);
+    seekTo(activeSkip.to);
+    ToastAndroid.show(`Skipped ${activeSkip.title.toLowerCase()}`, ToastAndroid.SHORT);
+    // Runs once per segment.
+  }, [activeSkipId, duration > 0]);
+
+  const skipNow = () => {
+    if (!activeSkip) return;
+    autoSkipped.current.add(segmentId(activeSkip));
+    seekTo(activeSkip.to);
+  };
+
+  // Intro and credits marks are kept for the whole season, as in the built-in player.
+  const mark = (choice: MarkChoice) => {
+    const next = setMark(seasonMarks, choice, time, duration);
+    writeSeasonMarks(showKey, season, next);
+    setSeasonMarks(next);
+    ToastAndroid.show(season !== undefined ? `Saved for season ${season}` : 'Saved', ToastAndroid.SHORT);
+  };
+
+  const clearMarks = () => {
+    clearSeasonMarks(showKey, season);
+    setSeasonMarks(readSeasonMarks(showKey, season));
+    ToastAndroid.show('Marks cleared', ToastAndroid.SHORT);
+  };
+
+  // Chapters stay per show, on this device.
+  const addChapter = () => {
+    const next = {...markers, chapters: [...markers.chapters, {title: `Chapter ${markers.chapters.length + 1}`, start: time}]};
     setMarkers(next);
     writeShowMarkers(showKey, next);
     ToastAndroid.show('Saved on this device', ToastAndroid.SHORT);
@@ -123,19 +226,9 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
           </Pressable>
         </View>
         <View style={{flexDirection: 'row', gap: 8, marginTop: 12}}>
-          {activeSkip ? (
-            <MarkerButton label={skipLabel(activeSkip)} onPress={() => seekTo(activeSkip.to)} />
-          ) : null}
-          <MarkerButton label="Mark intro" onPress={() => remember({introEnd: time})} />
-          <MarkerButton label="Mark credits" onPress={() => remember({creditsStart: time})} />
-          <MarkerButton
-            label="Add chapter"
-            onPress={() =>
-              remember({
-                chapters: [...markers.chapters, {title: `Chapter ${markers.chapters.length + 1}`, start: time}],
-              })
-            }
-          />
+          {activeSkip ? <MarkerButton label={skipLabel(activeSkip)} onPress={skipNow} /> : null}
+          <MarkerButton label="Mark intro and credits" onPress={() => setShowMarksMenu(true)} />
+          <MarkerButton label="Add chapter" onPress={addChapter} />
         </View>
         {markers.chapters.length > 0 ? (
           <View style={{flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 8, paddingHorizontal: 16}}>
@@ -164,12 +257,20 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
           ))}
         </View>
       ) : null}
+      {showMarksMenu ? (
+        <SkipMarksMenu
+          time={time}
+          marks={seasonMarks}
+          seasonLabel={season !== undefined ? `season ${season}` : 'this show'}
+          color="#E2B340"
+          onMark={mark}
+          onClear={clearMarks}
+          onClose={() => setShowMarksMenu(false)}
+        />
+      ) : null}
     </View>
   );
 };
-
-const skipLabel = (skip: SkipInterval) =>
-  skip.title?.toLowerCase().startsWith('skip') ? skip.title : `Skip ${skip.title || 'section'}`;
 
 const MarkerButton = ({label, onPress}: {label: string; onPress: () => void}) => (
   <Pressable

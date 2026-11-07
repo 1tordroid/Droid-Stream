@@ -35,6 +35,8 @@ export enum SettingsKeys {
   AUTO_CHECK_UPDATE = 'autoCheckUpdate',
   AUTO_DOWNLOAD = 'autoDownload',
   SKIPPED_UPDATE_TAG = 'skippedUpdateTag',
+  // Also offer nightly builds (GitHub pre-releases).
+  BETA_UPDATES = 'betaUpdates',
   AUTO_UPDATE_PROVIDERS = 'autoUpdateProviders',
   VERIFICATION_WINDOWS = 'verificationWindows',
 
@@ -420,6 +422,15 @@ export class SettingsStorage {
 
   setAutoDownloadEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.AUTO_DOWNLOAD, enabled);
+  }
+
+  /** Nightly builds count as updates too. Off by default. */
+  isBetaUpdatesEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.BETA_UPDATES, false);
+  }
+
+  setBetaUpdatesEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.BETA_UPDATES, enabled);
   }
 
   /** GitHub release tag the user chose to ignore, for example `v5.4.0`. */

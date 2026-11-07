@@ -18,7 +18,7 @@ import { downloadOutputExists } from '../downloadDestination';
 import {guardWafPrompts} from '../services/wafSession';
 import {withoutUnplayableTorrents} from '../torrentStream';
 import {isVersionKey} from '../netlib/ids';
-import {resolveNetlibStream} from '../netlib/resolve';
+import {netlibHasQualities, resolveNetlibStreams} from '../netlib/resolve';
 
 interface UseStreamOptions {
   activeEpisode: any;
@@ -486,9 +486,15 @@ export const fetchStreamList = async ({
     if (!isVersionKey(episode?.link)) return [];
     // The first file was opened before the player; opening it again would end an SMB stream.
     const initial = getInitialStream(episode, routeParams);
-    if (initial) return [initial];
-    const stream = await resolveNetlibStream(episode.link);
-    return [{server: stream.local ? 'This device' : 'Library', link: stream.url, type: stream.type, ...(stream.headers ? {headers: stream.headers} : {})}];
+    // PikPak and Tordroid Plus files list each transcode so the source menu works as a quality switch.
+    if (initial && !netlibHasQualities(episode.link)) return [initial];
+    const streams = (await resolveNetlibStreams(episode.link)).map(stream => ({
+      server: stream.local ? 'This device' : stream.label || 'Library',
+      link: stream.url,
+      type: stream.type,
+      ...(stream.headers ? {headers: stream.headers} : {}),
+    }));
+    return initial ? [initial, ...streams.filter(stream => stream.server !== initial.server)] : streams;
   }
   if (routeParams?.localContent) {
     return isLocalPath(episode?.link)

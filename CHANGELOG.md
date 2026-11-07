@@ -7,6 +7,76 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
+## 5.6.1
+
+- Watch online for any magnet or torrent (Torrents results, opened magnets,
+  the Magnet screen): cached debrid first, then PikPak, then the torrent
+  on this device. Shows the way it uses and lets you pick another.
+- PikPak and debrid services in the poster library: folders, Movies and
+  Shows, artwork and Continue watching. Cloud files keeps a list view.
+- PikPak: quality choice from its own transcodes, storage and transfer
+  quota, magnet file preview before adding, photo preview, share links,
+  and PikPak WebDAV as a library source.
+- Tordroid Plus in Library > Add a source: family downloads with
+  progress, play with quality choice or in VLC, add magnets, quota, share
+  links and its WebDAV in the poster library.
+- Photos from social apps keep working when a site changes: the app
+  takes signed site rules from the Droid Stream repository once a day,
+  or with Check now in Video downloader settings, which shows the
+  rules version.
+- "This site stopped working" on the photo downloader's error and in
+  Video downloader settings opens a GitHub issue with the site, app
+  version, rules version and error. The post link is added only if you
+  tick the box.
+- Remote control (off by default): add and manage downloads from AriaNg
+  or an aria2 browser extension on your Wi-Fi, with a token and a QR
+  code that sets up AriaNg.
+- Command access (off by default): add, pause, resume and list downloads
+  from Termux, ADB or Tasker with a token.
+- Use a browser-like connection (off by default): downloads from sites
+  you list connect like Chrome does.
+- Continue on Trakt: movies and episodes you paused on other apps
+  linked to Trakt show on Home. Tap one to find a source; playback
+  starts where Trakt says you stopped, unless this device has its own
+  progress.
+- Simkl scrobbling, with its own switch in Watch sync. Stops made
+  offline are sent later.
+- Skip times from Emby (intro and credits markers) and Plex (intro and
+  credits markers).
+- The VLC player uses the same season marks and skip settings as the
+  built-in player.
+- The TMDB logo next to the TMDB notice in Credits and licences.
+- TV guide for Live TV Favourites and Recent. Each channel uses its own
+  source's guide, and catch-up works where the channel has it.
+- On a phone, Go live plays again even after you paused.
+- Try SMB playback (testing): a switch in Advanced downloads, off by
+  default, to test playing files from SMB shares.
+- Live TV World: free channels for any country, listed by iptv-org.
+  Live TV starts on your country, found on the device from the SIM,
+  network or language settings, and Change country picks another.
+  Free Indian channels and JioTV stay as they were.
+- Live TV: the quality tag (1080p) ends the group line on each channel
+  and sits under the logo in the guide, so it no longer hides the logo.
+  The Indian source's chip reads India, the chosen chip scrolls into
+  view, and the World header fits at 360 dp.
+- Browser passkeys: when a passkey sign-in fails, the browser offers
+  Sign in with Chrome once per site (also in the browser menu). It opens
+  the page in a Chrome Custom Tab, and the sign-in stays in Chrome.
+  Browser settings explain why and add Choose a passkey manager.
+- Send a problem report in About and on the error screen: opens a GitHub
+  issue with the app, version, Android version and phone model. Recent
+  logs are added only if you tick the box, with sign-ins, cookies,
+  emails, IP addresses, link details and file paths removed.
+- A smaller arm64 APK next to the universal one on each release and
+  nightly. The in-app updater picks it on 64-bit devices and the
+  universal one on 32-bit devices.
+- Get beta builds in Settings > About (off by default): the updater also
+  offers nightly builds. Turn it off to go back to stable updates; you
+  get the next stable release when it is newer.
+- Automatic phone tests on GitHub: each pull request builds the app,
+  starts it on an Android emulator and opens the tabs, Browser (loading
+  a page), Live TV and About.
+
 ## 5.6.0
 
 - Skip intro, recap, credits and previews for every show (provider,
@@ -55,8 +125,6 @@ For everything the app can do, and what is planned, see
   the top of Settings. Credits and open-source licences are now one
   page, with link buttons for the projects and services.
 
-More in 5.6.1: aria2-style remote control, command access, PikPak and
-debrid files in the poster library, Tordroid Plus, and more.
 
 ## 5.5.0
 

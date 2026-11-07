@@ -1,15 +1,14 @@
 import {asArray, asNumber, asRecord, asString, extensionOf, metaContent, parseJson} from '../http';
+import {atPath, fillUrl, ruleRegex, siteRules} from '../rules/active';
 import {classifySocialUrl} from '../urls';
-import {SocialError, type SocialExtractor, type SocialMediaItem, type SocialPost, type SocialVariant} from '../types';
-
-const SIZE_KEYS = ['orig', 'originals', '1200x', '736x', '564x', '474x', '236x'];
+import {SocialError, type SocialContext, type SocialExtractor, type SocialMediaItem, type SocialPost, type SocialVariant} from '../types';
 
 /** Sizes of an "images" object ({orig: {url, width, height}, "736x": {...}}), largest first. */
-const imageSizes = (images: unknown): SocialVariant[] => {
+const imageSizes = (images: unknown, sizeKeys: string[]): SocialVariant[] => {
   const record = asRecord(images);
   if (!record) return [];
   const seen = new Set<string>();
-  return SIZE_KEYS.map(key => asRecord(record[key]))
+  return sizeKeys.map(key => asRecord(record[key]))
     .filter((entry): entry is Record<string, unknown> => Boolean(entry && asString(entry.url)))
     .map(entry => ({url: asString(entry.url) || '', width: asNumber(entry.width), height: asNumber(entry.height)}))
     .filter(variant => !seen.has(variant.url) && Boolean(seen.add(variant.url)));
@@ -26,7 +25,8 @@ const bestVideo = (videoList: unknown): SocialVariant[] => {
 };
 
 /** Reads a pin as PinResource returns it: a photo, a video, a carousel, or an idea pin's pages. */
-export const parsePin = (pin: Record<string, unknown>, url: string): SocialPost => {
+export const parsePin = (pin: Record<string, unknown>, url: string, rulesContext?: Pick<SocialContext, 'rules'>): SocialPost => {
+  const sizeKeys = siteRules(rulesContext, 'pinterest').sizeKeys;
   const pinId = asString(pin.id) || 'pin';
   const author =
     asString(asRecord(pin.native_creator)?.username) || asString(asRecord(pin.pinner)?.username) || asString(asRecord(pin.origin_pinner)?.username) || 'pinterest';
@@ -41,16 +41,16 @@ export const parsePin = (pin: Record<string, unknown>, url: string): SocialPost 
     for (const block of asArray(asRecord(page)?.blocks)) {
       const entry = asRecord(block);
       const videos = bestVideo(asRecord(asRecord(entry?.video)?.video_list));
-      const images = imageSizes(asRecord(entry?.image)?.images);
+      const images = imageSizes(asRecord(entry?.image)?.images, sizeKeys);
       if (videos.length) push('video', videos, images[images.length - 1]?.url);
       else push('image', images);
     }
   }
   if (!items.length) {
-    for (const slot of asArray(asRecord(pin.carousel_data)?.carousel_slots)) push('image', imageSizes(asRecord(slot)?.images));
+    for (const slot of asArray(asRecord(pin.carousel_data)?.carousel_slots)) push('image', imageSizes(asRecord(slot)?.images, sizeKeys));
   }
   if (!items.length) {
-    const images = imageSizes(pin.images);
+    const images = imageSizes(pin.images, sizeKeys);
     const videos = bestVideo(asRecord(pin.videos)?.video_list);
     if (videos.length) push('video', videos, images[images.length - 1]?.url);
     push('image', images);
@@ -72,19 +72,23 @@ export const pinterestExtractor: SocialExtractor = {
       id = classifySocialUrl(url)?.id;
       if (!id) throw new SocialError('notFound', 'This Pinterest link did not lead to a pin.');
     }
-    const data = JSON.stringify({options: {id, field_set_key: 'detailed'}, context: {}});
-    const api = `https://www.pinterest.com/resource/PinResource/get/?source_url=${encodeURIComponent(`/pin/${id}/`)}&data=${encodeURIComponent(data)}`;
-    const response = await context.fetch(api, {headers: {Accept: 'application/json', 'X-Pinterest-PWS-Handler': 'www/pin/[id].js', Referer: 'https://www.pinterest.com/'}});
+    const rules = siteRules(context, 'pinterest');
+    const data = JSON.stringify({options: {id, field_set_key: rules.fieldSetKey}, context: {}});
+    const api = fillUrl('pinterest', rules.endpoints.resource, {
+      sourceUrl: encodeURIComponent(`/pin/${id}/`),
+      data: encodeURIComponent(data),
+    });
+    const response = await context.fetch(api, {headers: {...rules.headers}});
     if (response.status < 400) {
-      const json = parseJson<{resource_response?: {data?: unknown}}>(response, 'This pin');
-      const pin = asRecord(json.resource_response?.data);
-      if (pin) return parsePin(pin, url);
+      const json = parseJson<unknown>(response, 'This pin');
+      const pin = asRecord(atPath(json, rules.paths.pin));
+      if (pin) return parsePin(pin, url, context);
     }
     // The page itself still has the picture.
-    const page = await context.fetch(`https://www.pinterest.com/pin/${id}/`);
+    const page = await context.fetch(fillUrl('pinterest', rules.endpoints.pin, {id: encodeURIComponent(id)}));
     const image = metaContent(page.text, 'og:image');
     if (!image) throw new SocialError(page.status === 404 ? 'notFound' : 'network', 'Pinterest did not show this pin.');
-    const original = image.replace(/\/\d+x\//, '/originals/');
+    const original = image.replace(ruleRegex(rules.patterns.sizeInLink), rules.originalSize);
     return {
       site: 'pinterest',
       kind: 'post',

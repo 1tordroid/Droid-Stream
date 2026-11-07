@@ -10,6 +10,7 @@ import AppText from '../../components/ui/Text';
 import {canMakeSongVideos} from '../../lib/social/native';
 import {enqueueSocial} from '../../lib/social/queue';
 import {resolveSocialPost} from '../../lib/social/resolve';
+import {checkSocialRules} from '../../lib/social/rules/update';
 import {
   defaultSelection,
   planCount,
@@ -21,11 +22,12 @@ import {
   type SocialQuality,
 } from '../../lib/social/select';
 import {PROFILE_LIMITS, readSocialSettings, updateSocialSettings} from '../../lib/social/settings';
-import {SocialError, type SocialPost} from '../../lib/social/types';
+import {SocialError, type SocialLink, type SocialPost} from '../../lib/social/types';
 import {classifySocialUrl, SITE_LABELS, socialLinkInText} from '../../lib/social/urls';
 import {ytdlExtract, ytdlSupported} from '../../lib/ytdl/native';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {ChipRow, Choice, Field, formatDuration, Section, ToggleRow} from '../ytdl/components';
+import SiteReport from './SiteReport';
 
 type Params = {SocialDownload: {url: string} | undefined};
 type Navigate = (screen: string, params?: object) => void;
@@ -44,7 +46,8 @@ const SocialDownload = () => {
   const [post, setPost] = useState<SocialPost | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
-  const [error, setError] = useState<{message: string; signIn: boolean} | null>(null);
+  // [link] is set when a site's reader failed, for "This site stopped working".
+  const [error, setError] = useState<{message: string; signIn: boolean; link?: SocialLink} | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [photosOnly, setPhotosOnly] = useState(defaults.photosOnly);
   const [quality, setQuality] = useState<SocialQuality>(defaults.quality);
@@ -86,7 +89,7 @@ const SocialDownload = () => {
         if (run !== lookup.current) return;
         const message = lookupError instanceof Error ? lookupError.message : String(lookupError);
         const signIn = lookupError instanceof SocialError && (lookupError.code === 'signIn' || lookupError.code === 'private');
-        setError({message, signIn});
+        setError({message, signIn, link: classifySocialUrl(link)});
       } finally {
         if (run === lookup.current) {
           setLoading(false);
@@ -100,6 +103,11 @@ const SocialDownload = () => {
   useEffect(() => {
     if (route.params?.url) lookUp(route.params.url).catch(() => undefined);
   }, [route.params?.url, lookUp]);
+
+  // New site rules, at most once a day; a failed check keeps the current ones.
+  useEffect(() => {
+    checkSocialRules().catch(() => undefined);
+  }, []);
 
   const items = useMemo(() => (post ? visibleItems(post.items, photosOnly) : []), [post, photosOnly]);
   const mixed = Boolean(post?.items.some(item => item.kind === 'video') && post?.items.some(item => item.kind === 'image'));
@@ -187,6 +195,9 @@ const SocialDownload = () => {
               ) : null}
               <Button variant="tonal" compact onPress={() => lookUp(url)}>Try again</Button>
             </View>
+            {error.link ? (
+              <SiteReport site={error.link.site} error={error.message} postUrl={error.link.url} hide={[error.link.user, error.link.id]} />
+            ) : null}
           </Section>
         ) : null}
 

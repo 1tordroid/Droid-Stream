@@ -1,4 +1,5 @@
 import {NativeModules} from 'react-native';
+import {mainStorage} from '../storage/StorageService';
 
 export interface SmbEntry {
   name: string;
@@ -12,6 +13,20 @@ export interface SmbEntry {
  * until then SMB sources browse but do not play.
  */
 export const SMB_STREAMING = {enabled: false};
+
+const TESTING_KEY = 'smb-playback-testing';
+
+/**
+ * "Try SMB playback (testing)" in Advanced downloads: lets the owner test SMB
+ * playback on a device while SMB_STREAMING stays off for everyone. Off by default.
+ */
+export const isSmbPlaybackTesting = (): boolean => mainStorage.getBool(TESTING_KEY, false);
+export const setSmbPlaybackTesting = (value: boolean): void => {
+  mainStorage.setBool(TESTING_KEY, value);
+};
+
+/** SMB playback is on for everyone, or for this device while testing. */
+const streamingOn = (): boolean => SMB_STREAMING.enabled || isSmbPlaybackTesting();
 
 const smbModule = () => NativeModules.SmbModule;
 
@@ -30,7 +45,7 @@ export const listSmbShare = async (
 };
 
 /** True when this build can play SMB files. */
-export const canStreamSmb = (): boolean => SMB_STREAMING.enabled && typeof smbModule()?.openStream === 'function';
+export const canStreamSmb = (): boolean => streamingOn() && typeof smbModule()?.openStream === 'function';
 
 /** The path inside a share, always with one leading slash and forward slashes. */
 export const normalizeSmbPath = (path: string): string =>
@@ -60,7 +75,7 @@ export const openSmbStream = async (
   password: string,
 ): Promise<string> => {
   const module = smbModule();
-  if (!SMB_STREAMING.enabled || typeof module?.openStream !== 'function') {
+  if (!streamingOn() || typeof module?.openStream !== 'function') {
     throw new Error('Playing SMB files needs a newer build. You can still browse this share.');
   }
   const url: string = await module.openStream(host, share, normalizeSmbPath(path), username, password, '');

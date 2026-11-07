@@ -5,9 +5,9 @@ planned. For the changes in each release, see [CHANGELOG.md](CHANGELOG.md).
 
 **Status in this list**
 
-- ✅ In the app today (latest release, 5.6.0)
+- ✅ In the app today (latest release, 5.6.1)
 - 🧪 Built for the next release, being tested
-- 🔨 Being built for the next release (5.6.1)
+- 🔨 Being built for the next release
 - 📋 Planned for a later release
 
 Droid Stream is based on Vega by [vega-org](https://github.com/vega-org/vega-app).
@@ -23,6 +23,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Watch list, Library, Continue watching, watched badges and "Hide watched".
 - ✅ Auto play next episode.
 - ✅ Skip intro, recap, credits and previews for every show: times from the provider, Jellyfin, AniSkip (anime) and IntroDB, or mark them yourself once per season. Off, button or auto skip for each type.
+- ✅ Skip times from your Emby and Plex servers too, and the VLC player uses the same season marks and skip settings.
 - ✅ Play best falls back to the next source by itself when one fails or doesn't start, and remembers links that failed.
 - ✅ Play best filters: largest file, lowest and highest quality, prefer or avoid HEVC and AV1.
 - 📋 Chapters in the player.
@@ -52,11 +53,15 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Sign in with Jio (Jio number and SMS code) for Jio channels.
 - ✅ Favourites, recent channels, groups, search and now/next info.
 - ✅ TV guide grid with channels down and times across.
+- ✅ TV guide for Favourites and Recent, with each channel's own guide and catch-up.
 - ✅ Catch-up: replay past programmes where the channel allows it.
 - ✅ Pause and rewind live channels that keep a buffer, with a "Go live" button.
+- ✅ On a phone, Go live also plays again after you paused.
 - ✅ Programme reminders.
 - ✅ Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
 - ✅ Record live channels and programmes.
+- ✅ World: free channels for any country from iptv-org. Starts on your country (from the SIM, network or language settings, never online), and you can change it.
+- ✅ Quality tags (1080p) sit beside the channel's group instead of on its logo, and the chosen source chip stays in view on narrow phones.
 - 📋 Watch 2 to 4 channels at once.
 
 ## Torrents
@@ -69,6 +74,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Trackers, encryption, DHT, PEX, LSD, uTP and an IP blocklist.
 - ✅ RSS feeds, create a torrent, seeding limits (seeding is off until you turn it on).
 - ✅ Open torrents in external players such as VLC and MX Player.
+- ✅ Watch online for any magnet or torrent: cached debrid first, then PikPak in the cloud, then the torrent on this device. Shows the way it uses, and you can pick another.
 
 ## Debrid, cloud and add-ons
 
@@ -76,12 +82,16 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Stremio add-ons such as Torrentio, Comet, MediaFusion and OpenSubtitles.
 - ✅ One ranked stream list from add-ons, torrent sites and debrid caches, with Play best.
 - ✅ Cloud files in Library.
+- ✅ PikPak and each signed-in debrid service as poster libraries: folders, Movies and Shows, artwork and Continue watching. Debrid transfers are the folders. A list view is still there.
+- ✅ PikPak: play its own transcoded copies with a quality choice, storage and transfer quota, preview a magnet's files before adding, photo preview, share links, and PikPak WebDAV as a library source.
+- ✅ Tordroid Plus: sign in to the family portal, see family downloads with progress, play them (with quality choice or in VLC), add magnets, quota, share links, and its WebDAV in the poster library.
 - ✅ Sign-ins stay saved as long as each service allows.
 - 📋 Add-on rows on Home.
 
 ## Your own servers
 
 - ✅ SMB, WebDAV, Jellyfin, Emby and Plex.
+- ✅ Try SMB playback (testing), a switch in Advanced downloads. Off by default.
 - ✅ Poster library for your servers and your device's videos: Movies, Shows, Other and Folders, matched titles and artwork, Continue watching across sources.
 - ✅ Fix a wrong poster or title.
 - 📋 Plex PIN sign-in and Jellyfin Quick Connect.
@@ -109,6 +119,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Photos from social apps: Instagram (photos, carousels, reel covers, stories and highlights when signed in, full-size profile pictures), Facebook, X, Threads, Pinterest, Reddit and Tumblr. Pick items, "Photos only" and original quality; saved in Social/<site>/<author>.
 - ✅ Instagram photo with its song: save the photo, the song, or a video of the photo (or a carousel slideshow) with the song, made on the phone.
 - ✅ Batch downloads of a whole carousel or the latest posts of a profile (playlists go through the yt-dlp downloader).
+- ✅ Site rules for photos from social apps: when a site changes, a signed rules update fixes it without an app update (checked once a day, or with Check now in Video downloader settings). "This site stopped working" opens a GitHub issue with the site and versions, and the post link only if you tick the box.
 - ✅ MPEG-DASH downloads (separate video and audio).
 - ✅ Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
 - ✅ FTP and FTPS downloads.
@@ -118,9 +129,9 @@ It runs on Android phones, tablets and Android TV.
 
 - ✅ eD2k links, server list and search.
 - ✅ GitHub and HuggingFace mirrors that you add yourself.
-- 🔨 aria2-style remote control: send downloads to your phone from AriaNg or a browser extension on your Wi-Fi.
-- 🔨 Command access from Termux, ADB or Tasker.
-- 🔨 Browser-like connection for sites that turn away download apps.
+- ✅ aria2-style remote control: send downloads to your phone from AriaNg or a browser extension on your Wi-Fi.
+- ✅ Command access from Termux, ADB or Tasker.
+- ✅ Browser-like connection for sites that turn away download apps.
 
 ## Browser
 
@@ -130,6 +141,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Ad and tracker blocker with EasyList, EasyPrivacy and IndianList, your own lists and rules, and blocking off for chosen sites.
 - ✅ Userscripts (Greasemonkey and Tampermonkey style).
 - ✅ Saved passwords locked with your screen lock, your phone's password manager (autofill), and passkeys where the passkey provider allows the app.
+- ✅ Help when passkeys fail: Sign in with Chrome (the sign-in stays in Chrome), offered once per site, and Choose a passkey manager in Browser settings.
 - ✅ Send pages, links and media to the downloader, yt-dlp, Torrents, the player or cast, and take file links from other browsers.
 - 📋 Droid Stream (with extension support): a second edition of the whole app. It has every Droid Stream feature, and its Browser runs on Firefox's engine (GeckoView) with Firefox add-ons such as uBlock Origin, Dark Reader and Tampermonkey. Install one or the other: the regular Droid Stream stays smaller, this edition is about 60 MB bigger.
 
@@ -145,8 +157,8 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Trakt, Simkl and AniList.
 - ✅ Sign in to Trakt and Simkl with a code and a QR code, without typing keys.
 - ✅ Trakt scrobbling: "watching now", and watches saved even when offline.
-- 📋 Bring Trakt progress into Continue watching.
-- 📋 Simkl scrobbling.
+- ✅ Bring Trakt progress into Continue watching: a "Continue on Trakt" row, and playback starts where Trakt says you stopped.
+- ✅ Simkl scrobbling, with its own switch, that keeps working offline.
 - 📋 New-episode calendar and alerts.
 
 ## Cast and TV
@@ -173,6 +185,11 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Advanced mode shows every extra control; tab bar labels, haptics and the Home menu are adjustable.
 - ✅ Search inside Settings to jump to any option.
 - ✅ Check for updates and the version in Settings; one Credits and licences page with links.
+- ✅ Get beta builds (Settings > About, off by default): the in-app updater also offers nightly builds. Turn it off to go back to stable; you get the next stable release when it is newer.
+- ✅ A smaller arm64 APK next to the universal one on each release and nightly. The updater picks it on 64-bit devices and the universal one on 32-bit devices.
+- ✅ Automatic phone tests on GitHub: each pull request starts the app on an Android emulator and opens the tabs, Browser (loading a page), Live TV and About.
+- ✅ The TMDB logo with the TMDB notice in Credits and licences.
+- ✅ Send a problem report from About or the error screen: a GitHub issue with your app and phone details, and recent logs only if you tick the box.
 - 📋 IMDb, Rotten Tomatoes and Metacritic scores together.
 
 ## Backup

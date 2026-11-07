@@ -3,7 +3,8 @@
  * sources and device folders. Original code written for Droid Stream.
  */
 
-export type NetlibSourceKind = 'webdav' | 'smb' | 'device';
+/** pikpak, debrid and tdplus are cloud accounts; see cloud.ts. */
+export type NetlibSourceKind = 'webdav' | 'smb' | 'device' | 'pikpak' | 'debrid' | 'tdplus';
 
 export interface NetlibSource {
   id: string;
@@ -22,6 +23,9 @@ export interface NetlibEntry {
   size?: number;
   modified?: number;
   etag?: string;
+  /** Cloud sources: a preview picture and the file type, for showing photos. */
+  thumbnail?: string;
+  mimeType?: string;
 }
 
 /** A video found by a scan, with the folder names between the scan root and it. */

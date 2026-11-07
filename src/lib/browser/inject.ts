@@ -46,6 +46,30 @@ export const buildBootstrap = (options: BootstrapOptions): string => `
 
   post({type: 'page', url: location.href, title: document.title});
 
+  /* Passkeys: a passkey sign-in that fails here (often because the passkey
+     manager does not serve this app) is reported, so the app can offer to
+     sign in with Chrome. The page still gets the same result and error. */
+  try {
+    var credentialsProto = window.CredentialsContainer && window.CredentialsContainer.prototype;
+    if (credentialsProto) {
+      ['get', 'create'].forEach(function (op) {
+        var original = credentialsProto[op];
+        if (typeof original !== 'function') return;
+        var wrapped = function (options) {
+          var result = original.apply(this, arguments);
+          if (options && options.publicKey && result && typeof result.then === 'function') {
+            result.then(null, function (error) {
+              var name = error && error.name;
+              if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'NotSupportedError') post({type: 'passkeyFailed', op: op, error: name, url: location.href}, true);
+            });
+          }
+          return result;
+        };
+        try { Object.defineProperty(credentialsProto, op, {value: wrapped, writable: true, configurable: true}); } catch (e) {}
+      });
+    }
+  } catch (e) {}
+
   /* Desktop layout: a wide viewport, so pages lay out as on a computer. */
   if (C.desktop) {
     var fixViewport = function () {

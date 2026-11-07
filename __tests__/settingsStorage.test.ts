@@ -53,9 +53,18 @@ describe('settings defaults', () => {
 
   it('keeps intentional default-off preferences disabled', () => {
     expect(settingsStorage.isAutoDownloadEnabled()).toBe(false);
+    expect(settingsStorage.isBetaUpdatesEnabled()).toBe(false);
     expect(settingsStorage.hideSeekButtons()).toBe(false);
     expect(settingsStorage.isEnable2xGestureEnabled()).toBe(false);
     expect(settingsStorage.isSkipInAppWebview()).toBe(false);
+  });
+
+  it('saves the beta builds switch', () => {
+    settingsStorage.setBetaUpdatesEnabled(true);
+    expect(mockBooleanValues.get(SettingsKeys.BETA_UPDATES)).toBe(true);
+    expect(settingsStorage.isBetaUpdatesEnabled()).toBe(true);
+    settingsStorage.setBetaUpdatesEnabled(false);
+    expect(settingsStorage.isBetaUpdatesEnabled()).toBe(false);
   });
 
   it('persists provider auto-updates independently from app update preferences', () => {

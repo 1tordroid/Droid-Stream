@@ -1,0 +1,157 @@
+name: UI tests
+
+# Builds the app for an x86_64 emulator (release build, JS bundle embedded,
+# signed with the debug key), boots Android 14 and runs the Maestro flows
+# tagged "ci": tabs, settings search, debrid and watch sync screens, and
+# Browser + Live TV + About. They need no accounts. Screenshots, logcat and
+# the Maestro report are attached to the run when a flow fails.
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  push:
+    branches:
+      - main
+      - 'improve/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      # Optional, as in test-apk.yml. Pull requests from forks get none; the
+      # flows do not need them.
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      PROXY_API_URL: ${{ secrets.PROXY_API_URL }}
+      TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+      TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+      SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+      # The version docs/DEVELOPMENT.md uses locally. A MAESTRO_VERSION
+      # repository variable overrides it.
+      MAESTRO_VERSION: ${{ vars.MAESTRO_VERSION || '2.12.1' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The build and the emulator image together need more disk than the
+      # runner has free.
+      - name: Free disk space
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+          df -h /
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      # Caches Gradle's dependencies and build cache (written on main).
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sdkmanager --install 'cmake;3.22.1' && "$ANDROID_HOME/cmake/3.22.1/bin/cmake" --version; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Android CMake installation failed after three attempts.' >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - run: npm ci
+
+      - name: Generate the Android project
+        run: npm run build:sandbox && npx expo prebuild --platform android --clean --no-install
+
+      - name: Build the x86_64 APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x android/gradlew
+          cd android
+          ./gradlew :app:assembleRelease -PdroidstreamAbis=x86_64 -PreactNativeArchitectures=x86_64 \
+            --build-cache --no-daemon --max-workers=2 --console=plain --stacktrace \
+            '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=768m -XX:+UseSerialGC' \
+            -Pkotlin.compiler.execution.strategy=in-process
+
+      - name: Collect the APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          APK="$(find android/app/build/outputs/apk/release -name '*.apk' -not -name '*unsigned*' | head -1)"
+          if [ -z "$APK" ]; then
+            echo 'The APK was not produced.' >&2
+            exit 1
+          fi
+          cp "$APK" dist/DroidStream-ci-x86_64.apk
+          ls -l dist
+
+      # The build is done: free its disk and memory for the emulator.
+      - name: Clean up the build
+        shell: bash
+        run: rm -rf android/app/build/intermediates android/app/.cxx node_modules/.cache || true
+
+      - name: Install Maestro
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL 'https://get.maestro.mobile.dev' | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the Maestro flows on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          disk-size: 6000M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -camera-back none
+          disable-animations: true
+          script: bash scripts/ci/run-maestro.sh dist/DroidStream-ci-x86_64.apk maestro-output ci
+
+      - name: Upload screenshots and logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-tests-${{ github.run_id }}
+          path: |
+            maestro-output/
+            ~/.maestro/tests/
+          if-no-files-found: ignore
+          retention-days: 14

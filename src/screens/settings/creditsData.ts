@@ -28,6 +28,8 @@ export interface CreditEntry {
   license?: string;
   /** A line that must be shown word for word, such as a Required Notice. */
   notice?: string;
+  /** A logo the service asks to show with its notice. */
+  logo?: 'tmdb';
   links: CreditLink[];
   /** Set when there is no official link to show. */
   noLinks?: true;
@@ -47,6 +49,9 @@ export interface CreditSection {
 const gh = (path: string): CreditLink => ({label: 'Repository', url: `https://github.com/${path}`});
 const web = (url: string): CreditLink => ({label: 'Website', url});
 const docs = (url: string): CreditLink => ({label: 'Docs', url});
+
+/** The wording TMDB asks every app that uses its API to show, with its logo. */
+export const TMDB_NOTICE = 'This product uses the TMDB API but is not endorsed or certified by TMDB.';
 
 export const VEGA_REQUIRED_NOTICE =
   'Required Notice: Copyright (c) 2026 [LICENSOR NAME] (https://github.com/vega-org/vega-app)';
@@ -79,7 +84,8 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       },
       {
         name: 'Tordroid Plus',
-        note: "Tordroid's private family portal for a shared PikPak account.",
+        note: "Tordroid's family portal for a shared PikPak account, built on PikPak Plus by Bharath Ganji. Droid Stream signs in to it as a library source and only talks to its web API; none of its code is in the app.",
+        license: 'GPL-3.0',
         links: [web('https://plus.tordroid.com'), gh('1tordroid/pikpak-plus')],
       },
     ],
@@ -150,7 +156,9 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'Cinemeta', note: 'Movie and show details.', links: [web('https://v3-cinemeta.strem.io')]},
       {
         name: 'TMDB (The Movie Database)',
-        note: 'Posters, artwork and details for your library and title pages, with your own API key. This product uses the TMDB API but is not endorsed or certified by TMDB.',
+        note: 'Posters, artwork and details for your library and title pages, with your own API key.',
+        notice: TMDB_NOTICE,
+        logo: 'tmdb',
         links: [web('https://www.themoviedb.org'), {label: 'Terms', url: 'https://www.themoviedb.org/api-terms-of-use'}, docs('https://developer.themoviedb.org')],
       },
       {name: 'OMDb API', note: 'Title search results.', links: [web('https://www.omdbapi.com')]},
@@ -174,7 +182,7 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'PikPak', note: 'Cloud downloads with your own account. It also gave ideas for browser download detection.', links: [web('https://mypikpak.com')]},
       {name: 'Cloudflare WARP', note: "WARP mode connects to Cloudflare's WARP network through usque.", links: [web('https://one.one.one.one')]},
       {name: 'Google Cast', note: 'Casting to Chromecast and Google TV devices.', links: [docs('https://developers.google.com/cast')]},
-      {name: 'iptv-org', note: 'Public list of free-to-air channels behind the Free Indian channels source in Live TV.', links: [gh('iptv-org/iptv'), web('https://iptv-org.github.io')]},
+      {name: 'iptv-org', note: 'Public lists of free-to-air channels behind Free Indian channels and the World channels for other countries in Live TV.', links: [gh('iptv-org/iptv'), web('https://iptv-org.github.io')]},
       {name: 'EasyList', note: "Filter list by the EasyList authors, downloaded by the browser's ad blocker.", links: [web('https://easylist.to'), gh('easylist/easylist')]},
       {name: 'EasyPrivacy', note: "Filter list by the EasyList authors, downloaded by the browser's tracker blocker.", links: [web('https://easylist.to')]},
       {name: 'IndianList', note: "Filter list for Indian sites by its maintainers, downloaded by the browser's ad blocker.", links: [gh('mediumkreation/IndianList')]},
@@ -193,7 +201,7 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'LibreTorrent', note: 'Torrent client ideas.', links: [{label: 'Repository', url: 'https://gitlab.com/proninyaroslav/libretorrent'}]},
       {name: 'Transmission', note: 'Torrent client ideas.', links: [web('https://transmissionbt.com'), gh('transmission/transmission')]},
       {name: 'aMule', note: 'eD2k download ideas.', links: [web('https://www.amule.org'), gh('amule-project/amule')]},
-      {name: 'pikpak-plus by Bharath Ganji', note: 'Cloud download ideas.', links: [gh('bharathganji/pikpak-plus')]},
+      {name: 'pikpak-plus by Bharath Ganji', note: 'Cloud download ideas, and the base of Tordroid Plus.', links: [gh('bharathganji/pikpak-plus')]},
       {name: 'Ghost Downloader 3', note: 'Download manager ideas.', links: [gh('XiaoYouChR/Ghost-Downloader-3')]},
       {name: 'VidHub', note: 'Library ideas.', links: [{label: 'App', url: 'https://okaapps.com/product/1659622164'}]},
       {name: '1DM', note: 'Download manager and browser download detection ideas.', links: [{label: 'Play Store', url: 'https://play.google.com/store/apps/details?id=idm.internet.download.manager'}]},

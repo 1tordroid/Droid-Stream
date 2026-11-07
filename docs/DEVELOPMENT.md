@@ -45,7 +45,8 @@ Local builds are much faster than waiting for CI, so use them for phone testing.
 - Phone helpers: `source scripts/dev/phone.sh`, then `install_app` (installs the newest APK in the output folder), `open_app`, `tap 'content-desc="Torrents"'`, `shot name`, `dump`, `crash`, `share <url>`, `jank_reset` and `jank`. Screenshots go to `phone-shots/`, which git ignores. Every action first checks that Droid Stream is in front.
 - Install to the personal profile only (`adb install -r --user 0`), never to a work profile.
 - `dump` (uiautomator) returns nothing while a progress bar animates. Take a screenshot instead. Text typed with `adb shell input text` needs `%s` for spaces.
-- End-to-end flows use Maestro 2.12.1 (the official release zip, with `JAVA_HOME` set to JDK 17): `maestro --device <serial> test --include-tags phone .maestro`, or `npm run e2e:phone` and `npm run e2e:tv`. The five phone flows pass.
+- End-to-end flows use Maestro 2.12.1 (the official release zip, with `JAVA_HOME` set to JDK 17): `maestro --device <serial> test --include-tags phone .maestro`, or `npm run e2e:phone` and `npm run e2e:tv`. The six phone flows pass.
+- The flows tagged `ci` (tabs, settings search, debrid and watch sync screens, and Browser + Live TV + About) need no accounts and no torrent sites, and run in CI (`ui-tests.yml`). Run the same set locally on a phone or emulator with the release package installed: `bash scripts/ci/run-maestro.sh <apk> maestro-output ci`, which installs the APK, runs the flows and saves screenshots, the JUnit report and logcat to `maestro-output/`. For an x86_64 emulator, build with `-PdroidstreamAbis=x86_64 -PreactNativeArchitectures=x86_64` (adds the x86_64 torrent engine). One flow on its own: `maestro test .maestro/browser_livetv_about.yaml`.
 - Free test media: Big Buck Bunny, Sintel and Elephants Dream on archive.org, and the HLS stream https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8. The Apple BipBop stream uses byte-range HLS, which the downloader does not support.
 
 ## CI
@@ -54,8 +55,9 @@ Local builds are much faster than waiting for CI, so use them for phone testing.
 | --- | --- | --- |
 | `test-apk.yml` | Every push to a branch other than `main` | Type check and Jest, then a standalone arm64 APK signed with the debug key, attached to the run as an artifact |
 | `action-build.yml` | Pushes to `main` | Signed TV APK and Play Store TV bundle, kept on a draft release |
-| `main.yml` | Every night, 00:00 India time | Nightly build of `main`, published as a pre-release. The in-app updater ignores pre-releases. |
-| `release.yml` | A `vX.Y.Z` tag | Signed universal APK (about 28 minutes), published as a normal release that the in-app updater offers to everyone |
+| `main.yml` | Every night, 00:00 India time | Nightly build of `main`, published as a pre-release `nightly-YYYYMMDD` with a universal and an arm64 APK. The in-app updater offers it only with Settings > About > Get beta builds on. |
+| `release.yml` | A `vX.Y.Z` tag | Signed universal APK (about 28 minutes) and the arm64 APK made from it, published as a normal release that the in-app updater offers to everyone |
+| `ui-tests.yml` | Pull requests, and pushes to `main` and `improve/*`, when app code changed | x86_64 build on an Android 14 emulator, then the Maestro flows tagged `ci`. Screenshots and logs are attached when a flow fails |
 
 Optional build secrets, read by `app.config.js` into `extra` and passed by all four workflows. Set them at repository level and in the `nightly` environment. Locally, export them before `build-local.sh`. A build without them still works: the app asks for the user's own keys instead.
 
@@ -76,7 +78,27 @@ Users can still pick "Use my own app" in Watch sync. A sign-in keeps the app tha
 
 Releases are signed with the Droid Stream key (alias `droidstream`). The keystore is kept outside the repository, with a backup; `scripts/setup-release-signing.sh` and `.ps1` create one and print the values for the GitHub secrets. The secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` are set at repository level and in the `nightly` environment.
 
+Each release and nightly has two APKs of the same build: `DroidStream-universal-v<ver>.apk` (both ARM ABIs) and `DroidStream-arm64-v<ver>.apk` (nightly: `DroidStream-nightly-v<ver>-arm64-<date>.apk`). The arm64 one is not a second Gradle build: `scripts/release/arm64_apk.py` copies the universal APK without `lib/armeabi-v7a`, zipaligns it and signs it with the same key, then checks the certificate, versionCode and versionName match. A 64-bit device installs only the arm64-v8a libraries from the universal APK anyway, so both behave the same there and update each other. The in-app updater takes the arm64 APK when the device supports arm64-v8a, otherwise the universal one; 5.5 and 5.6 take the universal one. Never put `universal` or `mobile` in another edition's APK names.
+
+Beta builds: with Get beta builds on, the updater also looks at the newest nightly. For the same version, two nightlies go by tag date, and a stable release and a nightly by which came out later (the nightly's tag and build time come from `DROIDSTREAM_BUILD_TAG` and `DROIDSTREAM_BUILD_TIME`, set by `main.yml`). It never offers an older build, so turning beta off on a nightly waits for the next stable release that is newer.
+
 Release certificate: CN=Tordroid, OU=Droid Stream, SHA-256 `76fb06dd1d36edb89ce3ed058c5c520bffcb36eb2667b4707b487138f650d2be`. First used for v5.3.3 (versionCode 218).
+
+## Site rules for the photo downloader
+
+The photo downloader's site readers (`src/lib/social/extractors`) take every value a site can change (links, query and app ids, headers, JSON paths and patterns) from `rules/social-rules.json`. The app bundles that file and, at most once a day (and on Check now in Video downloader settings), downloads `rules/social-rules.json` and `rules/social-rules.json.sig` from `main`. It takes the download only when the Ed25519 signature matches the public key in `src/lib/social/rules/publicKey.ts`, the file passes `validate.ts`, its `schema` is one the app reads and its `version` is higher than the active one. Anything else keeps the current rules.
+
+Rules are data only. `validate.ts` keeps links on https and on the site's own hosts (the list is in `ruleSchema.ts`, not in the file), rejects control characters and the Cookie and Host headers, and caps sizes (64 KB file). Patterns must pass `safeRegex.ts`: at most 400 characters and flags `i`, `m`, `s`; no back-references, look-arounds or nested repeats; and repeated groups with alternatives must start with different characters, so a pattern cannot backtrack for ever.
+
+To fix a site:
+
+1. Change the values in `rules/social-rules.json` and raise `version` by one (and `updated`). New keys need an app update; the app ignores keys it does not know.
+2. `node scripts/rules/sign-rules.mjs --check` validates the file with the app's own code.
+3. Push to `main`. `social-rules.yml` checks the file, refuses a change without a higher `version`, signs it with the `SOCIAL_RULES_PRIVATE_KEY` secret and commits the `.sig` (a push made with `GITHUB_TOKEN` starts no other workflow). If `main` is protected, let GitHub Actions push, or sign locally: `SOCIAL_RULES_PRIVATE_KEY="$(cat social-rules-private.pem)" node scripts/rules/sign-rules.mjs` and commit both files; the workflow then sees a matching signature and does nothing.
+
+The private key (PEM or base64 PKCS#8) is kept outside the repository with a backup. A new key pair means a new public key in `publicKey.ts` and an app release; phones on older builds then stop taking updates.
+
+`social-check.yml` runs every Monday (and by hand): `scripts/rules/check-sites.mjs` reads the posts in `rules/site-checks.json` signed out, with the app's readers and the repository's rules, one request per site (`"requests": 2` lets a reader try its fallback), and opens, comments on or closes one `site-check` issue per site. Sites sometimes block GitHub's servers, so try a post in the app before changing rules. Run it locally with `node scripts/rules/check-sites.mjs --site instagram`.
 
 ## Dependencies
 
@@ -115,6 +137,28 @@ Off by default (Settings > Preferences > Downloads > eD2k downloads). Written fr
 - Upload queues: a peer answers with its queue position ("Waiting in queue (n)" in the list). The client asks again after 29 minutes, or at once when the peer asks for a callback through the server.
 - No uploading or sharing. The client offers the server an empty file list, never listens for connections (so servers give it a low ID and low-ID peers are skipped), and answers peers' file, upload and shared-list requests with "not found" or "denied". Nothing runs unless a download or search is active; the server connection closes a minute after the last one. The torrent Wi-Fi only setting applies (it also allows Ethernet).
 - Not done: obfuscated connections, Kad, AICH recovery, source exchange, UDP reasks.
+
+### Remote control, command access and browser-like connections
+
+All three are off by default, in Settings > Advanced downloads (`screens/settings/RemoteAccessSections.tsx`). The logic is in `src/lib/remoteAccess` and is pure where it can be (tested in `__tests__/remoteAccess.test.ts`).
+
+- Remote control is an aria2-compatible JSON-RPC 2.0 server, written from aria2's public RPC documentation (aria2 is GPL; none of its code is used). `native-src/android/com/vega/RemoteRpcServer.kt` listens on the Wi-Fi or Ethernet IPv4 address only (`RemoteAccess.lanAddress`, or the device's own hotspot), on the port the user sets (6800 by default): HTTP `POST /jsonrpc`, the CORS preflight, and WebSocket on the same path. It closes connections from addresses outside the home network before reading them (loopback, RFC 1918, link-local, IPv6 ULA), limits request heads to 16 KB and bodies to about 5.6 MB, serves 12 connections at a time and times out slow clients. It rebinds when the Wi-Fi address changes. `RemoteControlService.kt` is the foreground service (type `connectedDevice`) with the "Remote control on" notification and a Turn off action; the server runs only while it does.
+- Each body goes to JavaScript (`RemoteRpcRequest` event, answered with `respond`, 30 s limit). `aria2Rpc.ts` checks the `token:<secret>` first parameter in constant time (`secret.ts`), locks out an address after 5 wrong tokens in a minute (1 minute, doubling up to 15), and refuses clients that are not on the home network again. Methods: `aria2.addUri` (http, https, ftp, ftps, magnet, ed2k), `addTorrent` (base64, up to 4 MB), `tellStatus`, `tellActive`, `tellWaiting`, `tellStopped`, `pause`, `unpause`, `remove`, `forceRemove` (and the `All`/`force` forms), `getGlobalStat`, `getVersion`, `getGlobalOption`, `changeGlobalOption` (only `max-overall-download-limit`, applied to HTTP downloads), `getFiles`, `getUris`, `getSessionInfo`, `removeDownloadResult`, `system.multicall`, `system.listMethods`. `dir` is ignored and `out` is cut to a file name, so files always go to the app's download folder; finished files are never deleted over RPC. `aria2Status.ts` maps the downloads list to aria2 fields (16-digit GIDs from the download id).
+- Settings shows the address (`http://<phone-ip>:<port>/jsonrpc`), the token and a QR code of AriaNg's command-API link (`ariaNg.ts`).
+- Command access is `RemoteCommandReceiver.kt`, an exported receiver for `com.tordroid.droidstream.ADD_DOWNLOAD`, `PAUSE`, `RESUME` and `LIST`. It is refused unless command access is on and the `token` extra matches (SHA-256 then constant-time compare, with the same lockout). The token and switch are in SharedPreferences so the check works with the app closed; an ADD_DOWNLOAD that arrives then is kept (20 at most) and added at the next start. The actions are the same in every edition; the package (`-p`) is the edition's application id, which Settings shows. Examples (preview build):
+
+  ```sh
+  # Termux on the phone
+  am broadcast -a com.tordroid.droidstream.ADD_DOWNLOAD -p com.tordroid.droidstream.preview --es token '<token>' --es url 'https://example.com/video.mp4'
+  am broadcast -a com.tordroid.droidstream.PAUSE -p com.tordroid.droidstream.preview --es token '<token>' --es id all
+  am broadcast -a com.tordroid.droidstream.RESUME -p com.tordroid.droidstream.preview --es token '<token>' --es id <id from LIST>
+  am broadcast -a com.tordroid.droidstream.LIST -p com.tordroid.droidstream.preview --es token '<token>'
+  # From a computer
+  adb shell "am broadcast -a com.tordroid.droidstream.LIST -p com.tordroid.droidstream.preview --es token '<token>'"
+  ```
+
+  `am broadcast` prints `result=-1` when the command worked and `result=1` when it did not, with the reason in `data`. Tasker: Send Intent, the action, Package set to the application id, Target Broadcast Receiver, extras `token:<token>` and `url:<link>`.
+- "Use a browser-like connection" is a per-site list (never debrid hosts, never local ones; `browserLike.ts`). `BrowserLikeConnection.kt` is installed on the shared OkHttp client in `DohOkHttpFactory`: for listed hosts only, an SSL socket factory sets Chrome's cipher-suite order and TLS 1.3/1.2 (OkHttp keeps the socket's order and already offers ALPN h2), and a network interceptor adds Chrome's user agent and client hints and puts the headers in Chrome's order. Other hosts get the platform sockets unchanged. Android's BoringSSL has no GREASE or extension shuffling and OkHttp keeps its own HTTP/2 settings, so it is Chrome-like, not identical. yt-dlp downloads from listed sites get Chrome's headers (`browserLikeYtdlArgs`). yt-dlp's `--impersonate` needs curl_cffi, whose Android wheels are only for CPython 3.13+ on arm64; the app's Chaquopy Python is 3.11 (for armeabi-v7a), so it is not available.
 
 ### Debrid and cloud
 

@@ -158,8 +158,16 @@ jobs:
           echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
           echo "COMMIT_MSG=$(git log -1 --pretty=%s | sed 's/[^a-zA-Z0-9 .,;:_()-]//g')" >> "$GITHUB_ENV"
           echo "COMMIT_AUTHOR=$(git log -1 --pretty=%an)" >> "$GITHUB_ENV"
-          echo "BUILD_DATE=$(date -u '+%Y-%m-%d')" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=nightly-$(date -u '+%Y%m%d')" >> "$GITHUB_ENV"
+          # One clock reading, so the tag, the asset date and the build time
+          # agree even when the build starts around midnight UTC.
+          NOW="$(date -u '+%s')"
+          echo "BUILD_DATE=$(date -u -d "@$NOW" '+%Y-%m-%d')" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=nightly-$(date -u -d "@$NOW" '+%Y%m%d')" >> "$GITHUB_ENV"
+          # app.config.js puts these in expo.extra so the in-app updater
+          # knows this is a nightly and from which day (beta channel).
+          echo "DROIDSTREAM_BUILD_CHANNEL=nightly" >> "$GITHUB_ENV"
+          echo "DROIDSTREAM_BUILD_TAG=nightly-$(date -u -d "@$NOW" '+%Y%m%d')" >> "$GITHUB_ENV"
+          echo "DROIDSTREAM_BUILD_TIME=$(date -u -d "@$NOW" '+%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -241,6 +249,18 @@ jobs:
           echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
           echo "path=apks/$NAME" >> "$GITHUB_OUTPUT"
 
+      # The same APK without the 32-bit libraries, re-signed with the same
+      # key and versionCode (see scripts/release/arm64_apk.py).
+      - name: Make the arm64 APK
+        id: arm64
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME="DroidStream-nightly-v${APP_VERSION}-arm64-${BUILD_DATE}.apk"
+          python3 scripts/release/arm64_apk.py "${{ steps.apk.outputs.path }}" "apks/$NAME"
+          echo "ARM64_APK_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "path=apks/$NAME" >> "$GITHUB_OUTPUT"
+
       - name: Delete previous nightly releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -267,7 +287,11 @@ jobs:
             **Build Date:** ${{ env.BUILD_DATE }}
             **Commit:** [${{ env.COMMIT_HASH }}](https://github.com/${{ github.repository }}/commit/${{ env.BUILD_SHA }}) by ${{ env.COMMIT_AUTHOR }}
             **Commit Message:** ${{ env.COMMIT_MSG }}
-          files: ${{ steps.apk.outputs.path }}
+
+            **Which APK?** `arm64` is smaller, for 64-bit phones and TVs (almost every recent device). `universal` works on every device, including older 32-bit ones. To get nightly builds in the app, turn on Settings > About > Get beta builds.
+          files: |
+            ${{ steps.apk.outputs.path }}
+            ${{ steps.arm64.outputs.path }}
           fail_on_unmatched_files: true
           draft: false
           prerelease: true
@@ -293,7 +317,8 @@ jobs:
           REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
           RELEASE_URL="${REPO_URL}/releases/tag/${RELEASE_TAG}"
           APK_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${APK_NAME}"
-          DOWNLOADS="$(printf '• [📱 **Universal APK**](%s) - Works on phones and TVs\n\n[View all downloads on GitHub](%s)' "$APK_URL" "$RELEASE_URL")"
+          ARM64_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${ARM64_APK_NAME}"
+          DOWNLOADS="$(printf '• [📱 **arm64 APK**](%s) - Smaller, for 64-bit phones and TVs\n• [📱 **Universal APK**](%s) - Works on every device\n\n[View all downloads on GitHub](%s)' "$ARM64_URL" "$APK_URL" "$RELEASE_URL")"
           # jq builds the JSON so commit text cannot break the payload.
           jq -n \
             --arg version "v${APP_VERSION} (Build #${GITHUB_RUN_NUMBER})" \

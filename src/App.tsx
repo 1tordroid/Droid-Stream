@@ -23,6 +23,7 @@ import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
 import AdvancedDownloads from './screens/settings/AdvancedDownloads';
 import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
+import TordroidPlus from './screens/library/TordroidPlus';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
 import SourceLibrary from './screens/library/SourceLibrary';
@@ -69,6 +70,7 @@ import SearchResults from './screens/SearchResults';
 import About from './screens/settings/About';
 import {checkForUpdate} from './lib/updates/checkForUpdate';
 import {startLinkIntake} from './lib/linkIntake';
+import {startRemoteAccess} from './lib/remoteAccess/service';
 import FirstRunTips from './components/FirstRunTips';
 import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
@@ -93,7 +95,7 @@ import Extensions from './screens/settings/Extensions';
 import Constants from 'expo-constants';
 import {settingsStorage, migrateWatchProgressFromCacheStorage} from './lib/storage';
 import {ensureFreshAll} from './lib/watchSync';
-import {flushScrobbleQueue} from './lib/watchSync/scrobble';
+import {flushAllScrobbleQueues} from './lib/watchSync/scrobble';
 import {syncParallelStreaming} from './lib/parallelStreaming';
 import {updateProvidersService} from './lib/services/UpdateProviders';
 import {QueryClientProvider} from '@tanstack/react-query';
@@ -125,6 +127,7 @@ import {
 } from './lib/sync/syncService';
 import StreamingTabBar from './components/navigation/StreamingTabBar';
 import AppDialogHost from './components/AppDialogHost';
+import WatchOnlineHost from './components/watchOnline/WatchOnlineSheet';
 import {RemoteVolumeToast} from './components/remote-player/RemoteVolumeToast';
 
 enableScreens(true);
@@ -211,14 +214,15 @@ export type SearchStackParamList = {
 export type WatchListStackParamList = {
   LibraryHome: undefined;
   DebridSettings: undefined;
-  CloudFiles: undefined;
+  CloudFiles: {mode?: 'list'} | undefined;
+  TordroidPlus: undefined;
   LiveTV: undefined;
   LiveGuide: {sourceId: string; group?: string};
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
   SourceLibrary: {sourceId: string};
-  Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}} | undefined;
+  Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}; prefill?: import('./screens/Sources').SourcesParams['prefill']} | undefined;
   Info: {link: string; provider?: string; poster?: string};
 };
 
@@ -495,6 +499,7 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
       <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
       <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
+      <WatchListStack.Screen name="TordroidPlus" component={TordroidPlus} options={subpageOptions} />
       <WatchListStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
       <WatchListStack.Screen name="LiveGuide" component={LiveGuide} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
@@ -686,6 +691,9 @@ const App = () => {
     [],
   );
 
+  // Remote control, command access and browser-like connections (all off by default).
+  useEffect(() => startRemoteAccess(), []);
+
   // Safety fallback to ensure splash is hidden
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -728,10 +736,10 @@ const App = () => {
     // Keeps watch-sync sign-ins renewed at start and on every return to the
     // app. ensureFreshAll itself runs at most once every 6 h.
     const renewWatchSync = () => {
-      // Then sends Trakt scrobbles queued while offline.
+      // Then sends Trakt and Simkl scrobbles queued while offline.
       ensureFreshAll()
         .catch(() => undefined)
-        .then(() => flushScrobbleQueue())
+        .then(() => flushAllScrobbleQueues())
         .catch(() => undefined);
     };
     // Android can recreate the activity (for example after a launcher icon
@@ -871,6 +879,7 @@ const App = () => {
       <SystemBars style="light" />
       <M3ThemeProvider>
         <AppDialogHost />
+        <WatchOnlineHost />
         <GlobalErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <GestureHandlerRootView style={{flex: 1, backgroundColor: THEME_ROLES[themeMode].background}}>

@@ -1,0 +1,46 @@
+appId: com.tordroid.droidstream
+name: Browser loads a page, Live TV and About open
+tags: [smoke, phone, ci]
+---
+# Browser: load a simple page. 5.6.0 testing found a crash on page load.
+- runFlow: _launch.yaml
+- tapOn: "Search"
+- tapOn: "Search movies, shows, anime"
+- inputText: "https://example.com"
+- tapOn: "Open the browser"
+- extendedWaitUntil:
+    visible: "Example Domain"
+    timeout: 45000
+- takeScreenshot: browser_example
+# Still open a few seconds after the page loaded.
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: "Example Domain"
+
+# Live TV opens from Library.
+- runFlow: _launch.yaml
+- tapOn: "Library"
+- scrollUntilVisible:
+    element: "Live TV"
+    direction: DOWN
+- tapOn: "Live TV"
+- extendedWaitUntil:
+    visible: "Favourites"
+    timeout: 20000
+- takeScreenshot: live_tv
+- back
+
+# Settings > About shows the update switches.
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "About Droid Stream.*"
+    direction: DOWN
+- tapOn: "About Droid Stream.*"
+- extendedWaitUntil:
+    visible: "Check on startup"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Get beta builds"
+    direction: DOWN
+- assertVisible: "Get beta builds"
+- takeScreenshot: about

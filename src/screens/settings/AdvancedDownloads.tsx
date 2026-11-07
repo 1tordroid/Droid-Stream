@@ -22,7 +22,9 @@ import {
   saveFtpAccount,
 } from '../../lib/downloadEngine/engineStore';
 import {MIRROR_HOSTS, validateMirrorRule, type MirrorRule} from '../../lib/downloadEngine/mirrors';
+import {isSmbPlaybackTesting, setSmbPlaybackTesting} from '../../lib/sources/smb';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import {BrowserLikeSection, CommandAccessSection, RemoteControlSection} from './RemoteAccessSections';
 
 const Note = ({children}: {children: React.ReactNode}) => {
   const colors = useM3Colors();
@@ -256,12 +258,35 @@ const RecordingSection = () => {
   );
 };
 
+// ---- Testing ----
+
+const TestingSection = () => {
+  const [smb, setSmb] = useState(isSmbPlaybackTesting);
+  return (
+    <SettingsSection title="Testing">
+      <SettingsSwitchRow
+        title="Try SMB playback (testing)"
+        description="Play videos from SMB shares in Sources. Seeking in large files is still being tested."
+        value={smb}
+        onValueChange={value => {
+          setSmbPlaybackTesting(value);
+          setSmb(value);
+        }}
+      />
+    </SettingsSection>
+  );
+};
+
 /** The page: one entry per section, in order. */
 export const ADVANCED_DOWNLOAD_SECTIONS: {key: string; Component: React.ComponentType}[] = [
   {key: 'links', Component: LinkSection},
   {key: 'mirrors', Component: MirrorSection},
   {key: 'ftp', Component: FtpSection},
   {key: 'recording', Component: RecordingSection},
+  {key: 'remote-control', Component: RemoteControlSection},
+  {key: 'command-access', Component: CommandAccessSection},
+  {key: 'browser-like', Component: BrowserLikeSection},
+  {key: 'testing', Component: TestingSection},
 ];
 
 const AdvancedDownloads = () => {

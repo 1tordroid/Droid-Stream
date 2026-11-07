@@ -176,18 +176,20 @@ module.exports = () => {
       plugins,
       slug: 'droid-stream',
       icon: './assets/icon.png',
-      version: '5.6.0',
+      version: '5.6.1',
       userInterfaceStyle: 'dark',
       experiments: {
         reactCompiler: true,
       },
       android: {
         package: PACKAGE_NAME,
-        versionCode: 222,
+        versionCode: 223,
         permissions: [
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',
           'FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+          // Remote control's notification while its server runs.
+          'FOREGROUND_SERVICE_CONNECTED_DEVICE',
           'ACCESS_NETWORK_STATE',
           'ACCESS_WIFI_STATE',
           'CHANGE_WIFI_MULTICAST_STATE',
@@ -247,6 +249,13 @@ module.exports = () => {
         // Which edition this build is, so the in-app updater only installs the
         // same edition: 'main', 'ext' (with extension support) or 'tv'.
         appEdition: process.env.APP_EDITION || (IS_TV ? 'tv' : 'main'),
+        // Set by the nightly workflow (main.yml) so the updater can tell a
+        // nightly from the stable release of the same version. Other builds
+        // are 'stable'.
+        buildChannel:
+          process.env.DROIDSTREAM_BUILD_CHANNEL === 'nightly' ? 'nightly' : 'stable',
+        buildTag: process.env.DROIDSTREAM_BUILD_TAG || '',
+        buildTime: process.env.DROIDSTREAM_BUILD_TIME || '',
         tmdbApiKey,
         proxyApiUrl,
         traktClientId,

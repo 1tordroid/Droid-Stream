@@ -25,14 +25,18 @@ const focusLater = (ref: React.RefObject<HostInstance | null>) => {
   setTimeout(() => requestTVFocusByHandle(getNodeHandle(ref.current)), 80);
 };
 
-/** Small quality label on a channel logo. */
+/**
+ * Small quality tag ("1080p"). It sits beside the channel's text, never on
+ * the logo, so it does not hide part of it.
+ */
 export const QualityBadge = ({label}: {label: string}) => {
   const colors = useM3Colors();
   return (
     <View
       accessible={false}
-      style={{position: 'absolute', left: 4, bottom: 4, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 5, backgroundColor: colors.secondaryContainer}}>
-      <AppText role="labelSmall" style={{color: colors.onSecondaryContainer}}>{label}</AppText>
+      testID="quality-badge"
+      style={{flexShrink: 0, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 5, backgroundColor: colors.secondaryContainer}}>
+      <AppText role="labelSmall" numberOfLines={1} style={{color: colors.onSecondaryContainer}}>{label}</AppText>
     </View>
   );
 };
