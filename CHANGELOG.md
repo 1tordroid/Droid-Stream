@@ -7,6 +7,18 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
+## Coming in 5.6.1
+
+Built and being tested:
+
+- Remote control (off by default): add and manage downloads from AriaNg
+  or an aria2 browser extension on your Wi-Fi, with a token and a QR
+  code that sets up AriaNg.
+- Command access (off by default): add, pause, resume and list downloads
+  from Termux, ADB or Tasker with a token.
+- Use a browser-like connection (off by default): downloads from sites
+  you list connect like Chrome does.
+
 ## 5.6.0
 
 - Skip intro, recap, credits and previews for every show (provider,
