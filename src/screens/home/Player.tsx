@@ -92,6 +92,7 @@ import {
   fetchSegments,
   gatherSegments,
   getSkipModes,
+  mediaServerItemKey,
   NO_FETCHED_SEGMENTS,
   readSeasonMarks,
   writeSeasonMarks,
@@ -100,7 +101,6 @@ import {
 import {
   actionFor,
   isEndSegment,
-  jellyfinItemIdOf,
   segmentAt,
   segmentId,
   setMark,
@@ -1041,12 +1041,12 @@ const Player = ({route}: Props): React.JSX.Element => {
   // Trakt scrobbling (start, pause, stop), when connected with scrobbling on.
   useScrobble(watchMeta, isPaused, videoPositionRef);
 
-  // Times from the viewer's Jellyfin server, AniSkip and IntroDB.
+  // Times from the viewer's Jellyfin, Emby or Plex server, AniSkip and IntroDB.
   const segmentStreamUrls = useMemo(
     () => [selectedStream?.link, activeEpisode?.link, (route.params as any)?.directUrl as string | undefined],
     [selectedStream?.link, activeEpisode?.link, route.params],
   );
-  const jellyfinItemKey = segmentStreamUrls.map(jellyfinItemIdOf).find(Boolean);
+  const serverItemKey = useMemo(() => mediaServerItemKey(segmentStreamUrls), [segmentStreamUrls]);
   const [fetchedSegments, setFetchedSegments] = useState<FetchedSegments>(NO_FETCHED_SEGMENTS);
   useEffect(() => {
     setFetchedSegments(NO_FETCHED_SEGMENTS);
@@ -1060,7 +1060,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       live = false;
     };
     // Only what the lookups use; a new stream object for the same item does not refetch.
-  }, [jellyfinItemKey, watchMeta?.title, watchMeta?.season, watchMeta?.episode, watchMeta?.malId, watchMeta?.imdbId, watchMeta?.type]);
+  }, [serverItemKey, watchMeta?.title, watchMeta?.season, watchMeta?.episode, watchMeta?.malId, watchMeta?.imdbId, watchMeta?.type]);
 
   // Skip modes per segment kind, from Player settings.
   const [skipModes] = useState(getSkipModes);
