@@ -7,6 +7,27 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
+## Coming in 5.6.1
+
+Built and being tested:
+
+- Continue on Trakt: movies and episodes you paused on other apps
+  linked to Trakt show on Home. Tap one to find a source; playback
+  starts where Trakt says you stopped, unless this device has its own
+  progress.
+- Simkl scrobbling, with its own switch in Watch sync. Stops made
+  offline are sent later.
+- Skip times from Emby (intro and credits markers) and Plex (intro and
+  credits markers).
+- The VLC player uses the same season marks and skip settings as the
+  built-in player.
+- The TMDB logo next to the TMDB notice in Credits and licences.
+- TV guide for Live TV Favourites and Recent. Each channel uses its own
+  source's guide, and catch-up works where the channel has it.
+- On a phone, Go live plays again even after you paused.
+- Try SMB playback (testing): a switch in Advanced downloads, off by
+  default, to test playing files from SMB shares.
+
 ## 5.6.0
 
 - Skip intro, recap, credits and previews for every show (provider,
