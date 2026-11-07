@@ -27,6 +27,7 @@ const descriptors: Record<typeof PLAYER_CONTROL_IDS[number], [string, string]> =
   resize: ['Resize', 'aspect-ratio'],
   episodes: ['Episodes', 'playlist-play'],
   next: ['Next episode', 'skip-next'],
+  marks: ['Mark intro and credits', 'bookmark-outline'],
   settings: ['Settings', 'cog-outline'],
   decoder: ['Video decoder', 'memory'],
 };

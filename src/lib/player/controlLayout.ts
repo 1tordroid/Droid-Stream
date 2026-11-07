@@ -10,6 +10,7 @@ export const PLAYER_CONTROL_IDS = [
   'resize',
   'episodes',
   'next',
+  'marks',
   'settings',
   'decoder',
 ] as const;
@@ -29,6 +30,7 @@ export const defaultPlayerControlLayout = (): PlayerControlLayout => ({
     'resize',
     'episodes',
     'next',
+    'marks',
     'settings',
   ],
   more: [],
