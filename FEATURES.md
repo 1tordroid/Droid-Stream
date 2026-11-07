@@ -127,7 +127,7 @@ It runs on Android phones, tablets and Android TV.
 - 🔨 Download detection: a download button on videos and a list of every video, audio, image and stream on the page.
 - 🔨 Ad and tracker blocker with common filter lists, and userscripts.
 - 🔨 Send pages, links and media to the downloader, Torrents, the player or cast.
-- 📋 Droid Stream (Extension support): a second, optional app. It is the same browser with Firefox add-ons (for example uBlock Origin, Dark Reader and Tampermonkey), built on Firefox's engine (GeckoView). It sends downloads, magnets and videos to Droid Stream. It is a separate app because Firefox's engine adds about 60 MB, and Droid Stream stays small.
+- 📋 Droid Stream (with extension support): a second edition of the whole app. It has every Droid Stream feature, and its Browser runs on Firefox's engine (GeckoView) with Firefox add-ons such as uBlock Origin, Dark Reader and Tampermonkey. Install one or the other: the regular Droid Stream stays smaller, this edition is about 60 MB bigger.
 
 ## Profiles and family
 
