@@ -45,7 +45,7 @@ export interface SyncAccount {
   useOwnApp?: boolean;
   /** Which app issued the saved tokens. Renewal must use the same one. Unset means the user's own. */
   authApp?: 'builtin' | 'own';
-  /** Trakt only: report what is playing (scrobble). On unless turned off. */
+  /** Trakt and Simkl: report what is playing (scrobble). On unless turned off. */
   scrobble?: boolean;
 }
 
@@ -651,6 +651,18 @@ export const describeAccount = (id: SyncServiceId, account: SyncAccount, now = D
 /** A POST to the Trakt API with a live token, renewed as needed. */
 export const traktAuthedPost = (path: string, body: unknown): Promise<any> =>
   authed('trakt', account => request(`${TRAKT}${path}`, {method: 'POST', headers: traktHeaders(account), body: JSON.stringify(body)}));
+
+/** A POST to the Simkl API with the saved token. */
+export const simklAuthedPost = (path: string, body: unknown): Promise<any> =>
+  authed('simkl', account => {
+    const clientId = appKeysFor('simkl', account).clientId;
+    const query = `client_id=${encodeURIComponent(clientId)}&app-name=droid-stream`;
+    return request(`${SIMKL}${path}${path.includes('?') ? '&' : '?'}${query}`, {
+      method: 'POST',
+      headers: {Authorization: `Bearer ${account.accessToken}`, 'simkl-api-key': clientId},
+      body: JSON.stringify(body),
+    });
+  });
 
 /**
  * Titles a live scrobble session is reporting. While one is, the session's

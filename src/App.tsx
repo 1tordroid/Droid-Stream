@@ -93,7 +93,7 @@ import Extensions from './screens/settings/Extensions';
 import Constants from 'expo-constants';
 import {settingsStorage, migrateWatchProgressFromCacheStorage} from './lib/storage';
 import {ensureFreshAll} from './lib/watchSync';
-import {flushScrobbleQueue} from './lib/watchSync/scrobble';
+import {flushAllScrobbleQueues} from './lib/watchSync/scrobble';
 import {syncParallelStreaming} from './lib/parallelStreaming';
 import {updateProvidersService} from './lib/services/UpdateProviders';
 import {QueryClientProvider} from '@tanstack/react-query';
@@ -728,10 +728,10 @@ const App = () => {
     // Keeps watch-sync sign-ins renewed at start and on every return to the
     // app. ensureFreshAll itself runs at most once every 6 h.
     const renewWatchSync = () => {
-      // Then sends Trakt scrobbles queued while offline.
+      // Then sends Trakt and Simkl scrobbles queued while offline.
       ensureFreshAll()
         .catch(() => undefined)
-        .then(() => flushScrobbleQueue())
+        .then(() => flushAllScrobbleQueues())
         .catch(() => undefined);
     };
     // Android can recreate the activity (for example after a launcher icon
