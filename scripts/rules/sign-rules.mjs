@@ -45,8 +45,13 @@ const appPublicKey = () => {
 };
 
 const privateKey = () => {
-  const value = (process.env.SOCIAL_RULES_PRIVATE_KEY || '').trim();
-  if (!value) die('SOCIAL_RULES_PRIVATE_KEY is not set');
+  // The key comes from SOCIAL_RULES_PRIVATE_KEY (CI) or from a PEM file: --key-file <path>,
+  // or SOCIAL_RULES_PRIVATE_KEY_FILE, or the owner's default location outside any repo.
+  const keyFile = option('--key-file') || process.env.SOCIAL_RULES_PRIVATE_KEY_FILE ||
+    'C:/Users/Tordroid/Documents/claude/droid-stream-secrets/social-rules-private.pem';
+  let value = (process.env.SOCIAL_RULES_PRIVATE_KEY || '').trim();
+  if (!value && existsSync(keyFile)) value = readFileSync(keyFile, 'utf8').trim();
+  if (!value) die('no signing key: set SOCIAL_RULES_PRIVATE_KEY or pass --key-file <path>');
   let key;
   try {
     key = value.includes('-----BEGIN')
