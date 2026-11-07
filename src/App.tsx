@@ -24,6 +24,7 @@ import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
+import LiveTV from './screens/livetv/LiveTV';
 import Torrents from './screens/torrents/Torrents';
 import TorrentDetails from './screens/torrents/TorrentDetails';
 import TorrentOptions from './screens/torrents/TorrentOptions';
@@ -122,6 +123,7 @@ export type HomeStackParamList = {
     isSearch: boolean;
   };
   Webview: {link: string};
+  LiveTV: undefined;
 };
 
 export type RootStackParamList = {
@@ -157,6 +159,8 @@ export type RootStackParamList = {
     initialStream?: Stream;
     /** What is playing, when known: used for Trakt/Simkl/AniList, AniSkip, and subtitles. */
     meta?: import('./lib/watchMeta').WatchMeta;
+    /** A live TV channel: no watch progress or resume point is saved. */
+    live?: boolean;
   };
 };
 
@@ -176,6 +180,7 @@ export type WatchListStackParamList = {
   LibraryHome: undefined;
   DebridSettings: undefined;
   CloudFiles: undefined;
+  LiveTV: undefined;
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
@@ -394,6 +399,8 @@ const renderTabBar = (props: React.ComponentProps<typeof StreamingTabBar>) => (
 );
 
 function HomeStackScreen() {
+  const subpageOptions = useTopInsetOptions();
+
   return (
     <HomeStack.Navigator
       screenListeners={navigationWorkListeners}
@@ -402,6 +409,7 @@ function HomeStackScreen() {
       <HomeStack.Screen name="Info" component={Info} />
       <HomeStack.Screen name="ScrollList" component={ScrollList} />
       <HomeStack.Screen name="Webview" component={WebView} />
+      <HomeStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
     </HomeStack.Navigator>
   );
 }
@@ -430,6 +438,7 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
       <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
       <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
+      <WatchListStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
       <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />

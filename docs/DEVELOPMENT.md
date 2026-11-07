@@ -113,6 +113,12 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 - `lib/linkIntake.ts` takes magnets and links shared or opened from other apps, and offers a copied magnet. RSS feeds are polled every 15 minutes.
 - Downloaded files can be checked against an MD5, SHA-1 or SHA-256 hash.
 
+### Live TV
+
+- `src/screens/livetv/LiveTV.tsx` is the screen (Home drawer, Home welcome screen and the Library hub open it). Sources: the iptv-org India playlist, the user's own jiotv_go server (`<address>/playlist.m3u`, optional `?q=`; the app never talks to Jio itself) and any M3U URL.
+- `src/lib/livetv/m3u.ts` is a pure M3U parser (`#EXTINF` attributes, `#EXTVLCOPT` user agent and referrer as headers, `#KODIPROP` skipped). `store.ts` keeps playlists, the server address, the playlist cache (12 hours), favourites and recent channels in MMKV. `epg.ts` reads now and next from plain XMLTV guides; gzipped guides (jiotv_go's `epg.xml.gz`) are skipped.
+- Channels open in the built-in player with `live: true`, which stops it saving watch progress.
+
 ## Status
 
 5.4.0 (Expo SDK 58) on a OnePlus 12 (Android 16), as a preview build beside the release app, with no crash or JavaScript error throughout: first launch, the tips and Get started (starter providers through the WebView sandbox), all five tabs, the launcher icon colors, "Open videos from other apps", a shared HLS link downloaded to the end with its notification, playback of a stream opened from another app, and Erase all local data restarting the app. Its resources match 5.3.4 except for the removed blur package and the newer Material and ConstraintLayout libraries, and the arm64 APK is 2.8 MB smaller than the arm64 parts of 5.3.4 (the code alone is 23% smaller). Changing the launcher icon closes the app, as in Vega. Not tested on 5.4.0: tapping a notification with the app in the background (the launch activity was checked in the APK instead), and SMB with a real server.

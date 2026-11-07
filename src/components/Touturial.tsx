@@ -119,6 +119,9 @@ const Tutorial = () => {
     }
   };
 
+  // Live TV sits in the Home stack, next to this screen.
+  const handleWatchLiveTV = () => (navigation as any).navigate('LiveTV');
+
   const handlePlayLocalFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
       type: 'video/*',
@@ -247,6 +250,21 @@ const Tutorial = () => {
                 marginLeft: 8,
               }}>
               Play local file
+            </Text>
+          </View>
+        </TVFocusable>
+        <TVFocusable
+          onPress={handleWatchLiveTV}
+          accessibilityLabel="Watch Live TV"
+          accessibilityRole="button"
+          borderRadius={12}
+          style={{width: '100%', marginTop: 12}}>
+          <View
+            className="px-6 py-3 rounded-xl w-full flex-row items-center justify-center"
+            style={{backgroundColor: colors.surfaceContainerHigh}}>
+            <MaterialCommunityIcons name="television-classic" size={20} color={colors.onSurface} />
+            <Text style={{color: colors.onSurface, fontSize: 16, fontWeight: '500', marginLeft: 8}}>
+              Watch Live TV
             </Text>
           </View>
         </TVFocusable>

@@ -789,6 +789,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     usePlayerProgress({
       activeEpisode,
       onProgressSaved: saveContinueWatchingProgress,
+      saveEnabled: !route.params.live,
     });
 
   const [isPaused, setIsPaused] = useState(false);

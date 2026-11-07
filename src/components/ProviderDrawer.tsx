@@ -6,7 +6,7 @@ import {RawText as Text} from './ui/Text';
 import {ScrollView} from 'react-native-gesture-handler';
 import React, {useEffect} from 'react';
 import useContentStore from '../lib/zustand/contentStore';
-import {MaterialIcons} from '@expo/vector-icons';
+import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import {isTV} from '../lib/tv';
 import {TVFocusable, TVFocusGuide} from './tv';
@@ -18,6 +18,8 @@ interface ProviderDrawerProps {
   onClose: () => void;
   /** Opens the list of providers people can install. */
   onBrowseProviders?: () => void;
+  /** Opens the Live TV screen. */
+  onOpenLiveTV?: () => void;
   /** The mobile drawer renders its content while closed. */
   isOpen?: boolean;
   onSelectProvider?: (
@@ -28,6 +30,7 @@ interface ProviderDrawerProps {
 const ProviderDrawer = ({
   onClose,
   onBrowseProviders,
+  onOpenLiveTV,
   isOpen = true,
   onSelectProvider,
 }: ProviderDrawerProps) => {
@@ -154,6 +157,36 @@ const ProviderDrawer = ({
               <MaterialIcons name="add-circle-outline" size={24} color={primary} />
               <Text style={{color: '#FFFFFF', flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10}}>
                 Available providers
+              </Text>
+            </TVFocusable>
+        ) : null}
+        {/* Fixed too: Live TV is not a provider, so it never scrolls with them. */}
+        {onOpenLiveTV ? (
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel="Live TV"
+              onPress={() => {
+                onClose();
+                onOpenLiveTV();
+              }}
+              borderRadius={12}
+              focusBorderColor={focusBorderColor}
+              style={{
+                alignItems: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                borderColor: primary,
+                borderRadius: 12,
+                borderWidth: 1,
+                flexDirection: 'row',
+                marginBottom: 8,
+                marginHorizontal: 8,
+                minHeight: 52,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}>
+              <MaterialCommunityIcons name="television-classic" size={24} color={primary} />
+              <Text style={{color: '#FFFFFF', flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10}}>
+                Live TV
               </Text>
             </TVFocusable>
         ) : null}

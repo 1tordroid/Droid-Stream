@@ -33,6 +33,8 @@ const SECTIONS: {title: string; intro: string; items: Credit[]}[] = [
       {name: 'Jikan and AniSkip', note: 'Anime details and skip times.', url: 'https://jikan.moe'},
       {name: 'OpenSubtitles', note: 'Subtitle matching.', url: 'https://www.opensubtitles.com'},
       {name: 'Trakt, Simkl and AniList', note: 'Watch history sync.', url: 'https://trakt.tv'},
+      {name: 'iptv-org', note: 'Public list of free-to-air channels behind the Free Indian channels source in Live TV.', url: 'https://github.com/iptv-org/iptv'},
+      {name: 'JioTV Go by the jiotv-go project', note: 'Live TV can load the playlist from your own JioTV Go server. Licensed CC BY 4.0. Not affiliated with Jio.', url: 'https://github.com/jiotv-go/jiotv_go'},
     ],
   },
   {
