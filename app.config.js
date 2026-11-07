@@ -176,14 +176,14 @@ module.exports = () => {
       plugins,
       slug: 'droid-stream',
       icon: './assets/icon.png',
-      version: '5.5.0',
+      version: '5.6.0',
       userInterfaceStyle: 'dark',
       experiments: {
         reactCompiler: true,
       },
       android: {
         package: PACKAGE_NAME,
-        versionCode: 221,
+        versionCode: 222,
         permissions: [
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',
