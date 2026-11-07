@@ -1,0 +1,224 @@
+{
+  "schema": 1,
+  "version": 1,
+  "updated": "2026-11-07",
+  "sites": {
+    "instagram": {
+      "signInCookie": "sessionid",
+      "csrfCookie": "csrftoken",
+      "csrfHeader": "X-CSRFToken",
+      "headers": {
+        "Accept": "*/*",
+        "X-IG-App-ID": "936619743392459",
+        "X-ASBD-ID": "129477",
+        "X-IG-WWW-Claim": "0",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "pages": {
+        "home": "https://www.instagram.com/",
+        "origin": "https://www.instagram.com",
+        "post": "https://www.instagram.com/p/{code}/",
+        "profile": "https://www.instagram.com/{username}/"
+      },
+      "endpoints": {
+        "mediaInfo": "https://www.instagram.com/api/v1/media/{id}/info/",
+        "graphql": "https://www.instagram.com/graphql/query",
+        "embed": "https://www.instagram.com/p/{code}/embed/captioned/",
+        "profileInfo": "https://www.instagram.com/api/v1/users/web_profile_info/?username={username}",
+        "userInfo": "https://www.instagram.com/api/v1/users/{userId}/info/",
+        "feed": "https://www.instagram.com/api/v1/feed/user/{userId}/?{query}",
+        "reelsMedia": "https://www.instagram.com/api/v1/feed/reels_media/?reel_ids={reelId}"
+      },
+      "graphql": {
+        "docId": "8845758582119845",
+        "queryName": "PolarisPostActionLoadPostQueryQuery",
+        "queryNameHeader": "X-FB-Friendly-Name",
+        "shortcodeVariable": "shortcode",
+        "variables": {
+          "fetch_tagged_user_count": null,
+          "hoisted_comment_id": null,
+          "hoisted_reply_id": null
+        },
+        "media": [
+          "data.xdt_shortcode_media",
+          "data.shortcode_media"
+        ]
+      },
+      "paths": {
+        "embedMedia": "shortcode_media",
+        "profileUser": "data.user"
+      },
+      "patterns": {
+        "embedContext": {
+          "pattern": "\"contextJSON\"\\s*:\\s*(\"(?:[^\"\\\\]|\\\\.)*\")"
+        },
+        "embedImage": {
+          "pattern": "<img[^>]*class=\"[^\"]*EmbeddedMediaImage[^\"]*\"[^>]*>",
+          "flags": "i"
+        },
+        "embedSrcset": {
+          "pattern": "srcset=\"([^\"]+)\"",
+          "flags": "i"
+        },
+        "embedSrc": {
+          "pattern": "src=\"([^\"]+)\"",
+          "flags": "i"
+        },
+        "embedUsername": {
+          "pattern": "class=\"UsernameText\"[^>]*>([^<]+)<"
+        }
+      }
+    },
+    "twitter": {
+      "headers": {
+        "Referer": "https://platform.twitter.com/",
+        "Origin": "https://platform.twitter.com"
+      },
+      "endpoints": {
+        "tweet": "https://cdn.syndication.twimg.com/tweet-result?id={id}&token={token}&lang=en"
+      },
+      "tombstoneType": "TweetTombstone",
+      "patterns": {
+        "photo": {
+          "pattern": "^(https:\\/\\/pbs\\.twimg\\.com\\/media\\/[^.?]+)(?:\\.([a-z]+))?(?:\\?(.*))?$",
+          "flags": "i"
+        },
+        "videoSize": {
+          "pattern": "\\/(\\d+)x(\\d+)\\/"
+        }
+      }
+    },
+    "reddit": {
+      "headers": {
+        "Accept": "application/json"
+      },
+      "endpoints": {
+        "post": "https://www.reddit.com/comments/{id}/.json?raw_json=1&limit=1",
+        "postFallback": "https://old.reddit.com/comments/{id}/.json?raw_json=1&limit=1",
+        "originalImage": "https://i.redd.it/{id}.{ext}"
+      },
+      "patterns": {
+        "imageLink": {
+          "pattern": "^https:\\/\\/i\\.redd\\.it\\/"
+        },
+        "imageExtension": {
+          "pattern": "\\.(jpe?g|png|webp|gif)(\\?|$)",
+          "flags": "i"
+        }
+      }
+    },
+    "tumblr": {
+      "endpoints": {
+        "read": "https://{blog}.tumblr.com/api/read/json?id={id}"
+      },
+      "photoSizes": [
+        "1280",
+        "500",
+        "400",
+        "250"
+      ],
+      "htmlFields": [
+        "regular-body",
+        "photo-caption",
+        "answer",
+        "link-description",
+        "quote-text"
+      ],
+      "patterns": {
+        "readPrefix": {
+          "pattern": "^\\s*var\\s+tumblr_api_read\\s*=\\s*"
+        },
+        "readMarker": {
+          "pattern": "tumblr_api_read"
+        },
+        "mediaHost": {
+          "pattern": "^https?:\\/\\/\\d+\\.media\\.tumblr\\.com\\/",
+          "flags": "i"
+        },
+        "video": {
+          "pattern": "<video\\b|<figure[^>]+data-npf=[\"'][^\"']*video",
+          "flags": "i"
+        }
+      }
+    },
+    "pinterest": {
+      "headers": {
+        "Accept": "application/json",
+        "X-Pinterest-PWS-Handler": "www/pin/[id].js",
+        "Referer": "https://www.pinterest.com/"
+      },
+      "endpoints": {
+        "resource": "https://www.pinterest.com/resource/PinResource/get/?source_url={sourceUrl}&data={data}",
+        "pin": "https://www.pinterest.com/pin/{id}/"
+      },
+      "fieldSetKey": "detailed",
+      "sizeKeys": [
+        "orig",
+        "originals",
+        "1200x",
+        "736x",
+        "564x",
+        "474x",
+        "236x"
+      ],
+      "paths": {
+        "pin": "resource_response.data"
+      },
+      "patterns": {
+        "sizeInLink": {
+          "pattern": "\\/\\d+x\\/"
+        }
+      },
+      "originalSize": "/originals/"
+    },
+    "threads": {
+      "headers": {
+        "Accept": "text/html"
+      },
+      "endpoints": {
+        "post": "https://www.threads.com/t/{id}",
+        "postWithUser": "https://www.threads.com/@{user}/post/{id}"
+      },
+      "patterns": {
+        "placeholderImage": {
+          "pattern": "threads-logo|static\\.cdninstagram",
+          "flags": "i"
+        }
+      }
+    },
+    "facebook": {
+      "headers": {
+        "Accept": "text/html",
+        "Sec-Fetch-Mode": "navigate"
+      },
+      "signInCookie": "c_user",
+      "photoType": "Photo",
+      "imageKeys": [
+        "viewer_image",
+        "photo_image",
+        "image",
+        "max_image"
+      ],
+      "patterns": {
+        "loginRedirect": {
+          "pattern": "\\/login(\\.php)?[/?]|checkpoint"
+        },
+        "viewerImage": {
+          "pattern": "\"viewer_image\":\\{\"height\":(\\d+),\"width\":(\\d+),\"uri\":\"((?:[^\"\\\\]|\\\\.)+)\""
+        },
+        "video": {
+          "pattern": "\"(?:browser_native_hd_url|browser_native_sd_url|playable_url)\":\"https?:"
+        },
+        "owner": {
+          "pattern": "\"(?:owner|actors)\":\\[?\\{\"__typename\":\"(?:User|Page)\"[^{}]*?\"name\":\"((?:[^\"\\\\]|\\\\.)+)\""
+        },
+        "cdnImage": {
+          "pattern": "fbcdn|scontent"
+        },
+        "titleSuffix": {
+          "pattern": "\\s*\\|\\s*Facebook$"
+        }
+      }
+    }
+  }
+}

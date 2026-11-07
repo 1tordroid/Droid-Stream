@@ -1,3 +1,5 @@
+import type {SocialRules} from './rules/ruleSchema';
+
 export type SocialSite = 'instagram' | 'facebook' | 'twitter' | 'threads' | 'pinterest' | 'reddit' | 'tumblr';
 
 /** What a link points at. */
@@ -104,6 +106,8 @@ export interface SocialContext {
   cookieHeader: (url: string) => string;
   /** Waits between pages of a profile. */
   sleep: (ms: number) => Promise<void>;
+  /** Site rules to read with; the active rules when missing. */
+  rules?: SocialRules;
 }
 
 export interface ProfileOptions {

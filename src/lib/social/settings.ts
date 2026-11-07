@@ -2,6 +2,8 @@ import {openStore} from '../storage/openStore';
 import type {SocialQuality} from './select';
 
 const storage = openStore('droid-stream-social');
+/** The photo downloader's store; the site rules keep their update here too. */
+export const socialStore = storage;
 const KEY = 'settings';
 
 export interface SocialSettings {

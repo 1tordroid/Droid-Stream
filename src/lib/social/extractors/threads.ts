@@ -1,12 +1,13 @@
 import {asRecord, asString, extensionOf, jsonScripts, metaContent, walkJson} from '../http';
 import {captionFromV1, itemsFromV1, userFromV1} from '../igMedia';
-import {SocialError, type SocialExtractor, type SocialPost} from '../types';
+import {fillUrl, ruleRegex, siteRules} from '../rules/active';
+import {SocialError, type SocialContext, type SocialExtractor, type SocialPost} from '../types';
 
 const isMedia = (node: Record<string, unknown>): boolean =>
   Boolean(asRecord(node.image_versions2) || Array.isArray(node.carousel_media) || Array.isArray(node.video_versions));
 
 /** Finds the post in the JSON a Threads page carries for its web app. */
-export const parseThreadsPage = (html: string, url: string, code: string, user?: string): SocialPost => {
+export const parseThreadsPage = (html: string, url: string, code: string, user?: string, rulesContext?: Pick<SocialContext, 'rules'>): SocialPost => {
   let media: Record<string, unknown> | undefined;
   for (const blob of jsonScripts(html)) {
     walkJson(blob, node => {
@@ -39,7 +40,7 @@ export const parseThreadsPage = (html: string, url: string, code: string, user?:
   }
   // Signed out, some pages carry only the preview picture.
   const image = metaContent(html, 'og:image');
-  if (!image || /threads-logo|static\.cdninstagram/i.test(image)) {
+  if (!image || ruleRegex(siteRules(rulesContext, 'threads').patterns.placeholderImage).test(image)) {
     throw new SocialError('signIn', 'Threads did not show this post. Sign in to Threads under Video downloader > Cookies and try again.');
   }
   const author = user || 'threads';
@@ -58,9 +59,13 @@ export const threadsExtractor: SocialExtractor = {
   site: 'threads',
   async extract(link, context) {
     if (!link.id) throw new SocialError('unsupported', 'This Threads link has no post in it.');
-    const page = link.user ? `https://www.threads.com/@${link.user}/post/${link.id}` : `https://www.threads.com/t/${link.id}`;
-    const response = await context.fetch(page, {headers: {Accept: 'text/html'}});
+    const rules = siteRules(context, 'threads');
+    const id = encodeURIComponent(link.id);
+    const page = link.user
+      ? fillUrl('threads', rules.endpoints.postWithUser, {user: encodeURIComponent(link.user), id})
+      : fillUrl('threads', rules.endpoints.post, {id});
+    const response = await context.fetch(page, {headers: {...rules.headers}});
     if (response.status === 404) throw new SocialError('notFound', 'This post was not found. It may have been deleted.');
-    return parseThreadsPage(response.text, link.url, link.id, link.user);
+    return parseThreadsPage(response.text, link.url, link.id, link.user, context);
   },
 };
