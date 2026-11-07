@@ -362,6 +362,14 @@ const Settings = ({navigation}: Props) => {
                   icon="download-circle-outline"
                   onPress={() => navigation.navigate('DownloadsStack')}
                 />
+                {advanced ? (
+                  <SettingsRow
+                    title="Advanced downloads"
+                    description="FTP, mirrors, link renewal and recording"
+                    icon="download-network-outline"
+                    onPress={() => navigation.navigate('AdvancedDownloads')}
+                  />
+                ) : null}
                 <SettingsRow
                   title="Preferences"
                   icon="tune-variant"
