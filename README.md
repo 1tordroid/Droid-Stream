@@ -6,6 +6,7 @@ Android app for streaming and casting media, built by **Tordroid**. Universal La
 
 Based on Vega by [vega-org](https://github.com/vega-org/vega-app).
 
+- Download page: https://droidstream.tordroid.com
 - Website: https://tordroid.com
 - Support: https://t.me/Tordroid_admin
 - Releases: https://github.com/1tordroid/Droid-Stream/releases
