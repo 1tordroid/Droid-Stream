@@ -266,6 +266,7 @@ export const LICENSE_SECTION: CreditSection = {
     {name: 'Jetpack JavaScript Engine (androidx.javascriptengine)', license: 'Apache-2.0', note: 'Runs the YouTube challenge solver in an isolated process.', links: [docs('https://developer.android.com/jetpack/androidx/releases/javascriptengine')]},
     {name: 'AndroidX WebKit', license: 'Apache-2.0', note: 'Passkey support in the browser.', links: [docs('https://developer.android.com/jetpack/androidx/releases/webkit')]},
     {name: 'AndroidX DocumentFile', license: 'Apache-2.0', note: 'Reads and writes folders you pick.', links: [docs('https://developer.android.com/jetpack/androidx/releases/documentfile')]},
+    {name: 'AndroidX TV Provider', license: 'Apache-2.0', note: 'Puts Continue watching in Play Next on the Android TV home screen.', links: [docs('https://developer.android.com/jetpack/androidx/releases/tvprovider')]},
     {name: 'AndroidX Media3', license: 'Apache-2.0', note: 'ExoPlayer playback, the player UI and video thumbnails.', links: [gh('androidx/media')]},
     {name: 'usque', license: 'MIT', note: 'Cloudflare WARP client, built from source and run as its own process.', links: [gh('Diniboy1123/usque')]},
     {name: 'ByeDPI', license: 'MIT', note: 'Built from source and run as its own process.', links: [gh('hufrea/byedpi')]},

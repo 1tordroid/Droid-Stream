@@ -92,6 +92,9 @@ import BackupSync from './screens/settings/BackupSync';
 import SendSetup from './screens/settings/SendSetup';
 import ReceiveSetup from './screens/settings/ReceiveSetup';
 import {startBackupSync} from './lib/backupSync/service';
+import {startWatchNextSync} from './lib/tv/watchNext/service';
+import {parseWatchNextLink} from './lib/tv/watchNext/plan';
+import {getActiveProfileId} from './lib/profiles/scope';
 import {AppState, Linking, LogBox, useWindowDimensions} from 'react-native';
 import {vegaCastService} from './lib/remote/vegaCastService';
 import {EpisodeLink, Stream} from './lib/providers/types';
@@ -360,6 +363,23 @@ const openTorrentVpnSetting = (): void => {
   (navigationRef.navigate as (...args: unknown[]) => void)('TabStack', {
     screen: 'TorrentsStack',
     params: {screen: 'TorrentOptions', params: {highlight: 'torrent-vpn'}},
+  });
+};
+
+let pendingWatchNextLink: string | undefined;
+/** A title opened from Play Next on the TV home screen. */
+const openWatchNextLink = (url: string): void => {
+  const target = parseWatchNextLink(url);
+  // A link of another profile: the row is replaced when that profile starts.
+  if (!target || target.profileId !== getActiveProfileId()) return;
+  if (!navigationRef.isReady()) {
+    pendingWatchNextLink = url;
+    return;
+  }
+  pendingWatchNextLink = undefined;
+  (navigationRef.navigate as (...args: unknown[]) => void)('TabStack', {
+    screen: 'HomeStack',
+    params: {screen: 'Info', params: {link: target.link, provider: target.provider}},
   });
 };
 
@@ -713,8 +733,8 @@ function TabStack() {
 
 const App = () => {
   useEffect(()=>{
-    void Linking.getInitialURL().then(url=>{if(url)vegaCastService.handleInvitation(url);});
-    const subscription=Linking.addEventListener('url',event=>{vegaCastService.handleInvitation(event.url);});
+    void Linking.getInitialURL().then(url=>{if(url){vegaCastService.handleInvitation(url);openWatchNextLink(url);}});
+    const subscription=Linking.addEventListener('url',event=>{vegaCastService.handleInvitation(event.url);openWatchNextLink(event.url);});
     return()=>subscription.remove();
   },[]);
   useEffect(() => {
@@ -745,6 +765,9 @@ const App = () => {
 
   // Automatic backups to the backup sync folder (off by default).
   useEffect(() => startBackupSync(), []);
+
+  // Android TV: Continue watching in Play Next on the TV home screen.
+  useEffect(() => startWatchNextSync(), []);
 
   // Safety fallback to ensure splash is hidden
   useEffect(() => {
@@ -905,6 +928,9 @@ const App = () => {
     }
     if (pendingCalendarNavigation) {
       openCalendarScreen();
+    }
+    if (pendingWatchNextLink) {
+      openWatchNextLink(pendingWatchNextLink);
     }
     // Hide bootsplash
     await BootSplash.hide({fade: true});
