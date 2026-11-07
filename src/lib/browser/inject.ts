@@ -58,7 +58,7 @@ export const buildBootstrap = (options: BootstrapOptions): string => `
       if (meta.getAttribute('content') !== 'width=1280') meta.setAttribute('content', 'width=1280');
     };
     onReady(fixViewport);
-    try { new MutationObserver(function () { var m = document.querySelector('meta[name="viewport"]'); if (m && m.getAttribute('content') !== 'width=1280') fixViewport(); }).observe(document.documentElement, {childList: true, subtree: true}); } catch (e) {}
+    try { new MutationObserver(function () { try { var m = document.querySelector('meta[name="viewport"]'); if (m && m.getAttribute('content') !== 'width=1280') fixViewport(); } catch (e) {} }).observe(document.documentElement, {childList: true, subtree: true}); } catch (e) {}
   }
 
   /* Dark pages: invert light pages, then turn pictures and video back. */

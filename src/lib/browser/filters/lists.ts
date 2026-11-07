@@ -3,7 +3,7 @@ import {browserJson, readSettings} from '../store';
 import {compileCosmetic, emptyCosmetic, selectorsFor, type CompiledCosmetic} from './cosmetic';
 import {FilterEngine} from './engine';
 import {compileNetwork, emptyParsed, parseFilterLine, type ParsedFilters} from './parse';
-import {clearNativeFilters, loadNativeFilters, setNativeBlocking} from '../native';
+import {browserEngine} from '../engine';
 
 /**
  * Filter lists: downloaded by the app when first needed and again every
@@ -164,7 +164,7 @@ export const ensureFilters = async (options: {force?: boolean; onProgress?: (tex
   if (running) return running;
   running = (async () => {
     const settings = readSettings();
-    setNativeBlocking(settings.blockAds, settings.allowedSites);
+    browserEngine().blocking.configure(settings.blockAds, settings.allowedSites);
     if (!settings.blockAds) return;
     let lists = readLists();
     const now = Date.now();
@@ -180,7 +180,7 @@ export const ensureFilters = async (options: {force?: boolean; onProgress?: (tex
       options.onProgress?.('Preparing the blocker…');
       await compile(lists, settings.customRules, sig);
     }
-    if (compiled) await loadNativeFilters(compiled.networkPath);
+    if (compiled && browserEngine().requestHook()) await browserEngine().blocking.load(compiled.networkPath);
   })().finally(() => {
     running = null;
   });
@@ -190,7 +190,7 @@ export const ensureFilters = async (options: {force?: boolean; onProgress?: (tex
 /** After the user changed lists or rules: rebuild now. */
 export const rebuildFilters = async (force = false): Promise<void> => {
   compiled = null;
-  clearNativeFilters();
+  browserEngine().blocking.clear();
   await ensureFilters({force});
 };
 

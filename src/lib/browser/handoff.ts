@@ -2,12 +2,12 @@ import {Linking, Share, ToastAndroid} from 'react-native';
 import {downloadManager} from '../downloader';
 import {findDuplicate, parseDashRepresentations, parseHlsVariants} from '../downloadEngine/planner';
 import {qualityChoices} from '../linkGrabber';
-import {getCookieHeader} from '../services/cookieManager';
 import {downloadWithClient, streamOnDevice} from '../torrentSearch/actions';
 import {infoHashFrom, makeResult} from '../torrentSearch/util';
 import {ytdlSaveCookies, ytdlSupported} from '../ytdl/native';
 import {showAppDialog} from '../zustand/appDialogStore';
 import useDownloadsStore from '../zustand/downloadsStore';
+import {browserEngine} from './engine';
 import {classifyMedia, fileNameOf, isSocialSite, type MediaItem} from './media';
 import {hostOf} from './url';
 
@@ -34,7 +34,7 @@ export const requestHeaders = async (url: string, context: PageContext): Promise
   const headers: Record<string, string> = {};
   if (context.userAgent) headers['User-Agent'] = context.userAgent;
   if (/^https?:\/\//i.test(context.pageUrl)) headers.Referer = context.pageUrl;
-  const cookie = await getCookieHeader(url).catch(() => '');
+  const cookie = await browserEngine().cookies.header(url).catch(() => '');
   if (cookie) headers.Cookie = cookie;
   return headers;
 };
@@ -86,7 +86,7 @@ const fetchText = async (url: string, context: PageContext): Promise<string> => 
 /** Opens the yt-dlp sheet, first giving yt-dlp this site's sign-in (not from private tabs). */
 export const openInYtdl = async (url: string, context: PageContext, navigate: Navigate): Promise<void> => {
   if (!context.isPrivate && /^https?:\/\//i.test(context.pageUrl)) {
-    const cookie = await getCookieHeader(context.pageUrl).catch(() => '');
+    const cookie = await browserEngine().cookies.header(context.pageUrl).catch(() => '');
     if (cookie) await ytdlSaveCookies(context.pageUrl).catch(() => undefined);
   }
   navigate('YtdlDownload', {url});

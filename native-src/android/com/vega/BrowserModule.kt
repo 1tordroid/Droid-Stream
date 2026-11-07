@@ -4,8 +4,6 @@ import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -118,8 +116,8 @@ class BrowserTab(val key: String, private val module: BrowserModule) {
  * Hooks for the browser screen that react-native-webview does not have:
  * the request hook (ad blocking, media detection), downloads into the app's
  * own downloader, clearing one site's storage for private tabs, device
- * autofill and passkeys, the screen lock before showing saved passwords,
- * and the optional companion app.
+ * autofill and passkeys, and the screen lock before showing saved
+ * passwords. The browser reaches it through src/lib/browser/engines/webview.ts.
  */
 class BrowserModule(private val context: ReactApplicationContext) :
     ReactContextBaseJavaModule(context), ActivityEventListener, LifecycleEventListener {
@@ -291,33 +289,6 @@ class BrowserModule(private val context: ReactApplicationContext) :
                 promise.resolve(true)
             } catch (error: Exception) {
                 promise.reject("BROWSER_CLEAR", error.message, error)
-            }
-        }
-    }
-
-    @ReactMethod
-    fun isPackageInstalled(packageName: String, promise: Promise) {
-        promise.resolve(
-            try {
-                context.packageManager.getPackageInfo(packageName, 0)
-                true
-            } catch (_: PackageManager.NameNotFoundException) {
-                false
-            },
-        )
-    }
-
-    @ReactMethod
-    fun openInPackage(packageName: String, url: String, promise: Promise) {
-        UiThreadUtil.runOnUiThread {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(packageName)
-                val activity = context.currentActivity
-                if (activity != null) activity.startActivity(intent)
-                else context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                promise.resolve(true)
-            } catch (error: Exception) {
-                promise.reject("BROWSER_OPEN", error.message, error)
             }
         }
     }

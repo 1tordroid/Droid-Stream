@@ -1,9 +1,11 @@
 import {DeviceEventEmitter, NativeModules, Platform} from 'react-native';
+import type {BrowserEngineEvent} from './engine';
 
 /**
- * The browser's native hooks (BrowserModule.kt). Every call is optional: a
- * build without the module still browses, without the request hook (the
- * page script then finds media and hides ads with CSS only).
+ * The WebView engine's native hooks (BrowserModule.kt), used through
+ * engines/webview.ts, plus the screen lock check for saved passwords. Every
+ * call is optional: a build without the module still browses, without the
+ * request hook (the page script then finds media and hides ads with CSS).
  */
 
 interface BrowserNative {
@@ -16,8 +18,6 @@ interface BrowserNative {
   check(url: string, pageUrl: string, type: number): Promise<boolean>;
   blockedCount(key: string): Promise<number>;
   clearOrigins(origins: string[]): Promise<boolean>;
-  isPackageInstalled(packageName: string): Promise<boolean>;
-  openInPackage(packageName: string, url: string): Promise<boolean>;
   authenticate(title: string, description: string): Promise<'ok' | 'cancelled' | 'no-lock'>;
   passkeyStatus(): Promise<'supported' | 'unsupported'>;
   flushCookies(): void;
@@ -61,15 +61,6 @@ export const clearOrigins = async (origins: string[]): Promise<void> => {
   if (origins.length) await native()?.clearOrigins(origins).catch(() => undefined);
 };
 
-export const isPackageInstalled = async (packageName: string): Promise<boolean> =>
-  (await native()?.isPackageInstalled(packageName).catch(() => false)) ?? false;
-
-export const openInPackage = async (packageName: string, url: string): Promise<void> => {
-  const module = native();
-  if (!module) throw new Error('This build cannot open other apps from the browser');
-  await module.openInPackage(packageName, url);
-};
-
 /** Asks for the screen lock (or fingerprint). Resolves 'no-lock' when the phone has none. */
 export const authenticate = async (title: string, description = ''): Promise<'ok' | 'cancelled' | 'no-lock'> => {
   const module = native();
@@ -86,25 +77,7 @@ export const passkeysSupported = async (): Promise<boolean> =>
 
 export const flushCookies = (): void => native()?.flushCookies();
 
-export type BrowserNativeEvent =
-  | {type: 'media'; tab: string; url: string; pageUrl: string; accept: string}
-  | {type: 'blocked'; tab: string; pageUrl: string; count: number}
-  | {
-      type: 'download';
-      tab: string;
-      url: string;
-      pageUrl: string;
-      userAgent: string;
-      contentDisposition: string;
-      mimeType: string;
-      contentLength: number;
-      fileName: string;
-    };
-
-export const onBrowserEvent = (listener: (event: BrowserNativeEvent) => void): (() => void) => {
+export const onBrowserEvent = (listener: (event: BrowserEngineEvent) => void): (() => void) => {
   const subscription = DeviceEventEmitter.addListener('BrowserEvent', listener);
   return () => subscription.remove();
 };
-
-/** The optional companion app with Firefox add-on support. */
-export const EXTENSIONS_APP_PACKAGE = 'com.tordroid.droidstream.browser';

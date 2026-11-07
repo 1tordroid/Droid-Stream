@@ -2,12 +2,10 @@ const {withAndroidManifest, withAppBuildGradle, withMainApplication} = require('
 
 /**
  * The built-in browser: registers BrowserPackage (native-src/android/com/vega/
- * BrowserModule.kt, copied by with-custom-native-modules.js), lets the app
- * see the optional companion app, and accepts file links that other
- * browsers hand to an outside download manager.
+ * BrowserModule.kt, copied by with-custom-native-modules.js), adds
+ * androidx.webkit for passkeys, and accepts file links that other browsers
+ * hand to an outside download manager.
  */
-
-const COMPANION_PACKAGE = 'com.tordroid.droidstream.browser';
 
 // Types another browser sends with a file link. Video types already go to
 // the player (.VideoPlayer); these become a download.
@@ -56,14 +54,6 @@ const withWebkit = config =>
 const withBrowserManifest = config =>
   withAndroidManifest(config, cfg => {
     const manifest = cfg.modResults.manifest;
-    if (!manifest.queries) manifest.queries = [];
-    if (!manifest.queries[0]) manifest.queries[0] = {};
-    const queries = manifest.queries[0];
-    if (!queries.package) queries.package = [];
-    if (!queries.package.some(item => item.$?.['android:name'] === COMPANION_PACKAGE)) {
-      queries.package.push({$: {'android:name': COMPANION_PACKAGE}});
-    }
-
     const app = manifest.application?.[0];
     if (app) {
       app['activity-alias'] = (app['activity-alias'] || []).filter(alias => alias.$?.['android:name'] !== '.LinkDownloader');
