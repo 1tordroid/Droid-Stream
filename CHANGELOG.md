@@ -116,6 +116,23 @@ Built and being tested:
   encrypted with a key from the code, works without internet, and the
   TV shows what came and asks before applying. The code works once and
   for 10 minutes.
+- Android TV: Continue watching shows in Play Next on the TV home screen.
+  Titles in progress continue where you stopped, and after you finish
+  an episode the show offers the next one. Selecting one opens its page
+  in the app. It follows the profile in use (kids profiles only show kids
+  titles), drops titles you finish or remove from Continue watching, and
+  a title you remove from Play Next stays away until you watch it again.
+  Settings > Preferences > TV > Show on the TV home screen (on).
+- TV pause screen: after a video is paused for 3 minutes, the player
+  shows its artwork, moving slowly, with the title, the clock and
+  "Paused". Any button closes it. Off, 1, 3, 5 or 10 minutes in
+  Settings > Preferences > TV.
+- TV screensaver: after 5 minutes without a button press on a screen
+  that is not playing video, artwork from Continue watching and your
+  library drifts by with the clock. Any button returns. Off, 1, 3, 5 or
+  10 minutes.
+- On TV the screen stays on only while a video plays, so the TV's own
+  screensaver can start while one is paused.
 
 ## 5.6.1
 
