@@ -19,6 +19,7 @@ const ENCRYPTED_INSTANCE_IDS = [
   'droid-stream-torrents',
   'provider-source-tokens',
   'droid-stream-jiotv',
+  'droid-stream-profiles',
 ];
 
 // The library's index of instances (id, encrypted, alias). It holds no user

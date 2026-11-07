@@ -1,4 +1,5 @@
 import {openStore} from './openStore';
+import {DEFAULT_PROFILE_ID, PROFILE_INSTANCE_BASES, profileInstanceId, savedProfileIds} from '../profiles/scope';
 import type {StateStorage} from 'zustand/middleware';
 
 /**
@@ -164,6 +165,18 @@ export const registerStorageClearHook = (hook: () => void): void => {
 };
 
 export const clearAllMMKVStorage = (): void => {
+  // Other profiles keep positions in their own instances; empty them while
+  // the profile list that names them still exists.
+  for (const id of savedProfileIds() || []) {
+    if (id === DEFAULT_PROFILE_ID) continue;
+    for (const base of PROFILE_INSTANCE_BASES) {
+      try {
+        openStore(profileInstanceId(base, id)).clearStore();
+      } catch (e) {
+        console.error(`Error clearing ${base} of profile ${id}:`, e);
+      }
+    }
+  }
   cacheStorage.clearAll();
   mainStorage.clearAll();
   providerKvStorage.clearAll();

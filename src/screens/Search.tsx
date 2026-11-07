@@ -7,6 +7,11 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SearchStackParamList, TabStackParamList} from '../App';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {MMKV} from '../lib/Mmkv';
+import {profileKey} from '../lib/profiles/scope';
+
+/** Recent searches, one list per profile. */
+const SEARCH_HISTORY_KEY = 'searchHistory';
+const searchHistoryKey = () => profileKey(SEARCH_HISTORY_KEY);
 import ScreenSafeArea from '../components/ui/ScreenSafeArea';
 import Animated, {FadeInDown} from 'react-native-reanimated';
 import {searchOMDB} from '../lib/services/omdb';
@@ -111,7 +116,7 @@ const Search = () => {
   const [firstGenreNode, setFirstGenreNode] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<IMDbSuggestion[]>([]);
   const [searchHistory, setSearchHistory] = useState<string[]>(
-    MMKV.getArray<string>('searchHistory') || [],
+    MMKV.getArray<string>(searchHistoryKey()) || [],
   );
   const [searchResults, setSearchResults] = useState<OMDBResult[]>([]);
   const searchFieldRef = useRef<SearchFieldRef>(null);
@@ -246,13 +251,13 @@ const Search = () => {
       const trimmed = text.trim();
       if (trimmed) {
         // Save to search history
-        const prevSearches = MMKV.getArray<string>('searchHistory') || [];
+        const prevSearches = MMKV.getArray<string>(searchHistoryKey()) || [];
         if (!prevSearches.includes(trimmed)) {
           const newSearches = [trimmed, ...prevSearches].slice(
             0,
             MAX_HISTORY_ITEMS,
           );
-          MMKV.setArray('searchHistory', newSearches);
+          MMKV.setArray(searchHistoryKey(), newSearches);
           setSearchHistory(newSearches);
         }
 
@@ -288,7 +293,7 @@ const Search = () => {
         focusAfterHistoryDeleteRef.current = true;
         setFirstItemNode(null);
       }
-      MMKV.setArray('searchHistory', newSearches);
+      MMKV.setArray(searchHistoryKey(), newSearches);
       setSearchHistory(newSearches);
     },
     [searchHistory],
@@ -299,20 +304,20 @@ const Search = () => {
       focusAfterHistoryDeleteRef.current = true;
       setFirstItemNode(null);
     }
-    MMKV.setArray('searchHistory', []);
+    MMKV.setArray(searchHistoryKey(), []);
     setSearchHistory([]);
   }, []);
 
   const handleResultPress = useCallback(
     (title: string) => {
       // Save to search history
-      const prevSearches = MMKV.getArray<string>('searchHistory') || [];
+      const prevSearches = MMKV.getArray<string>(searchHistoryKey()) || [];
       if (!prevSearches.includes(title)) {
         const newSearches = [title, ...prevSearches].slice(
           0,
           MAX_HISTORY_ITEMS,
         );
-        MMKV.setArray('searchHistory', newSearches);
+        MMKV.setArray(searchHistoryKey(), newSearches);
         setSearchHistory(newSearches);
       }
       navigation.navigate('SearchResults', {

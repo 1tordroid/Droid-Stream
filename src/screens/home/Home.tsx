@@ -12,6 +12,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useFocusEffect, useIsFocused} from '@react-navigation/native';
 import HeroOptimized from '../../components/Hero';
 import {mainStorage} from '../../lib/storage';
+import useProfilesStore from '../../lib/profiles/useProfiles';
 import useContentStore from '../../lib/zustand/contentStore';
 import useHeroStore from '../../lib/zustand/herostore';
 import {syncFromSharedFolder} from '../../lib/sync/syncService';
@@ -274,6 +275,10 @@ const Home = ({navigation}: Props) => {
     );
   }, [error, isLoading, homeData.length]);
 
+  const profileCount = useProfilesStore(state => state.profiles.length);
+  const kidsProfile = useProfilesStore(state => state.kids);
+  const openProfilePicker = useProfilesStore(state => state.openPicker);
+
   const openLiveTV = useCallback(() => {
     (navigation as any).navigate('LiveTV');
   }, [navigation]);
@@ -289,6 +294,22 @@ const Home = ({navigation}: Props) => {
     !provider?.value
   ) {
     return <ScrollView contentContainerStyle={{flexGrow: 1, paddingTop: isTV ? 12 : 32}}>
+      {profileCount > 1 ? (
+        <View style={{alignItems: 'flex-end', paddingHorizontal: 16}}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Switch profile"
+            onPress={() => openProfilePicker()}
+            style={({pressed, focused}: {pressed: boolean; focused?: boolean}) => ({
+              backgroundColor: focused || pressed ? colors.primary : colors.secondaryContainer,
+              borderRadius: 20, minHeight: 40, justifyContent: 'center', paddingHorizontal: 16,
+            })}>
+            {({pressed, focused}: {pressed: boolean; focused?: boolean}) => (
+              <AppText role="labelLarge" style={{color: focused || pressed ? colors.onPrimary : colors.onSecondaryContainer}}>Switch profile</AppText>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
       {showContinueWatching && <ContinueWatching localOnly />}
       <View style={{flex: 1, minHeight: 400}}><Tutorial /></View>
     </ScrollView>;
@@ -365,7 +386,8 @@ const Home = ({navigation}: Props) => {
               }
               ListFooterComponent={
                 <View className="pb-8">
-                  <DiscoverRows />
+                  {/* Discover opens the torrent stream finder, which a kids profile does not have. */}
+                  {kidsProfile ? null : <DiscoverRows />}
                   {errorComponent}
                   <View className="h-8" />
                 </View>

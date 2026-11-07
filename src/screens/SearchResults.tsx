@@ -18,6 +18,8 @@ import {useM3Colors} from '../theme/M3PaletteContext';
 import {runProviderSearches} from '../lib/search/runProviderSearches';
 import {insertRankedRow, rankPosts} from '../lib/search/rankSearchResults';
 import type {ProviderExtension} from '../lib/storage/extensionStorage';
+import {isAdultSource} from '../lib/profiles/kids';
+import {useIsKidsProfile} from '../lib/profiles/useProfiles';
 
 type Props = NativeStackScreenProps<SearchStackParamList, 'SearchResults'>;
 
@@ -45,7 +47,12 @@ const SearchResults = ({route, navigation}: Props): React.ReactElement => {
   // Reordering providers in the drawer makes a new array with the same
   // providers. Only a real install or removal should restart the searches.
   const providersKey = storeProviders.map(p => p.value).sort().join('|');
-  const installedProviders = useMemo(() => storeProviders, [providersKey]);
+  // A kids profile does not search adult-named providers.
+  const kidsProfile = useIsKidsProfile();
+  const installedProviders = useMemo(
+    () => (kidsProfile ? storeProviders.filter(p => !isAdultSource({name: p.display_name, value: p.value})) : storeProviders),
+    [providersKey, kidsProfile],
+  );
   const [searchData, setSearchData] = useState<SearchPageData[]>([]);
   const [emptyResults, setEmptyResults] = useState<SearchPageData[]>([]);
   const [showEmptyResults, setShowEmptyResults] = useState(false);
@@ -321,7 +328,7 @@ const SearchResults = ({route, navigation}: Props): React.ReactElement => {
 
         <TVFocusGuide autoFocus={false} style={{paddingHorizontal: 16}}>
           {searchSliders}
-          {isAllLoaded && (
+          {isAllLoaded && !kidsProfile && (
             <TVFocusable
               accessibilityRole="button"
               accessibilityLabel={`Search torrent sites for ${route.params.filter}`}

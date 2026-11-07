@@ -54,6 +54,8 @@ import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {canReplayOn, openChannel, openReplay, type GridChannel} from './play';
+import {isKidsChannelGroup} from '../../lib/profiles/kids';
+import {isKidsProfileActive} from '../../lib/profiles/profiles';
 
 const CHANNEL_W = isTV ? 200 : 112;
 const ROW_H = isTV ? 72 : 62;
@@ -299,7 +301,11 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   const isJio = sourceId === JIO_SOURCE_ID;
   const source = useMemo(() => listSources().find(item => item.id === sourceId), [sourceId]);
   const sourceName = isJio ? 'JioTV' : source?.name || 'Live TV';
-  const filterGroup = useCallback((list: GridChannel[]) => (group ? list.filter(channel => inGroup(channel, group)) : list), [group]);
+  const filterGroup = useCallback((list: GridChannel[]) => {
+    // A kids profile keeps only kids, animation and cartoon groups.
+    const allowed = isKidsProfileActive() ? list.filter(channel => isKidsChannelGroup(channel.group)) : list;
+    return group ? allowed.filter(channel => inGroup(channel, group)) : allowed;
+  }, [group]);
 
   const [channels, setChannels] = useState<GridChannel[]>(() => {
     const cached = source ? readCachedPlaylist(source) : undefined;
