@@ -1,6 +1,6 @@
 import {Feather} from '@expo/vector-icons';
 import React, {useState} from 'react';
-import {Pressable, View} from 'react-native';
+import {Pressable, View, type HostInstance} from 'react-native';
 import {RawText as Text} from '../../../components/ui/Text';
 import {isTV} from '../../../lib/tv';
 
@@ -10,16 +10,20 @@ const SkipButton = ({
   focusColor,
   focusable,
   onPress,
+  buttonRef,
 }: {
   label: string;
   focusColor: string;
   focusable: boolean;
   onPress: () => void;
+  /** For moving TV focus to the button. */
+  buttonRef?: React.Ref<HostInstance>;
 }) => {
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
   return (
     <Pressable
+      ref={buttonRef}
       accessibilityRole="button"
       accessibilityLabel={label}
       focusable={focusable}

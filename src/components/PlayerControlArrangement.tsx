@@ -28,6 +28,7 @@ const EDITOR_LABELS: Record<PlayerControlId, string> = {
   resize: 'Fit',
   episodes: 'Episodes',
   next: 'Next',
+  marks: 'Mark',
   settings: 'Settings',
   decoder: 'Decoder',
 };
