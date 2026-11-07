@@ -32,6 +32,7 @@ jest.mock('expo-constants', () => ({__esModule: true, default: {expoConfig: {ext
 import {ALL_SECTIONS, CREDIT_SECTIONS, LICENSE_SECTION, VEGA_REQUIRED_NOTICE} from '../src/screens/settings/creditsData';
 import CreditsAndLicences, {buildCreditRows} from '../src/screens/settings/CreditsAndLicences';
 import Credits from '../src/screens/settings/Credits';
+import {TMDB_LOGO_PATH, TMDB_LOGO_XML} from '../src/screens/settings/tmdbLogo';
 import OpenSourceLicenses from '../src/screens/settings/OpenSourceLicenses';
 
 const textOf = (node: renderer.ReactTestInstance): string =>
@@ -95,9 +96,10 @@ describe('credits data', () => {
     const notices = licence.split(/\r?\n/).filter(line => line.startsWith('Required Notice:'));
     expect(notices).toEqual([VEGA_REQUIRED_NOTICE]);
     expect(findEntry('Vega')?.notice).toBe(VEGA_REQUIRED_NOTICE);
-    expect(findEntry('TMDB (The Movie Database)')?.note).toContain(
+    expect(findEntry('TMDB (The Movie Database)')?.notice).toBe(
       'This product uses the TMDB API but is not endorsed or certified by TMDB.',
     );
+    expect(findEntry('TMDB (The Movie Database)')?.logo).toBe('tmdb');
     for (const name of ['JioTV Go by the jiotv-go project', 'jiotv_go by the jiotv-go project']) {
       expect(findEntry(name)?.note).toContain('Not affiliated with Jio.');
     }
@@ -121,6 +123,23 @@ describe('credits data', () => {
       '1DM', 'YTDLnis', 'Seal', 'SnapTube', 'MovieBox', 'Netflix', 'Castle', 'Morphe', 'EasyList', 'EasyPrivacy', 'IndianList']) {
       expect(findEntry(name)).toBeDefined();
     }
+  });
+});
+
+describe('TMDB logo', () => {
+  it('draws the same shape as the official logo file in assets/brand', () => {
+    const svg = fs.readFileSync(path.join(__dirname, '..', 'assets', 'brand', 'tmdb-logo.svg'), 'utf8');
+    expect(svg).toContain(` d="${TMDB_LOGO_PATH}"`);
+    expect(svg).toContain('viewBox="0 0 489.04 35.4"');
+    expect(TMDB_LOGO_XML).toContain('<stop offset="0" stop-color="#90cea1"/>');
+  });
+
+  it('shows next to the TMDB notice and nowhere else', () => {
+    mockIsTV = true;
+    const tree = render(<CreditsAndLicences />);
+    const logos = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'tmdb-logo' && node.props.accessibilityLabel === 'TMDB logo');
+    expect(logos).toHaveLength(1);
+    expect(lines(tree)).toContain('This product uses the TMDB API but is not endorsed or certified by TMDB.');
   });
 });
 

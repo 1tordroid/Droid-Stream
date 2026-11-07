@@ -9,7 +9,7 @@ export type SegmentKind = 'intro' | 'recap' | 'credits' | 'preview';
 export const SEGMENT_KINDS: readonly SegmentKind[] = ['intro', 'recap', 'credits', 'preview'];
 
 /** Where a segment came from, highest priority first. */
-export type SegmentSource = 'provider' | 'jellyfin' | 'aniskip' | 'introdb' | 'user';
+export type SegmentSource = 'provider' | 'jellyfin' | 'emby' | 'plex' | 'aniskip' | 'introdb' | 'user';
 
 export interface SkipSegment extends SkipInterval {
   title: string;
@@ -231,6 +231,73 @@ export const parseJellyfinSegments = (data: unknown): SkipSegment[] => {
 export const jellyfinItemIdOf = (url?: string): string | undefined => {
   const match = url?.match(/\/Videos\/([0-9a-fA-F-]{32,36})\/(?:stream|master\.m3u8|main\.m3u8)/);
   return match?.[1];
+};
+
+/** The Emby item id in a /Videos/{id}/stream address. Emby ids are usually numbers. */
+export const embyItemIdOf = (url?: string): string | undefined => {
+  const match = url?.match(/\/Videos\/([0-9A-Za-z-]{1,64})\/(?:stream|master\.m3u8|main\.m3u8)/);
+  return match?.[1];
+};
+
+type EmbyChapter = {StartPositionTicks?: number; Name?: string; MarkerType?: string};
+
+const INTRO_CHAPTER = /^\s*(intro|opening|op)\s*$/i;
+const CREDITS_CHAPTER = /^\s*(credits|end credits|ending|outro|ed)\s*$/i;
+
+/**
+ * Emby item details read with Fields=Chapters. Emby's intro detection saves
+ * IntroStart, IntroEnd and CreditsStart markers among the chapters; times are
+ * in 100 ns ticks. Without markers, chapters named Intro or Credits are used,
+ * each running to the next chapter. Credits run to the end of the video.
+ */
+export const parseEmbyChapters = (data: unknown): SkipSegment[] => {
+  const body = (data || {}) as {Chapters?: unknown; RunTimeTicks?: number};
+  if (!Array.isArray(body.Chapters)) return [];
+  const runtime = Number(body.RunTimeTicks) > 0 ? Number(body.RunTimeTicks) / 1e7 : 0;
+  const chapters = (body.Chapters as EmbyChapter[])
+    .filter(item => item && Number.isFinite(Number(item.StartPositionTicks)))
+    .map(item => ({start: Number(item.StartPositionTicks) / 1e7, name: item.Name || '', type: item.MarkerType || 'Chapter'}))
+    .sort((a, b) => a.start - b.start);
+  const endOf = (start: number) => (runtime > start ? runtime : start + OPEN_END_SECONDS);
+  const result: SkipSegment[] = [];
+  const introStart = chapters.find(item => item.type === 'IntroStart');
+  const introEnd = chapters.find(item => item.type === 'IntroEnd');
+  const creditsStart = chapters.find(item => item.type === 'CreditsStart');
+  if (introEnd) {
+    const from = introStart && introStart.start < introEnd.start ? introStart.start : 0;
+    if (valid({from, to: introEnd.start})) result.push(makeSegment('intro', from, introEnd.start, 'emby'));
+  }
+  if (creditsStart && creditsStart.start > 0) result.push(makeSegment('credits', creditsStart.start, endOf(creditsStart.start), 'emby'));
+  if (result.length) return result;
+  // No markers: fall back to chapters named for what they hold.
+  const plain = chapters.filter(item => item.type === 'Chapter');
+  plain.forEach((chapter, index) => {
+    const kind = INTRO_CHAPTER.test(chapter.name) ? 'intro' : CREDITS_CHAPTER.test(chapter.name) ? 'credits' : undefined;
+    if (!kind || result.some(segment => segment.kind === kind)) return;
+    const next = plain[index + 1]?.start;
+    const to = next !== undefined ? next : kind === 'credits' ? endOf(chapter.start) : undefined;
+    if (to !== undefined && valid({from: chapter.start, to})) result.push(makeSegment(kind, chapter.start, to, 'emby'));
+  });
+  return result;
+};
+
+/**
+ * Plex item details read with includeMarkers=1. Markers of type intro and
+ * credits carry their start and end in milliseconds.
+ */
+export const parsePlexMarkers = (data: unknown): SkipSegment[] => {
+  const item = (data as {MediaContainer?: {Metadata?: {Marker?: unknown}[]}})?.MediaContainer?.Metadata?.[0];
+  const markers = item?.Marker;
+  if (!Array.isArray(markers)) return [];
+  const result: SkipSegment[] = [];
+  for (const marker of markers as {type?: string; startTimeOffset?: number; endTimeOffset?: number}[]) {
+    const kind = marker?.type === 'intro' ? 'intro' : marker?.type === 'credits' ? 'credits' : undefined;
+    if (!kind) continue;
+    const from = Number(marker.startTimeOffset) / 1000;
+    const to = Number(marker.endTimeOffset) / 1000;
+    if (valid({from, to}) && !result.some(segment => segment.kind === kind)) result.push(makeSegment(kind, from, to, 'plex'));
+  }
+  return result;
 };
 
 /** IntroDB answer: intro, recap and outro in seconds. Post-credit scenes are left to play. */

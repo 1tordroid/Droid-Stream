@@ -28,6 +28,8 @@ export interface CreditEntry {
   license?: string;
   /** A line that must be shown word for word, such as a Required Notice. */
   notice?: string;
+  /** A logo the service asks to show with its notice. */
+  logo?: 'tmdb';
   links: CreditLink[];
   /** Set when there is no official link to show. */
   noLinks?: true;
@@ -47,6 +49,9 @@ export interface CreditSection {
 const gh = (path: string): CreditLink => ({label: 'Repository', url: `https://github.com/${path}`});
 const web = (url: string): CreditLink => ({label: 'Website', url});
 const docs = (url: string): CreditLink => ({label: 'Docs', url});
+
+/** The wording TMDB asks every app that uses its API to show, with its logo. */
+export const TMDB_NOTICE = 'This product uses the TMDB API but is not endorsed or certified by TMDB.';
 
 export const VEGA_REQUIRED_NOTICE =
   'Required Notice: Copyright (c) 2026 [LICENSOR NAME] (https://github.com/vega-org/vega-app)';
@@ -151,7 +156,9 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'Cinemeta', note: 'Movie and show details.', links: [web('https://v3-cinemeta.strem.io')]},
       {
         name: 'TMDB (The Movie Database)',
-        note: 'Posters, artwork and details for your library and title pages, with your own API key. This product uses the TMDB API but is not endorsed or certified by TMDB.',
+        note: 'Posters, artwork and details for your library and title pages, with your own API key.',
+        notice: TMDB_NOTICE,
+        logo: 'tmdb',
         links: [web('https://www.themoviedb.org'), {label: 'Terms', url: 'https://www.themoviedb.org/api-terms-of-use'}, docs('https://developer.themoviedb.org')],
       },
       {name: 'OMDb API', note: 'Title search results.', links: [web('https://www.omdbapi.com')]},

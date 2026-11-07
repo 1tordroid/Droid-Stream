@@ -1,23 +1,27 @@
 /**
  * Intro, recap and credits times for any show, gathered in this order:
- * the provider, the viewer's Jellyfin server, AniSkip (anime), IntroDB
+ * the provider, the viewer's Jellyfin, Emby or Plex server, AniSkip (anime), IntroDB
  * (api.introdb.app, looked up by IMDb id), then the viewer's own marks.
  */
 import {findAnimeSkips} from '../aniskip';
 import type {SkipInterval} from '../providers/types';
 import {deviceHeader, LEGACY_DEVICE_ID} from '../sources/mediaServers';
+import {plexItemForPart} from '../sources/plexParts';
 import {listSources, type SavedSource} from '../sources/vault';
 import {cacheStorage, mainStorage} from '../storage/StorageService';
 import type {WatchMeta} from '../watchMeta';
 import {
   cleanMarks,
   DEFAULT_SKIP_MODES,
+  embyItemIdOf,
   fromIntervals,
   jellyfinItemIdOf,
   marksToSegments,
   mergeSegments,
+  parseEmbyChapters,
   parseIntroDbSegments,
   parseJellyfinSegments,
+  parsePlexMarkers,
   SEGMENT_KINDS,
   type SeasonMarks,
   type SegmentKind,
@@ -120,6 +124,71 @@ export const fetchJellyfinSegments = (source: SavedSource, itemId: string): Prom
     return parseJellyfinSegments(data);
   });
 
+// Emby and Plex
+
+const signedIn = (kind: SavedSource['kind'], sources: SavedSource[]) =>
+  sources.filter(source => source.kind === kind && source.secret && source.authState !== 'signedOut');
+
+/** The saved Emby source and item behind a stream address, if any. */
+export const findEmbyItem = (
+  urls: (string | undefined)[],
+  sources: SavedSource[] = listSources(),
+): {source: SavedSource; itemId: string} | undefined => {
+  const emby = signedIn('emby', sources);
+  for (const url of urls) {
+    const itemId = embyItemIdOf(url);
+    if (!itemId || !url) continue;
+    const source = emby.find(entry => url.toLowerCase().startsWith(rootOf(entry.server) + '/'));
+    if (source) return {source, itemId};
+  }
+  return undefined;
+};
+
+/** Emby intro and credits markers (and chapters named Intro or Credits). */
+export const fetchEmbySegments = (source: SavedSource, itemId: string): Promise<SkipSegment[]> =>
+  cached(`emby:${source.id}:${itemId}`, async () => {
+    const root = source.server.replace(/\/+$/, '');
+    const headers = deviceHeader(source.deviceId || LEGACY_DEVICE_ID, source.secret);
+    const url = `${root}/Users/${encodeURIComponent(source.username)}/Items/${encodeURIComponent(itemId)}?Fields=Chapters`;
+    return parseEmbyChapters(await getJson(url, headers));
+  });
+
+/** The saved Plex source and item (ratingKey) behind a media part address, if the library saw it. */
+export const findPlexItem = (
+  urls: (string | undefined)[],
+  sources: SavedSource[] = listSources(),
+): {source: SavedSource; ratingKey: string} | undefined => {
+  const plex = signedIn('plex', sources);
+  for (const url of urls) {
+    for (const source of plex) {
+      const ratingKey = plexItemForPart(source.server, url);
+      if (ratingKey) return {source, ratingKey};
+    }
+  }
+  return undefined;
+};
+
+/** Plex intro and credits markers. */
+export const fetchPlexSegments = (source: SavedSource, ratingKey: string): Promise<SkipSegment[]> =>
+  cached(`plex:${source.id}:${ratingKey}`, async () => {
+    const root = source.server.replace(/\/+$/, '');
+    const url = `${root}/library/metadata/${encodeURIComponent(ratingKey)}?includeMarkers=1`;
+    return parsePlexMarkers(await getJson(url, {'X-Plex-Token': source.secret}));
+  });
+
+/**
+ * One key for the media server item behind what is playing, so the player
+ * fetches again only when the item changes.
+ */
+export const mediaServerItemKey = (urls: (string | undefined)[], sources: SavedSource[] = listSources()): string | undefined => {
+  const jellyfin = findJellyfinItem(urls, sources);
+  if (jellyfin) return `jf:${jellyfin.source.id}:${jellyfin.itemId}`;
+  const emby = findEmbyItem(urls, sources);
+  if (emby) return `emby:${emby.source.id}:${emby.itemId}`;
+  const plex = findPlexItem(urls, sources);
+  return plex ? `plex:${plex.source.id}:${plex.ratingKey}` : undefined;
+};
+
 // AniSkip (anime) and IntroDB
 
 /** AniSkip keeps its own cache, and its switch in Watch sync still applies. */
@@ -136,11 +205,13 @@ const fetchIntroDb = (meta: WatchMeta): Promise<SkipSegment[]> =>
 
 export interface FetchedSegments {
   jellyfin: SkipSegment[];
+  emby: SkipSegment[];
+  plex: SkipSegment[];
   aniskip: SkipSegment[];
   introdb: SkipSegment[];
 }
 
-export const NO_FETCHED_SEGMENTS: FetchedSegments = {jellyfin: [], aniskip: [], introdb: []};
+export const NO_FETCHED_SEGMENTS: FetchedSegments = {jellyfin: [], emby: [], plex: [], aniskip: [], introdb: []};
 
 /** Every online source that applies to what is playing. A source that fails gives []. */
 export const fetchSegments = async (input: {
@@ -149,15 +220,20 @@ export const fetchSegments = async (input: {
 }): Promise<FetchedSegments> => {
   const {meta} = input;
   const series = meta?.type === 'series' && Boolean(meta.episode);
-  const jellyfinItem = findJellyfinItem(input.streamUrls);
-  const [jellyfin, aniskip, introdb] = await Promise.all([
+  const sources = listSources();
+  const jellyfinItem = findJellyfinItem(input.streamUrls, sources);
+  const embyItem = jellyfinItem ? undefined : findEmbyItem(input.streamUrls, sources);
+  const plexItem = jellyfinItem || embyItem ? undefined : findPlexItem(input.streamUrls, sources);
+  const [jellyfin, emby, plex, aniskip, introdb] = await Promise.all([
     jellyfinItem ? fetchJellyfinSegments(jellyfinItem.source, jellyfinItem.itemId).catch(() => []) : [],
+    embyItem ? fetchEmbySegments(embyItem.source, embyItem.itemId).catch(() => []) : [],
+    plexItem ? fetchPlexSegments(plexItem.source, plexItem.ratingKey).catch(() => []) : [],
     series && meta ? fetchAniSkip(meta).catch(() => []) : [],
     series && meta && meta.season !== undefined && meta.imdbId && IMDB_ID.test(meta.imdbId) && isIntroDbEnabled()
       ? fetchIntroDb(meta).catch(() => [])
       : [],
   ]);
-  return {jellyfin, aniskip, introdb};
+  return {jellyfin, emby, plex, aniskip, introdb};
 };
 
 // The viewer's marks, per show and season
@@ -189,6 +265,8 @@ export const gatherSegments = (input: {
     [
       fromIntervals(input.provider, 'provider'),
       input.fetched.jellyfin,
+      input.fetched.emby || [],
+      input.fetched.plex || [],
       input.fetched.aniskip,
       input.fetched.introdb,
       marksToSegments(input.marks, input.durationSeconds || 0),

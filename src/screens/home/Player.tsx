@@ -92,6 +92,7 @@ import {
   fetchSegments,
   gatherSegments,
   getSkipModes,
+  mediaServerItemKey,
   NO_FETCHED_SEGMENTS,
   readSeasonMarks,
   writeSeasonMarks,
@@ -100,7 +101,6 @@ import {
 import {
   actionFor,
   isEndSegment,
-  jellyfinItemIdOf,
   segmentAt,
   segmentId,
   setMark,
@@ -112,6 +112,7 @@ import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
 import {useScrobble} from '../../lib/hooks/useScrobble';
+import {useTraktResume} from '../../lib/hooks/useTraktResume';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
 import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
@@ -993,10 +994,14 @@ const Player = ({route}: Props): React.JSX.Element => {
     [handleProgress, videoPositionRef, checkSleepTimer, prefetchNextEpisode, isLiveChannel],
   );
 
+  // On a phone the controls keep their own pause state, so Go live also
+  // sends them a play request; on TV the paused prop is enough.
+  const [playRequest, setPlayRequest] = useState(0);
   const goLive = useCallback(() => {
     if (liveWindowRef.current > 0) playerRef.current?.seek(liveWindowRef.current);
     setBehindLive(false);
     setIsPaused(false);
+    setPlayRequest(count => count + 1);
   }, []);
 
   // The TV timeline shows the running time, so it needs every progress tick.
@@ -1041,12 +1046,12 @@ const Player = ({route}: Props): React.JSX.Element => {
   // Trakt scrobbling (start, pause, stop), when connected with scrobbling on.
   useScrobble(watchMeta, isPaused, videoPositionRef);
 
-  // Times from the viewer's Jellyfin server, AniSkip and IntroDB.
+  // Times from the viewer's Jellyfin, Emby or Plex server, AniSkip and IntroDB.
   const segmentStreamUrls = useMemo(
     () => [selectedStream?.link, activeEpisode?.link, (route.params as any)?.directUrl as string | undefined],
     [selectedStream?.link, activeEpisode?.link, route.params],
   );
-  const jellyfinItemKey = segmentStreamUrls.map(jellyfinItemIdOf).find(Boolean);
+  const serverItemKey = useMemo(() => mediaServerItemKey(segmentStreamUrls), [segmentStreamUrls]);
   const [fetchedSegments, setFetchedSegments] = useState<FetchedSegments>(NO_FETCHED_SEGMENTS);
   useEffect(() => {
     setFetchedSegments(NO_FETCHED_SEGMENTS);
@@ -1060,7 +1065,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       live = false;
     };
     // Only what the lookups use; a new stream object for the same item does not refetch.
-  }, [jellyfinItemKey, watchMeta?.title, watchMeta?.season, watchMeta?.episode, watchMeta?.malId, watchMeta?.imdbId, watchMeta?.type]);
+  }, [serverItemKey, watchMeta?.title, watchMeta?.season, watchMeta?.episode, watchMeta?.malId, watchMeta?.imdbId, watchMeta?.type]);
 
   // Skip modes per segment kind, from Player settings.
   const [skipModes] = useState(getSkipModes);
@@ -1219,18 +1224,25 @@ const Player = ({route}: Props): React.JSX.Element => {
     [],
   );
 
+  // Where Trakt says this was paused, for when this device has no progress for it.
+  const traktResume = useTraktResume(route.params.live ? undefined : watchMeta, loadedDuration);
+
   // Memoized watched duration
   const watchedDuration = useMemo(() => {
     if (syncedEpisodeMatches) {
       return getResumePosition(syncedPosition, syncedDuration);
     }
     const cachedProgress = readCachedProgress(activeEpisode?.link);
-    return getResumePosition(cachedProgress.position, cachedProgress.duration);
+    if (cachedProgress.position > 0) {
+      return getResumePosition(cachedProgress.position, cachedProgress.duration);
+    }
+    return traktResume;
   }, [
     activeEpisode?.link,
     syncedDuration,
     syncedEpisodeMatches,
     syncedPosition,
+    traktResume,
   ]);
 
   useEffect(() => {
@@ -3674,7 +3686,7 @@ const Player = ({route}: Props): React.JSX.Element => {
           onSkipPress={handleRemoteSkip}
         />
       ) : processedStreamUrl ? (
-        <VideoPlayer {...videoPlayerProps} controlAppearance={controlStyle} subtitleStyle={playbackSubtitleStyle} nativeVideoViewRef={nativeVideoViewRef} headerStatus={torrentHeaderStatus} headerRightInset={toolbarHeaderInset} playbackSuspended={editingControls} controlScale={controlStyle.scale} seekbarScale={controlStyle.seekbarScale} ambientVideoSize={loadedVideoSize} ambientDisabled={isCasting} />
+        <VideoPlayer {...videoPlayerProps} controlAppearance={controlStyle} subtitleStyle={playbackSubtitleStyle} nativeVideoViewRef={nativeVideoViewRef} headerStatus={torrentHeaderStatus} headerRightInset={toolbarHeaderInset} playbackSuspended={editingControls} playRequest={playRequest} controlScale={controlStyle.scale} seekbarScale={controlStyle.seekbarScale} ambientVideoSize={loadedVideoSize} ambientDisabled={isCasting} />
       ) : (
         <View className="flex-1 justify-center items-center">
           <Animated.View style={[loadingContainerStyle]}>

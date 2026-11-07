@@ -214,6 +214,15 @@ const WatchSync = () => {
                 <Switch accessibilityLabel="Scrobble to Trakt while watching" value={account.scrobble !== false} onValueChange={value => patch('trakt', {scrobble: value})} thumbColor={account.scrobble !== false ? colors.primary : undefined} />
               </View>
             ) : null}
+            {id === 'simkl' && connected ? (
+              <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 8}}>
+                <View style={{flex: 1}}>
+                  <AppText role="bodyMedium" style={{color: colors.onSurface}}>Scrobble while watching</AppText>
+                  <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>Shows what is playing on Simkl and saves where you stopped</AppText>
+                </View>
+                <Switch accessibilityLabel="Scrobble to Simkl while watching" value={account.scrobble !== false} onValueChange={value => patch('simkl', {scrobble: value})} thumbColor={account.scrobble !== false ? colors.primary : undefined} />
+              </View>
+            ) : null}
             {!connected ? (
               <>
                 <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 8}}>{ownApp ? HELP[id].steps : CODE_STEPS[id]}</AppText>

@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useCallback, useMemo, useRef} from 'react';
 import {FlatList, Linking, ScrollView, ToastAndroid, View, type HostInstance, type ScrollViewInstance} from 'react-native';
+import {SvgXml} from 'react-native-svg';
 import AppText from '../../components/ui/Text';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {versionLabel} from '../../lib/appVersion';
@@ -14,6 +15,7 @@ import {
   type CreditSection,
   type CreditSectionId,
 } from './creditsData';
+import {TMDB_LOGO_HEIGHT, TMDB_LOGO_WIDTH, TMDB_LOGO_XML} from './tmdbLogo';
 
 type Row =
   | {key: string; kind: 'section'; section: CreditSection}
@@ -88,12 +90,21 @@ const EntryBody = ({entry}: {entry: CreditEntry}) => {
         <AppText role="labelMedium" style={{color: colors.primary, marginTop: 2}}>{entry.license}</AppText>
       ) : null}
       <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 2}}>{entry.note}</AppText>
+      {entry.logo === 'tmdb' ? <TmdbLogo /> : null}
       {entry.notice ? (
         <AppText role="bodySmall" selectable style={{color: colors.onSurface, marginTop: 6}}>{entry.notice}</AppText>
       ) : null}
     </>
   );
 };
+
+/** TMDB's approved logo, small, next to its notice. */
+const TMDB_LOGO_SHOWN_WIDTH = 160;
+const TmdbLogo = () => (
+  <View accessible accessibilityRole="image" accessibilityLabel="TMDB logo" testID="tmdb-logo" style={{marginTop: 8}}>
+    <SvgXml xml={TMDB_LOGO_XML} width={TMDB_LOGO_SHOWN_WIDTH} height={(TMDB_LOGO_SHOWN_WIDTH * TMDB_LOGO_HEIGHT) / TMDB_LOGO_WIDTH} />
+  </View>
+);
 
 const EntryCard = React.memo(
   ({entry, first, last, preferred, onHandle}: {entry: CreditEntry; first: boolean; last: boolean; preferred?: boolean; onHandle?: HandleSink}) => {

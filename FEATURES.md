@@ -23,6 +23,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Watch list, Library, Continue watching, watched badges and "Hide watched".
 - ✅ Auto play next episode.
 - ✅ Skip intro, recap, credits and previews for every show: times from the provider, Jellyfin, AniSkip (anime) and IntroDB, or mark them yourself once per season. Off, button or auto skip for each type.
+- 🧪 Skip times from your Emby and Plex servers too, and the VLC player uses the same season marks and skip settings.
 - ✅ Play best falls back to the next source by itself when one fails or doesn't start, and remembers links that failed.
 - ✅ Play best filters: largest file, lowest and highest quality, prefer or avoid HEVC and AV1.
 - 📋 Chapters in the player.
@@ -52,8 +53,10 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Sign in with Jio (Jio number and SMS code) for Jio channels.
 - ✅ Favourites, recent channels, groups, search and now/next info.
 - ✅ TV guide grid with channels down and times across.
+- 🧪 TV guide for Favourites and Recent, with each channel's own guide and catch-up.
 - ✅ Catch-up: replay past programmes where the channel allows it.
 - ✅ Pause and rewind live channels that keep a buffer, with a "Go live" button.
+- 🧪 On a phone, Go live also plays again after you paused.
 - ✅ Programme reminders.
 - ✅ Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
 - ✅ Record live channels and programmes.
@@ -86,6 +89,7 @@ It runs on Android phones, tablets and Android TV.
 ## Your own servers
 
 - ✅ SMB, WebDAV, Jellyfin, Emby and Plex.
+- 🧪 Try SMB playback (testing), a switch in Advanced downloads. Off by default.
 - ✅ Poster library for your servers and your device's videos: Movies, Shows, Other and Folders, matched titles and artwork, Continue watching across sources.
 - ✅ Fix a wrong poster or title.
 - 📋 Plex PIN sign-in and Jellyfin Quick Connect.
@@ -150,8 +154,8 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Trakt, Simkl and AniList.
 - ✅ Sign in to Trakt and Simkl with a code and a QR code, without typing keys.
 - ✅ Trakt scrobbling: "watching now", and watches saved even when offline.
-- 📋 Bring Trakt progress into Continue watching.
-- 📋 Simkl scrobbling.
+- 🧪 Bring Trakt progress into Continue watching: a "Continue on Trakt" row, and playback starts where Trakt says you stopped.
+- 🧪 Simkl scrobbling, with its own switch, that keeps working offline.
 - 📋 New-episode calendar and alerts.
 
 ## Cast and TV
@@ -178,6 +182,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Advanced mode shows every extra control; tab bar labels, haptics and the Home menu are adjustable.
 - ✅ Search inside Settings to jump to any option.
 - ✅ Check for updates and the version in Settings; one Credits and licences page with links.
+- 🧪 The TMDB logo with the TMDB notice in Credits and licences.
 - 📋 IMDb, Rotten Tomatoes and Metacritic scores together.
 
 ## Backup

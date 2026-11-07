@@ -73,6 +73,17 @@ export const catchupInfo = (channel: CatchupChannel): CatchupInfo | undefined =>
   return info;
 };
 
+/** The M3U attributes catch-up reads. Saved with Favourites and Recent so replay keeps working there. */
+const CATCHUP_ATTRS = ['catchup', 'catchup-type', 'catchup-source', 'catchup-days', 'timeshift', 'tvg-rec'];
+
+/** Only the catch-up attributes of a channel, or undefined when it has none. */
+export const catchupAttrsOf = (attrs?: Record<string, string>): Record<string, string> | undefined => {
+  if (!attrs) return undefined;
+  const kept: Record<string, string> = {};
+  for (const key of CATCHUP_ATTRS) if (attrs[key] !== undefined && attrs[key] !== '') kept[key] = attrs[key];
+  return Object.keys(kept).length ? kept : undefined;
+};
+
 /** Whether a programme can be replayed now: it has ended and is inside the catch-up days. */
 export const canReplay = (info: CatchupInfo | undefined, programme: {start: number; stop: number}, now = Date.now()): boolean =>
   !!info && programme.stop <= now && programme.start >= now - info.days * DAY;
