@@ -34,6 +34,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
     // while the app is already running only arrives through onNewIntent.
     private var sharedIntent: Intent? = null
     private val SHARED_LINK = Regex("https?://[^\\s<>\"']+", RegexOption.IGNORE_CASE)
+    private val STREAM_TYPES = listOf("application/x-mpegurl", "application/vnd.apple.mpegurl", "application/dash+xml")
 
     init {
         reactContext.addActivityEventListener(this)
@@ -51,6 +52,30 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
     override fun onActivityResult(activity: android.app.Activity, requestCode: Int, resultCode: Int, data: Intent?) {}
 
     override fun getName(): String = "TorrentClientModule"
+
+    /** Cookie, Referer and User-Agent sent with a file link, under the extra names browsers use. */
+    private fun downloadHeaders(intent: Intent): org.json.JSONObject {
+        val out = org.json.JSONObject()
+        val names = mapOf(
+            "cookie" to "Cookie", "cookies" to "Cookie",
+            "referer" to "Referer", "referrer" to "Referer",
+            "user-agent" to "User-Agent", "useragent" to "User-Agent", "user_agent" to "User-Agent",
+        )
+        fun take(key: String, value: Any?) {
+            val name = names[key.lowercase()] ?: return
+            val text = (value as? String)?.trim().orEmpty()
+            if (text.isNotEmpty() && text.length < 8192 && !out.has(name)) out.put(name, text)
+        }
+        for (bundleKey in listOf("android.media.intent.extra.HTTP_HEADERS", "headers")) {
+            val bundle = try { intent.getBundleExtra(bundleKey) } catch (_: Exception) { null } ?: continue
+            @Suppress("DEPRECATION")
+            for (key in bundle.keySet()) take(key, bundle.get(key))
+        }
+        val extras = intent.extras ?: return out
+        @Suppress("DEPRECATION")
+        for (key in extras.keySet()) take(key, try { extras.get(key) } catch (_: Exception) { null })
+        return out
+    }
 
     private fun engine(): TorrentModule = TorrentModule(reactApplicationContext)
 
@@ -447,29 +472,41 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
             val shared = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
             val data = intent.data
             val mime = intent.type.orEmpty()
+            // A file link another browser hands to an outside download manager
+            // (video types go to the player instead).
+            val fileLink = intent.action == Intent.ACTION_VIEW && data != null &&
+                (data.scheme.equals("http", true) || data.scheme.equals("https", true)) &&
+                !mime.startsWith("video/") && mime !in STREAM_TYPES
             val value = when {
                 shared.startsWith("magnet:", true) || shared.startsWith("http", true) -> shared
                 // Apps often share "Some title https://link"; keep the link.
                 SHARED_LINK.containsMatchIn(shared) -> SHARED_LINK.find(shared)!!.value.trimEnd(')', '.', ',', ';', '!', '?')
                 data?.scheme.equals("magnet", true) -> data.toString()
                 data != null && (mime == "application/x-bittorrent" || data.lastPathSegment?.endsWith(".torrent") == true) -> data.toString()
+                fileLink -> data.toString()
                 else -> ""
             }
             if (value.isEmpty()) {
                 promise.resolve(null)
                 return
             }
+            val headers = if (fileLink) downloadHeaders(intent) else null
             intent.action = Intent.ACTION_MAIN
             intent.data = null
             intent.removeExtra(Intent.EXTRA_TEXT)
             val kind = when {
                 value.startsWith("magnet:", true) -> "magnet"
-                value.startsWith("content:", true) || value.endsWith(".torrent") -> "torrent"
+                value.startsWith("content:", true) || value.endsWith(".torrent") || mime == "application/x-bittorrent" -> "torrent"
                 else -> "http"
             }
             promise.resolve(Arguments.createMap().apply {
                 putString("kind", kind)
                 putString("value", value)
+                if (fileLink) {
+                    putBoolean("download", true)
+                    putString("mimeType", mime)
+                    putString("headers", headers?.toString())
+                }
             })
         } catch (error: Exception) {
             promise.reject("INTENT", error.message, error)

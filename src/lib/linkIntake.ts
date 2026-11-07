@@ -14,6 +14,7 @@ import {showAppDialog} from './zustand/appDialogStore';
 import {isPageLink} from './ytdl/formats';
 import {ytdlSupported} from './ytdl/native';
 import {readYtdlSettings} from './ytdl/settings';
+import {isKidsProfileActive} from './profiles/profiles';
 
 const storage = openStore('droid-stream-intake');
 
@@ -70,9 +71,67 @@ const downloadLink = async (url: string): Promise<void> => {
   });
 };
 
-export const offerLink = (value: string, navigate: (screen: string, params?: object) => void, origin: 'shared' | 'clipboard'): void => {
+/** What another browser sent with a file link it handed over as a download manager. */
+export interface IncomingDownload {
+  headers?: Record<string, string>;
+  mimeType?: string;
+}
+
+/** A file link from another browser: saved with the cookies, Referer and user agent it sent. */
+const offerDownload = (url: string, extra: IncomingDownload): void => {
+  const headers = extra.headers || {};
+  showAppDialog({
+    title: 'Download this file?',
+    message: nameOf(url),
+    actions: [
+      {label: 'Not now'},
+      {
+        label: 'Download',
+        variant: 'primary',
+        onPress: () => {
+          // Loaded here so the intake does not pull the browser in at start.
+          const {downloadFile} = require('./browser/handoff') as typeof import('./browser/handoff');
+          downloadFile({url, mime: extra.mimeType, headers}, {pageUrl: headers.Referer || '', userAgent: headers['User-Agent'] || '', isPrivate: false}).catch(error => toast(error.message));
+        },
+      },
+    ],
+  });
+};
+
+const isUserscriptLink = (value: string): boolean => /^https?:\/\/[^?#\s]+\.user\.js(\?|#|$)/i.test(value);
+
+export const offerLink = (
+  value: string,
+  navigate: (screen: string, params?: object) => void,
+  origin: 'shared' | 'clipboard',
+  download?: IncomingDownload,
+): void => {
   const kind = classifyLink(value);
   if (!kind) return;
+  if (kind === 'http' && download) {
+    offerDownload(value, download);
+    return;
+  }
+  if (kind === 'http' && origin === 'shared' && isUserscriptLink(value) && !isKidsProfileActive()) {
+    showAppDialog({
+      title: 'Install this userscript?',
+      message: value,
+      actions: [
+        {label: 'Not now'},
+        {
+          label: 'Install',
+          variant: 'primary',
+          onPress: () => {
+            const {installUserscriptFromUrl} = require('./browser/userscripts/store') as typeof import('./browser/userscripts/store');
+            installUserscriptFromUrl(value)
+              .then(script => toast(`Installed ${script.meta.name}. It runs in the browser.`))
+              .catch(error => toast(error.message));
+          },
+        },
+      ],
+    });
+    return;
+  }
   const title = nameOf(value);
   // A shared web page (a YouTube, Instagram or X post) opens the yt-dlp sheet.
   if (kind === 'http' && origin === 'shared' && isPageLink(value) && ytdlSupported() && readYtdlSettings().offerForAllLinks) {
@@ -85,6 +144,7 @@ export const offerLink = (value: string, navigate: (screen: string, params?: obj
       message: value,
       actions: [
         {label: 'Not now'},
+        ...(isKidsProfileActive() ? [] : [{label: 'Open in browser', onPress: () => navigate('Browser', {url: value})}]),
         {label: 'Download', variant: 'primary', onPress: () => downloadLink(value)},
       ],
     });
@@ -116,7 +176,13 @@ export const startLinkIntake = (navigate: (screen: string, params?: object) => v
     try {
       const intent = await torrentManager.consumeLaunchIntent().catch(() => null);
       if (intent?.value) {
-        offerLink(intent.value, navigate, 'shared');
+        let headers: Record<string, string> | undefined;
+        try {
+          headers = intent.headers ? JSON.parse(intent.headers) : undefined;
+        } catch {
+          headers = undefined;
+        }
+        offerLink(intent.value, navigate, 'shared', intent.download ? {headers, mimeType: intent.mimeType} : undefined);
         return;
       }
       const mode = settingsStorage.clipboardGrabber();

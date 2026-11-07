@@ -28,6 +28,7 @@ import SearchField, {type SearchFieldRef} from '../components/ui/SearchField';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../components/tv';
 import {isTV} from '../lib/tv';
+import {useIsKidsProfile} from '../lib/profiles/useProfiles';
 
 
 const MAX_VISIBLE_RESULTS = 15; // Limit number of animated items to prevent excessive callbacks
@@ -108,6 +109,7 @@ const Search = () => {
   const colors = useM3Colors();
   const navigation =
     useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
+  const kidsProfile = useIsKidsProfile();
   const [searchText, setSearchText] = useState('');
   const [searchMode, setSearchMode] = useState<'content' | 'features'>('content');
   const [searchFieldNode, setSearchFieldNode] = useState<number | null>(null);
@@ -352,6 +354,9 @@ const Search = () => {
         <View style={{flexDirection: 'row', gap: 8, marginBottom: 12}}>
           <Chip label="Movies & shows" icon="movie-open-outline" accessibilityLabel="Search content" selected={searchMode === 'content'} onPress={() => setSearchMode('content')} />
           <Chip label="Settings & features" icon="cog-outline" accessibilityLabel="Search settings and features tab" selected={searchMode === 'features'} onPress={() => setSearchMode('features')} />
+          {kidsProfile ? null : (
+            <Chip label="Browser" icon="web" accessibilityLabel="Open the browser" onPress={() => (navigation.navigate as (screen: string, params?: object) => void)('Browser', searchText.trim() ? {url: searchText.trim()} : undefined)} />
+          )}
         </View>
         <AppText
           role="bodyLarge"

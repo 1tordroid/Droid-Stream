@@ -8,6 +8,8 @@ import {netlibStorage} from '../netlib/cache';
 import {NETLIB_HISTORY_KEY} from '../netlib/history';
 import {watchSyncBaseStorage} from '../watchSync';
 import {profileKey, profileKeyPrefix} from './scope';
+import {BROWSER_INSTANCE_ID, PROFILE_BROWSER_KEYS} from '../browser/store';
+import {deleteProfileLogins} from '../browser/passwords';
 
 /**
  * Everything a profile owns, by store. The default profile owns the bare
@@ -134,6 +136,9 @@ export const deleteProfileData = async (profileId: string): Promise<void> => {
   const languages = openStore(LANGUAGES_INSTANCE_ID);
   for (const key of PROFILE_LANGUAGE_KEYS) languages.removeItem(profileKey(key, profileId));
   netlibStorage.remove(profileKey(NETLIB_HISTORY_KEY, profileId));
+  const browser = openStore(BROWSER_INSTANCE_ID);
+  for (const key of PROFILE_BROWSER_KEYS) browser.removeItem(profileKey(`browser.${key}`, profileId));
+  deleteProfileLogins(profileId);
   try {
     const keys: string[] = (await watchSyncBaseStorage.indexer.getKeys()) || [];
     for (const key of keys) if (ownsKey(profileId, key)) watchSyncBaseStorage.removeItem(key);
