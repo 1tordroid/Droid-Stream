@@ -40,6 +40,7 @@ import {canTryNextDownloadServer, downloadServerKey, getNextDownloadServer} from
 import {compareQueue} from './downloadEngine/planner';
 import {readQueueMeta, transfersOpen} from './downloadEngine/queueStore';
 import type {Stream} from './providers/types';
+import {deferralReason, lastKnownWifi} from './ytdl/schedule';
 
 const activeDownloads = new Set<string>();
 const sourceRefreshControllers = new Map<string, AbortController>();
@@ -237,10 +238,12 @@ const getOutputDirectoryNames = (record: DownloadItem): string[] => [
   ),
 ];
 
-const getQueuedDownloads = (): DownloadItem[] =>
+const getQueuedDownloads = (now = Date.now()): DownloadItem[] =>
   Object.values(useDownloadsStore.getState().downloads)
     .filter(item => item.status === 'queued' && item.downloadLocation &&
-      !(activeDownloads.has(item.id) && getDownloadBackend(item.sourceType).restartOnResume))
+      !(activeDownloads.has(item.id) && getDownloadBackend(item.sourceType).restartOnResume) &&
+      // A yt-dlp download can wait for a start time or for Wi-Fi.
+      !deferralReason(item.ytdl, now, lastKnownWifi()))
     .sort((left, right) => compareQueue(left, right, readQueueMeta()));
 
 // A link that expired before any data arrived (a queued download that waited
@@ -511,6 +514,8 @@ export const startDownload = async (
     }
     throwIfCancelled();
 
+    // The backend may have learned the real file type (yt-dlp "best" audio).
+    record = getRecord(downloadId);
     store.markFinalizing(downloadId);
     const output = await finalizeDownloadOutput({
       downloadId,

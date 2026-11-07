@@ -134,6 +134,17 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 - `lib/linkIntake.ts` takes magnets and links shared or opened from other apps, and offers a copied magnet. RSS feeds are polled every 15 minutes.
 - Downloaded files can be checked against an MD5, SHA-1 or SHA-256 hash.
 
+### Video downloader (yt-dlp)
+
+Written for Droid Stream; nothing comes from the GPL YTDLnis or youtubedl-android.
+
+- yt-dlp (Unlicense) runs unchanged in CPython 3.11, built in by Chaquopy 17.2 (MIT) through `plugins/with-ytdlp.js`. Python 3.11 is the newest Chaquopy builds for armeabi-v7a; yt-dlp needs 3.11 or newer today. When yt-dlp drops 3.11, move to a newer Python and limit the downloader to arm64. No Python is needed on the build machine (`pyc.src = false`).
+- The plugin downloads the pinned yt-dlp release (version and SHA-256 at the top of the plugin) into `assets/ytdlp/yt-dlp.zip` at prebuild. `YtdlRuntime.kt` extracts it to `files/ytdlp/bundled/<version>`. "Update yt-dlp" fetches the newest release from github.com/yt-dlp/yt-dlp, checks it against the release's `SHA2-256SUMS`, refuses one that needs a newer Python, and keeps it in `files/ytdlp/releases/<version>`. The newer of the two is loaded; an update that fails to load falls back to the bundled one.
+- `native-src/android/python/droidstream_ytdl.py` is the bridge. yt-dlp's ffmpeg and ffprobe point at placeholder files in `files/ytdlp/bin`; the bridge hands those commands to FFmpegKit (the app's ffmpeg-kit-https) instead of starting a process, so merging, audio conversion, embedding, SponsorBlock cuts and `--download-sections` all work. YouTube's challenge solver (yt-dlp-ejs, bundled with yt-dlp) runs in Jetpack's JavaScript sandbox (`YtdlJsSandbox.kt`, the WebView's V8 in an isolated process). Python's OpenSSL gets Android's certificate store as a PEM file.
+- Downloads are a fourth download backend (`sourceType: 'ytdlp'`, `src/lib/downloadBackends/ytdlpBackend.ts`) in the normal queue: foreground service, notifications, concurrency, pause (stops yt-dlp, which continues its partial files on resume), retry, and saving to the download location. Options are yt-dlp command-line arguments built in `src/lib/ytdl/args.ts` and stored on the record. A record can wait for a start time or Wi-Fi (`src/lib/ytdl/schedule.ts`, checked by `getQueuedDownloads`).
+- Screens: `screens/ytdl/YtdlDownload.tsx` (the Download sheet: shared links that are web pages open it, and Downloads has "Download from link"), `YtdlSettings.tsx` (version, update, defaults, folder, cookies, templates) and `YtdlCookies.tsx` (sign-in browser; its cookies go to `files/ytdlp/cookies.txt`).
+- Cover art in Opus and "Original" audio needs mutagen (GPL), which the app does not ship, so the sheet turns it off there.
+
 ### Live TV
 
 - `src/screens/livetv/LiveTV.tsx` is the screen (Home drawer, Home welcome screen and the Library hub open it). Sources: the iptv-org India playlist, the user's own jiotv_go server (`<address>/playlist.m3u`, optional `?q=`; the app never talks to Jio itself) and any M3U URL.
@@ -160,6 +171,6 @@ Not tested yet: Cloud files with real PikPak or debrid accounts, debrid and watc
 - Android TV focus pass on the newer screens, and the TV Maestro flow.
 - `react-native-mmkv-storage` 13. It wraps Android encryption keys in the Keystore ("migrated automatically"), `initialize()` throws instead of failing silently, and `useMMKVStorage` returns stored falsy values. Test the encrypted debrid and network stores on an upgraded install before taking it.
 - Point `extra.eas.projectId` in `app.config.js` at a Droid Stream Expo project. It still names the upstream project.
-- A yt-dlp based downloader, written from scratch (nothing from the GPL YTDLnis or youtubedl-android).
+- Phone tests of the yt-dlp downloader (YouTube with and without cookies, Instagram, X, a playlist, a cut, SponsorBlock, an update).
 - A download engine on the level of IDM: dynamic segment splitting, queues and a scheduler.
 - Port fixes from vega-org/vega-app when needed, keeping the Droid Stream branding, the Vega credit and the license notices.

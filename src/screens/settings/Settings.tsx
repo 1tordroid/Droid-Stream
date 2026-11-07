@@ -363,6 +363,12 @@ const Settings = ({navigation}: Props) => {
                   onPress={() => navigation.navigate('DownloadsStack')}
                 />
                 <SettingsRow
+                  title="Video downloader"
+                  description="yt-dlp: save videos and audio from YouTube and other sites"
+                  icon="youtube"
+                  onPress={() => navigation.navigate('YtdlSettings')}
+                />
+                <SettingsRow
                   title="Preferences"
                   icon="tune-variant"
                   onPress={() => navigation.navigate('Preferences')}

@@ -18,6 +18,7 @@ import {getDownloadPlayerParams} from '../../../lib/downloadPlayback';
 import DownloadProgressBar from './DownloadProgressBar';
 import DownloadConnectionsPanel from './DownloadConnectionsPanel';
 import useDownloadConnectionsStore from '../../../lib/zustand/downloadConnectionsStore';
+import {deferralReason, lastKnownWifi} from '../../../lib/ytdl/schedule';
 
 const statusLabels: Record<DownloadStatus, string> = {
   queued: 'Queued',
@@ -33,7 +34,20 @@ const statusLabels: Record<DownloadStatus, string> = {
   canceling: 'Canceling',
 };
 
+const formatEta = (seconds?: number | null): string => {
+  if (!seconds || seconds <= 0) return '';
+  if (seconds < 60) return `${Math.ceil(seconds)}s left`;
+  const minutes = Math.floor(seconds / 60);
+  return minutes < 60 ? `${minutes}m left` : `${Math.floor(minutes / 60)}h ${minutes % 60}m left`;
+};
+
 const getSubtitle = (item: DownloadItem): string => {
+  if (item.sourceType === 'ytdlp') {
+    const waiting = item.status === 'queued' ? deferralReason(item.ytdl, Date.now(), lastKnownWifi()) : undefined;
+    const detail = waiting || item.ytdl?.stage;
+    const place = [item.seasonTitle, item.quality].filter(Boolean).join(' • ');
+    return [detail, place].filter(Boolean).join(' • ') || (item.ytdl?.kind === 'audio' ? 'Audio' : 'Video');
+  }
   if (item.type === 'movie') {
     return 'Movie';
   }
@@ -176,6 +190,7 @@ const CurrentDownloadRow = ({
                   className="text-xs"
                   style={{color: colors.onSurfaceVariant}}>
                   {formatDownloadSpeed(item.speed)}
+                  {item.sourceType === 'ytdlp' && formatEta(item.ytdl?.eta) ? ` • ${formatEta(item.ytdl?.eta)}` : ''}
                 </Text>
               )}
             </View>

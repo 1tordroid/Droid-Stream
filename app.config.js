@@ -30,6 +30,8 @@ module.exports = () => {
       : 'com.tordroid.droidstream';
   const plugins = [
     './plugins/with-custom-native-modules.js',
+    // yt-dlp downloader: Chaquopy Python, the bundled yt-dlp release, JS sandbox.
+    './plugins/with-ytdlp.js',
       [
         'expo-camera',
         {
