@@ -1,6 +1,6 @@
 import {Buffer} from 'buffer';
 import {isSourceAuthStatus, SOURCE_SERVICE_NAMES as NAMES, SourceAuthError} from './authErrors';
-import {rememberPlexPart} from './plexParts';
+import {rememberPlexPart, rememberPlexParts} from './plexParts';
 
 export interface LibraryItem {
   id: string;
@@ -197,6 +197,7 @@ export const listPlex = async (server: string, token: string, path = '/library/s
     title: item.title,
     kind: 'folder',
   }));
+  const parts: [string | undefined, string | undefined][] = [];
   const entries: LibraryItem[] = (container.Metadata || []).map((item: PlexItem) => {
     const video = item.type === 'movie' || item.type === 'episode';
     // The media part is the playable file. The server needs the token on it too.
@@ -205,7 +206,7 @@ export const listPlex = async (server: string, token: string, path = '/library/s
     const part = item.Media?.[0]?.Part?.[0]?.key;
     const playUrl = video && part ? withPlexToken(`${root}${part}`, token) : undefined;
     // The player reads skip markers from the item, so remember which item the part plays.
-    if (playUrl) rememberPlexPart(root, playUrl, item.ratingKey);
+    if (playUrl) parts.push([playUrl, item.ratingKey]);
     return {
       id: video ? String(item.ratingKey) : pathOf(String(item.key || item.ratingKey || item.title)),
       title: item.title,
@@ -213,6 +214,7 @@ export const listPlex = async (server: string, token: string, path = '/library/s
       playUrl,
     };
   });
+  rememberPlexParts(root, parts);
   return [...folders, ...entries];
 };
 

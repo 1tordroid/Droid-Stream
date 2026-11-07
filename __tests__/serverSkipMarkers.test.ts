@@ -10,7 +10,7 @@ import {
   NO_FETCHED_SEGMENTS,
 } from '../src/lib/playback/skipSources';
 import {listPlex, resolvePlexPlayUrl} from '../src/lib/sources/mediaServers';
-import {plexItemForPart, plexPartPath, rememberPlexPart} from '../src/lib/sources/plexParts';
+import {plexItemForPart, plexPartPath, rememberPlexPart, rememberPlexParts} from '../src/lib/sources/plexParts';
 import type {SavedSource} from '../src/lib/sources/vault';
 import {cacheStorage, mainStorage} from '../src/lib/storage/StorageService';
 
@@ -157,6 +157,20 @@ describe('Plex markers', () => {
     );
     const url = await resolvePlexPlayUrl(plex.server, 'ptok', '302');
     expect(plexItemForPart(plex.server, url)).toBe('302');
+  });
+
+  it('saves a whole listing in one write', () => {
+    const setObject = jest.spyOn(mainStorage, 'setObject');
+    rememberPlexParts(plex.server, [
+      ['http://plex.local:32400/library/parts/1/1/a.mkv', '101'],
+      ['http://plex.local:32400/library/parts/2/1/b.mkv', '102'],
+      ['http://plex.local:32400/library/metadata/3', '103'],
+      [undefined, '104'],
+    ]);
+    expect(setObject).toHaveBeenCalledTimes(1);
+    expect(plexItemForPart(plex.server, 'http://plex.local:32400/library/parts/2/1/b.mkv')).toBe('102');
+    rememberPlexParts(plex.server, [['http://plex.local:32400/library/parts/1/1/a.mkv', '101']]);
+    expect(setObject).toHaveBeenCalledTimes(1);
   });
 
   it('fetches the markers with the Plex token', async () => {

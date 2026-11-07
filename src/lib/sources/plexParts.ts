@@ -26,19 +26,30 @@ const read = (): Record<string, string> => {
   return saved && typeof saved === 'object' ? saved : {};
 };
 
-/** Saves that this part address plays this Plex item. */
-export const rememberPlexPart = (server: string, partUrl: string | undefined, ratingKey: string | undefined): void => {
-  const path = plexPartPath(server, partUrl);
-  if (!path || !ratingKey) return;
-  const key = `${rootOf(server)}${path}`;
-  const map = read();
-  if (map[key] === ratingKey) return;
-  delete map[key];
-  map[key] = String(ratingKey);
+/** Saves which Plex item each part address plays, in one write for a whole listing. */
+export const rememberPlexParts = (server: string, pairs: [partUrl: string | undefined, ratingKey: string | undefined][]): void => {
+  let map: Record<string, string> | undefined;
+  let changed = false;
+  for (const [partUrl, ratingKey] of pairs) {
+    const path = plexPartPath(server, partUrl);
+    if (!path || !ratingKey) continue;
+    map ||= read();
+    const key = `${rootOf(server)}${path}`;
+    if (map[key] === String(ratingKey)) continue;
+    // Newest last, so the oldest pairs are dropped first.
+    delete map[key];
+    map[key] = String(ratingKey);
+    changed = true;
+  }
+  if (!map || !changed) return;
   const keys = Object.keys(map);
   for (const old of keys.slice(0, Math.max(0, keys.length - MAX_ENTRIES))) delete map[old];
   mainStorage.setObject(KEY, map);
 };
+
+/** Saves that this part address plays this Plex item. */
+export const rememberPlexPart = (server: string, partUrl: string | undefined, ratingKey: string | undefined): void =>
+  rememberPlexParts(server, [[partUrl, ratingKey]]);
 
 /** The Plex item (ratingKey) this part address plays, when the library saw it. */
 export const plexItemForPart = (server: string, url?: string): string | undefined => {
