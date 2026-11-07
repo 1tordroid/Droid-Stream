@@ -164,6 +164,8 @@ export type RootStackParamList = {
     live?: boolean;
     /** A network library file: episode links are version keys, history stays in the netlib store. */
     netlib?: boolean;
+    /** Play best: sources to fall back on when the playing one is dead. */
+    playBest?: import('./lib/streams/play').PlayBestPlan;
   };
 };
 
