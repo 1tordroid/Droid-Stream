@@ -41,13 +41,14 @@ jest.mock('../src/screens/browser/MediaSheet', () => () => null);
 jest.mock('../src/lib/ytdl/native', () => ({ytdlSupported: () => false}));
 jest.mock('../src/lib/browser/privacy', () => ({clearPrivateData: jest.fn(async () => undefined), rememberPrivateHost: jest.fn()}));
 
+// The Browser screen renders slowly when the machine is busy.
+jest.setTimeout(30000);
+
 const {JSDOM} = require('jsdom');
 import {Linking, ToastAndroid} from 'react-native';
 import {setBrowserEngineForTests, type BrowserEngine, type BrowserTabViewProps} from '../src/lib/browser/engine';
 import {buildBootstrap} from '../src/lib/browser/inject';
 import {
-// The Browser screen renders slowly when the machine is busy.
-jest.setTimeout(30000);
   markPasskeyTipShown,
   openInChrome,
   openPasskeyProviderSettings,
