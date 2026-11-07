@@ -4,6 +4,36 @@ Every Droid Stream release, newest first. The release build copies the
 section for its version into the GitHub release notes, so add a section
 here before tagging a release.
 
+For everything the app can do, and what is planned, see
+[FEATURES.md](FEATURES.md).
+
+## Coming in 5.6.0
+
+Not released yet. Built and being tested:
+
+- Skip intro, recap, credits and previews for every show (provider,
+  Jellyfin, AniSkip and IntroDB times, or your own marks), with Off,
+  button or auto skip for each.
+- Play best moves to the next source by itself when one fails or does
+  not start, remembers failed links, and has size, quality and codec
+  filters.
+- Sign in to Trakt and Simkl with a code and a QR code, and Trakt
+  scrobbling that keeps working offline.
+- Live TV guide grid, catch-up, programme reminders, and pause and
+  rewind on live channels.
+- Profiles with their own history and library, a kids mode and PIN
+  locks. Your current data becomes the first profile.
+- Update download notifications no longer vibrate every second.
+
+Being built:
+
+- A yt-dlp downloader, social media downloads with a built-in browser,
+  photos and Instagram photos with their song saved as a video.
+- Live channel recording, MPEG-DASH and FTP downloads, and fixing a
+  download's link mid-way.
+- Advanced downloads (off by default): eD2k, mirrors, aria2-style remote
+  control, command access and a browser-like connection.
+
 ## 5.5.0
 
 Live TV:
