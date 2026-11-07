@@ -35,6 +35,7 @@ import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import ContinueWatching from '../../components/ContinueWatching';
 import DiscoverRows from '../../components/DiscoverRows';
+import AddonRows from '../../components/AddonRows';
 import TraktContinueRow from '../../components/TraktContinueRow';
 import StatusBarScrim from '../../components/ui/StatusBarScrim';
 import {isTV} from '../../lib/tv/constants';
@@ -316,6 +317,7 @@ const Home = ({navigation}: Props) => {
         </View>
       ) : null}
       {showContinueWatching && <ContinueWatching localOnly />}
+      <AddonRows />
       <View style={{flex: 1, minHeight: 400}}><Tutorial /></View>
     </ScrollView>;
   }
@@ -396,6 +398,8 @@ const Home = ({navigation}: Props) => {
                 <View className="pb-8">
                   {/* Discover opens the torrent stream finder, which a kids profile does not have. */}
                   {kidsProfile ? null : <DiscoverRows />}
+                  {/* Rows from Stremio add-on catalogs: always after the provider and Top 10 rows. */}
+                  <AddonRows />
                   {errorComponent}
                   <View className="h-8" />
                 </View>

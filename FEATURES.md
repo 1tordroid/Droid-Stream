@@ -90,7 +90,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ PikPak: play its own transcoded copies with a quality choice, storage and transfer quota, preview a magnet's files before adding, photo preview, share links, and PikPak WebDAV as a library source.
 - ✅ Tordroid Plus: sign in to the family portal, see family downloads with progress, play them (with quality choice or in VLC), add magnets, quota, share links, and its WebDAV in the poster library.
 - ✅ Sign-ins stay saved as long as each service allows.
-- 📋 Add-on rows on Home.
+- 🧪 Add-on rows on Home: add rows from your Stremio add-on catalogs (with genre and other filters), then reorder, rename or hide them in Settings > Home rows. Each profile has its own rows; kids profiles skip adult add-ons and titles.
 
 ## Your own servers
 
@@ -196,7 +196,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Automatic phone tests on GitHub: each pull request starts the app on an Android emulator and opens the tabs, Browser (loading a page), Live TV and About.
 - ✅ The TMDB logo with the TMDB notice in Credits and licences.
 - ✅ Send a problem report from About or the error screen: a GitHub issue with your app and phone details, and recent logs only if you tick the box.
-- 📋 IMDb, Rotten Tomatoes and Metacritic scores together.
+- 🧪 IMDb (with votes), Rotten Tomatoes and Metacritic scores together on title pages, from OMDb, with Cinemeta and TMDB as fallbacks. Choose which to show, or add your own OMDb key, in Settings > Ratings.
 
 ## Backup
 

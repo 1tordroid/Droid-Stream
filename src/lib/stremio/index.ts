@@ -17,6 +17,17 @@ export interface StremioResource {
   idPrefixes?: string[];
 }
 
+/** A catalog in a manifest. extraSupported, extraRequired and genres are the older form. */
+export interface StremioCatalog {
+  type: string;
+  id: string;
+  name?: string;
+  extra?: {name: string; isRequired?: boolean; options?: string[]; optionsLimit?: number}[];
+  extraSupported?: string[];
+  extraRequired?: string[];
+  genres?: string[];
+}
+
 export interface StremioManifest {
   id: string;
   name: string;
@@ -26,7 +37,7 @@ export interface StremioManifest {
   types: string[];
   idPrefixes?: string[];
   resources: (string | StremioResource)[];
-  catalogs?: {type: string; id: string; name?: string; extra?: {name: string}[]}[];
+  catalogs?: StremioCatalog[];
   behaviorHints?: {configurable?: boolean; configurationRequired?: boolean; adult?: boolean; p2p?: boolean};
 }
 

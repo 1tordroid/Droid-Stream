@@ -52,6 +52,8 @@ import {isTV} from '../../lib/tv';
 import useTVNavigationStore from '../../lib/zustand/tvNavigationStore';
 import {useKidsTitleCheck} from '../../lib/profiles/useKidsTitleCheck';
 import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
+import {useTitleRatings} from '../../lib/ratings/useTitleRatings';
+import RatingBadges from '../../components/ratings/RatingBadges';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Info'>;
 
@@ -86,6 +88,11 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
   const kidsVerdict = useKidsTitleCheck(
     info ? {imdbId: info.imdbId, tmdbId: info.tmdbId, type: info.type, tags: info.tags, genres: meta?.genres} : undefined,
   );
+  // IMDb, Rotten Tomatoes and Metacritic badges (OMDb, Cinemeta, TMDB).
+  const ratingBadges = useTitleRatings(
+    info ? {imdbId: info.imdbId, tmdbId: info.tmdbId, type: info.type, cinemetaRating: meta?.imdbRating} : undefined,
+  );
+  const showsImdbBadge = ratingBadges.some(badge => badge.id === 'imdb');
   const remoteInLibrary = useWatchListStore(state =>
     state.watchList.some(item => item.link === route.params.link),
   );
@@ -433,7 +440,8 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   onToggleLibrary={toggleLibrary}
                   onToggleSynopsis={() => setReadMore(value => !value)}
                   providerName={contentProviderName}
-                  rating={meta?.imdbRating || info?.rating}
+                  rating={showsImdbBadge ? undefined : meta?.imdbRating || info?.rating}
+                  ratings={ratingBadges.length ? <RatingBadges badges={ratingBadges} /> : undefined}
                   readMore={readMore}
                   runtime={meta?.runtime}
                   synopsis={synopsis}

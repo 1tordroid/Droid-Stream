@@ -34,6 +34,8 @@ interface ContentOverviewProps {
   onToggleSynopsis: () => void;
   providerName: string;
   rating?: string;
+  /** Rating badges (IMDb, Rotten Tomatoes, Metacritic), under the chips. */
+  ratings?: React.ReactNode;
   readMore: boolean;
   runtime?: string;
   synopsis: string;
@@ -175,6 +177,7 @@ const ContentOverview = ({
   onToggleSynopsis,
   providerName,
   rating,
+  ratings,
   readMore,
   runtime,
   synopsis,
@@ -335,6 +338,8 @@ const ContentOverview = ({
             ))}
           </View>
         ) : null}
+
+        {ratings ? <View style={{marginTop: 12}}>{ratings}</View> : null}
 
         <View
           style={{

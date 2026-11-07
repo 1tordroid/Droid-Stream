@@ -344,6 +344,18 @@ const Settings = ({navigation}: Props) => {
                   onPress={() => navigation.navigate('Appearance')}
                 />
                 <SettingsRow
+                  title="Home rows"
+                  description="Add rows from Stremio add-on catalogs"
+                  icon="view-agenda-outline"
+                  onPress={() => navigation.navigate('HomeRows')}
+                />
+                <SettingsRow
+                  title="Ratings"
+                  description="IMDb, Rotten Tomatoes and Metacritic on title pages"
+                  icon="star-outline"
+                  onPress={() => navigation.navigate('Ratings')}
+                />
+                <SettingsRow
                   title="Player settings"
                   icon="play-circle-outline"
                   onPress={() => navigation.navigate('PlayerSettings')}
