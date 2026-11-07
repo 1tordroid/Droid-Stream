@@ -53,8 +53,8 @@ const n1105 = {
   published_at: '2026-11-05T20:00:00Z',
   body: 'Nightly notes',
   assets: [
-    apk('DroidStream-nightly-v5.6.0-universal-20261105.apk'),
-    apk('DroidStream-nightly-v5.6.0-arm64-20261105.apk'),
+    apk('DroidStream-nightly-v5.6.0-universal-2026-11-05.apk'),
+    apk('DroidStream-nightly-v5.6.0-arm64-2026-11-05.apk'),
   ],
 };
 

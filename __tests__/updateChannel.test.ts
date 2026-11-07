@@ -28,15 +28,17 @@ const stable = (version: string, publishedAt: string, extra: string[] = []): Git
   ],
 });
 
-const nightly = (version: string, date: string, publishedAt: string): GithubRelease => ({
+// main.yml: tag nightly-YYYYMMDD, assets named with the BUILD_DATE (YYYY-MM-DD).
+const nightly = (version: string, date: string, publishedAt: string): GithubRelease => nightlyRelease(version, date, `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)}`, publishedAt);
+const nightlyRelease = (version: string, date: string, day: string, publishedAt: string): GithubRelease => ({
   tag_name: `nightly-${date}`,
-  name: `Nightly Build v${version} (${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)})`,
+  name: `Nightly Build v${version} (${day})`,
   prerelease: true,
   draft: false,
   published_at: publishedAt,
   assets: [
-    asset(`DroidStream-nightly-v${version}-universal-${date}.apk`),
-    asset(`DroidStream-nightly-v${version}-arm64-${date}.apk`),
+    asset(`DroidStream-nightly-v${version}-universal-${day}.apk`),
+    asset(`DroidStream-nightly-v${version}-arm64-${day}.apk`),
   ],
 });
 
@@ -59,8 +61,8 @@ describe('APK choice on real release asset lists', () => {
   });
 
   test('nightly names pick the same way', () => {
-    expect(selectReleaseApk(night.assets, 'main', ARM64)?.name).toBe('DroidStream-nightly-v5.6.1-arm64-20261111.apk');
-    expect(selectReleaseApk(night.assets, 'main', ARM32)?.name).toBe('DroidStream-nightly-v5.6.1-universal-20261111.apk');
+    expect(selectReleaseApk(night.assets, 'main', ARM64)?.name).toBe('DroidStream-nightly-v5.6.1-arm64-2026-11-11.apk');
+    expect(selectReleaseApk(night.assets, 'main', ARM32)?.name).toBe('DroidStream-nightly-v5.6.1-universal-2026-11-11.apk');
   });
 
   test('other editions never pick the main APKs', () => {
@@ -196,9 +198,9 @@ describe('update choice', () => {
     const installed = installedBuild('5.6.0', undefined, releases);
     const update = pickUpdate(releases, installed, options(true));
     expect(update?.release.tag_name).toBe('nightly-20261105');
-    expect(update?.asset?.name).toBe('DroidStream-nightly-v5.6.0-arm64-20261105.apk');
+    expect(update?.asset?.name).toBe('DroidStream-nightly-v5.6.0-arm64-2026-11-05.apk');
     expect(pickUpdate(releases, installed, {...options(true), supportedAbis: ARM32})?.asset?.name).toBe(
-      'DroidStream-nightly-v5.6.0-universal-20261105.apk',
+      'DroidStream-nightly-v5.6.0-universal-2026-11-05.apk',
     );
   });
 

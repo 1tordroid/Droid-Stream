@@ -112,6 +112,20 @@ jobs:
           echo "path=$OUT" >> "$GITHUB_OUTPUT"
           echo "Built $OUT from $APK"
 
+      # The same APK without the 32-bit libraries, re-signed with the release
+      # key: same code and versionCode, so the two update each other. The
+      # script checks the certificate and versionCode match.
+      - name: Make the arm64 APK
+        id: arm64
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          OUT="dist/DroidStream-arm64-v${VERSION}.apk"
+          python3 scripts/release/arm64_apk.py "${{ steps.apk.outputs.path }}" "$OUT"
+          echo "path=$OUT" >> "$GITHUB_OUTPUT"
+          sha256sum dist/*.apk
+
       - name: Take this version's notes from CHANGELOG.md
         id: notes
         shell: bash
@@ -128,6 +142,16 @@ jobs:
             echo "CHANGELOG.md has no section \"## $VERSION\". Add one before tagging." >&2
             exit 1
           fi
+          cat >> "$NOTES" <<EOF
+
+          ---
+
+          **Which APK?**
+          - \`DroidStream-arm64-v${VERSION}.apk\`: smaller. For 64-bit phones and TVs, which is almost every device from the last few years.
+          - \`DroidStream-universal-v${VERSION}.apk\`: works on every device, including older 32-bit phones and TV boxes. Pick this one if you are not sure.
+
+          Both are the same version and update each other. The in-app updater picks the right one by itself.
+          EOF
           echo "path=$NOTES" >> "$GITHUB_OUTPUT"
 
       - name: Publish the GitHub Release
@@ -136,7 +160,9 @@ jobs:
           name: Droid Stream ${{ github.ref_name }}
           body_path: ${{ steps.notes.outputs.path }}
           generate_release_notes: true
-          files: ${{ steps.apk.outputs.path }}
+          files: |
+            ${{ steps.apk.outputs.path }}
+            ${{ steps.arm64.outputs.path }}
           fail_on_unmatched_files: true
 
       - name: Remove signing file
