@@ -14,6 +14,7 @@ import {showAppDialog} from './zustand/appDialogStore';
 import {isPageLink} from './ytdl/formats';
 import {ytdlSupported} from './ytdl/native';
 import {readYtdlSettings} from './ytdl/settings';
+import {socialLinkInText} from './social/urls';
 
 const storage = openStore('droid-stream-intake');
 
@@ -27,9 +28,11 @@ export const classifyLink = (value: string): IncomingKind | null => {
   return null;
 };
 
-/** First magnet or URL in copied text, if any. */
+/** First magnet, file link or social post link in copied text, if any. */
 export const linkInText = (text: string): string | undefined =>
-  text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] || text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0];
+  text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] ||
+  text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0] ||
+  socialLinkInText(text);
 
 const nameOf = (value: string): string => {
   const dn = value.match(/[?&]dn=([^&]+)/i)?.[1];
@@ -71,6 +74,21 @@ const downloadLink = async (url: string): Promise<void> => {
 };
 
 export const offerLink = (value: string, navigate: (screen: string, params?: object) => void, origin: 'shared' | 'clipboard'): void => {
+  // A post, story or profile on Instagram, X, Reddit and the like opens the
+  // photo sheet, which offers the video downloader for video posts.
+  const social = socialLinkInText(value);
+  if (social) {
+    if (origin === 'shared') {
+      navigate('SocialDownload', {url: social});
+      return;
+    }
+    showAppDialog({
+      title: 'Save from the copied post?',
+      message: social,
+      actions: [{label: 'Not now'}, {label: 'Open', variant: 'primary', onPress: () => navigate('SocialDownload', {url: social})}],
+    });
+    return;
+  }
   const kind = classifyLink(value);
   if (!kind) return;
   const title = nameOf(value);
