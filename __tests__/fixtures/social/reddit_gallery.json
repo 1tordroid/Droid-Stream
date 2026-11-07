@@ -1,0 +1,55 @@
+[
+  {
+    "kind": "Listing",
+    "data": {
+      "children": [
+        {
+          "kind": "t3",
+          "data": {
+            "id": "1abcde",
+            "title": "My garden &amp; the cat",
+            "author": "green_thumb",
+            "subreddit": "gardening",
+            "is_gallery": true,
+            "is_video": false,
+            "url": "https://www.reddit.com/gallery/1abcde",
+            "gallery_data": {
+              "items": [
+                {"media_id": "img2xyz", "id": 2},
+                {"media_id": "img1xyz", "id": 1},
+                {"media_id": "gif3xyz", "id": 3}
+              ]
+            },
+            "media_metadata": {
+              "img1xyz": {
+                "status": "valid",
+                "e": "Image",
+                "m": "image/jpg",
+                "p": [
+                  {"y": 108, "x": 108, "u": "https://preview.redd.it/img1xyz.jpg?width=108&format=pjpg"},
+                  {"y": 216, "x": 216, "u": "https://preview.redd.it/img1xyz.jpg?width=216&format=pjpg"}
+                ],
+                "s": {"y": 3000, "x": 4000, "u": "https://preview.redd.it/img1xyz.jpg?width=4000&format=pjpg&auto=webp&s=abc"}
+              },
+              "img2xyz": {
+                "status": "valid",
+                "e": "Image",
+                "m": "image/png",
+                "p": [{"y": 108, "x": 108, "u": "https://preview.redd.it/img2xyz.png?width=108"}],
+                "s": {"y": 1200, "x": 1600, "u": "https://preview.redd.it/img2xyz.png?width=1600&format=png&auto=webp&s=def"}
+              },
+              "gif3xyz": {
+                "status": "valid",
+                "e": "AnimatedImage",
+                "m": "image/gif",
+                "p": [{"y": 108, "x": 108, "u": "https://preview.redd.it/gif3xyz.gif?width=108&format=png8"}],
+                "s": {"y": 480, "x": 640, "gif": "https://i.redd.it/gif3xyz.gif", "mp4": "https://preview.redd.it/gif3xyz.gif?format=mp4&s=ghi"}
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {"kind": "Listing", "data": {"children": []}}
+]

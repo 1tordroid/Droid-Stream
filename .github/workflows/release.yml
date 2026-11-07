@@ -27,6 +27,9 @@ jobs:
       MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
       PROXY_API_URL: ${{ secrets.PROXY_API_URL }}
+      TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+      TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+      SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -109,10 +112,29 @@ jobs:
           echo "path=$OUT" >> "$GITHUB_OUTPUT"
           echo "Built $OUT from $APK"
 
+      - name: Take this version's notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="dist/release-notes.md"
+          awk -v v="$VERSION" '
+            $0 == "## " v { on = 1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > "$NOTES"
+          if ! grep -q '[^[:space:]]' "$NOTES"; then
+            echo "CHANGELOG.md has no section \"## $VERSION\". Add one before tagging." >&2
+            exit 1
+          fi
+          echo "path=$NOTES" >> "$GITHUB_OUTPUT"
+
       - name: Publish the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Droid Stream ${{ github.ref_name }}
+          body_path: ${{ steps.notes.outputs.path }}
           generate_release_notes: true
           files: ${{ steps.apk.outputs.path }}
           fail_on_unmatched_files: true

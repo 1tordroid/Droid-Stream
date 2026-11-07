@@ -4,6 +4,8 @@
  * Comet, MediaFusion, or OpenSubtitles v3. Original TypeScript.
  */
 import {MMKVLoader} from 'react-native-mmkv-storage';
+import {isAdultSource} from '../profiles/kids';
+import {isKidsProfileActive} from '../profiles/profiles';
 
 const storage = new MMKVLoader().withInstanceID('droid-stream-stremio').withEncryption().recoverOnKeyLoss().initialize();
 
@@ -167,7 +169,7 @@ export interface AddonStreams {
 export const fetchStreams = async (
   type: 'movie' | 'series',
   id: string,
-  addons: InstalledAddon[] = readAddons().filter(addon => addon.enabled),
+  addons: InstalledAddon[] = readAddons().filter(addon => addon.enabled && !(isKidsProfileActive() && isAdultSource({name: addon.manifest.name, adult: addon.manifest.behaviorHints?.adult}))),
   onUpdate?: (result: AddonStreams) => void,
 ): Promise<AddonStreams[]> =>
   Promise.all(

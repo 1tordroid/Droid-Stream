@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "Listing",
+    "data": {
+      "children": [
+        {
+          "kind": "t3",
+          "data": {
+            "id": "2fghij",
+            "title": "Sunset over the bay",
+            "author": "skywatcher",
+            "post_hint": "image",
+            "is_video": false,
+            "url_overridden_by_dest": "https://i.redd.it/sunset123.jpeg",
+            "url": "https://i.redd.it/sunset123.jpeg",
+            "preview": {
+              "images": [
+                {
+                  "source": {"url": "https://preview.redd.it/sunset123.jpeg?auto=webp&s=1", "width": 3024, "height": 4032},
+                  "resolutions": [
+                    {"url": "https://preview.redd.it/sunset123.jpeg?width=108&s=2", "width": 108, "height": 144},
+                    {"url": "https://preview.redd.it/sunset123.jpeg?width=640&s=3", "width": 640, "height": 853}
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+]

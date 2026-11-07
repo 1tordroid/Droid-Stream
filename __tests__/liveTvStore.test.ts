@@ -1,5 +1,6 @@
 import {
   addPlaylist,
+  getChannelFilters,
   getJioServer,
   isFavourite,
   isStale,
@@ -15,9 +16,14 @@ import {
   pushRecent,
   readCachedPlaylist,
   removePlaylist,
+  setChannelFilters,
   setJioServer,
   toggleFavourite,
 } from '../src/lib/livetv/store';
+import {DEFAULT_FILTERS} from '../src/lib/livetv/filters';
+import {PROFILE_LIVETV_KEYS} from '../src/lib/profiles/profileData';
+import {resetActiveProfileCacheForTests, saveActiveProfileId} from '../src/lib/profiles/scope';
+import {openStore} from '../src/lib/storage/openStore';
 
 const M3U = '#EXTM3U\n#EXTINF:-1 tvg-id="a",A\nhttp://x/a.m3u8\n';
 const ok = (text: string) => ({ok: true, status: 200, text: async () => text}) as any;
@@ -91,5 +97,60 @@ describe('live TV store', () => {
     expect(listRecent().map(c => c.id)).toEqual(['a', 'b']);
     for (let i = 0; i < 30; i++) pushRecent({...a, id: `c${i}`}, 's');
     expect(listRecent()).toHaveLength(20);
+  });
+});
+
+describe('live TV filter memory', () => {
+  const raw = (key: string) => JSON.parse(openStore('droid-stream-livetv').getString(key) || 'null');
+  const useProfile = (id: string) => {
+    saveActiveProfileId(id);
+    resetActiveProfileCacheForTests();
+  };
+
+  afterEach(() => useProfile('default'));
+
+  it('keeps choices per source and drops them when they are back to default', () => {
+    setChannelFilters('iptv-org', {...DEFAULT_FILTERS, resolution: '720', languages: ['Hindi']});
+    setChannelFilters('jio', {...DEFAULT_FILTERS, group: 'News', qualityBadge: false});
+    expect(getChannelFilters('iptv-org')).toEqual({...DEFAULT_FILTERS, resolution: '720', languages: ['Hindi']});
+    expect(getChannelFilters('jio')).toEqual({...DEFAULT_FILTERS, group: 'News', qualityBadge: false});
+    expect(getChannelFilters('favourites')).toEqual(DEFAULT_FILTERS);
+    // Saved in the Live TV store, so they are there after the app is closed and opened.
+    expect(Object.keys(raw('liveFilters'))).toEqual(['iptv-org', 'jio']);
+    setChannelFilters('jio', DEFAULT_FILTERS);
+    expect(Object.keys(raw('liveFilters'))).toEqual(['iptv-org']);
+    setChannelFilters('iptv-org', DEFAULT_FILTERS);
+    expect(raw('liveFilters')).toBeNull();
+  });
+
+  it('keeps choices per profile and clears them with the profile', () => {
+    setChannelFilters('iptv-org', {...DEFAULT_FILTERS, resolution: '1080'});
+    useProfile('kid1');
+    expect(getChannelFilters('iptv-org')).toEqual(DEFAULT_FILTERS);
+    setChannelFilters('iptv-org', {...DEFAULT_FILTERS, languages: ['Tamil']});
+    expect(raw('p.kid1.liveFilters')).toEqual({'iptv-org': {...DEFAULT_FILTERS, languages: ['Tamil']}});
+    useProfile('default');
+    expect(getChannelFilters('iptv-org').resolution).toBe('1080');
+    expect(getChannelFilters('iptv-org').languages).toEqual([]);
+    expect(PROFILE_LIVETV_KEYS).toContain('liveFilters');
+    setChannelFilters('iptv-org', DEFAULT_FILTERS);
+  });
+
+  it('forgets a removed playlist and ignores bad saved data', () => {
+    const playlist = addPlaylist('Mine', 'https://lists.example/mine.m3u');
+    setChannelFilters(playlist.id, {...DEFAULT_FILTERS, resolution: 'sd'});
+    removePlaylist(playlist.id);
+    expect(getChannelFilters(playlist.id)).toEqual(DEFAULT_FILTERS);
+    openStore('droid-stream-livetv').setString('liveFilters', '{"iptv-org": {"resolution": 5, "languages": "Hindi"}}');
+    expect(getChannelFilters('iptv-org')).toEqual(DEFAULT_FILTERS);
+    openStore('droid-stream-livetv').setString('liveFilters', 'not json');
+    expect(getChannelFilters('iptv-org')).toEqual(DEFAULT_FILTERS);
+    openStore('droid-stream-livetv').removeItem('liveFilters');
+  });
+
+  it('keeps quality and languages with favourites', () => {
+    toggleFavourite({id: 'sun', name: 'Sun TV (1080p)', url: 'http://x/sun.m3u8', group: 'Entertainment', attrs: {'tvg-language': 'tam'}}, 'iptv-org');
+    expect(listFavourites().find(item => item.id === 'sun')).toMatchObject({resolution: '1080p', languages: ['Tamil']});
+    toggleFavourite({id: 'sun', name: 'Sun TV (1080p)', url: 'http://x/sun.m3u8', attrs: {}}, 'iptv-org');
   });
 });

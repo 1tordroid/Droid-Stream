@@ -7,12 +7,15 @@ import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {isAniSkipEnabled, setAniSkipEnabled} from '../../lib/aniskip';
 import {toast} from '../../lib/torrentSearch/actions';
+import {isTV} from '../../lib/tv/constants';
 import {
   anilistAuthorizeUrl,
   anilistConnect,
+  builtInApp,
   describeAccount,
   disconnectService,
   readSyncSettings,
+  signInApp,
   simklPollPin,
   simklStartPin,
   traktPollDevice,
@@ -20,11 +23,18 @@ import {
   updateAccount,
   type AccountStatus,
   type DeviceCode,
-  type PollResult,
   type SyncServiceId,
   type SyncSettings,
 } from '../../lib/watchSync';
+import {startDevicePoll} from '../../lib/watchSync/devicePoll';
+import QrCode from '../../components/QrCode';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+
+/** Sign-in steps when the build carries its own app keys. */
+const CODE_STEPS: Partial<Record<SyncServiceId, string>> = {
+  trakt: 'Tap Sign in, then scan the QR code with your phone or enter the code on the Trakt page from any device.',
+  simkl: 'Tap Sign in, then scan the QR code with your phone or enter the PIN on the Simkl page from any device.',
+};
 
 const HELP: Record<SyncServiceId, {name: string; app: string; steps: string}> = {
   trakt: {name: 'Trakt', app: 'https://trakt.tv/oauth/applications/new', steps: 'Create a Trakt app (any name, redirect uri urn:ietf:wg:oauth:2.0:oob), then paste its Client ID and Client Secret.'},
@@ -43,19 +53,15 @@ const WatchSync = () => {
   const [aniskip, setAniskip] = useState(isAniSkipEnabled);
   // The pasted AniList token stays here until AniList accepts it.
   const [anilistToken, setAnilistToken] = useState('');
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  // Bumped to cancel a running poll, including one whose request is still in flight.
-  const pollRun = useRef(0);
+  // Cancels the running poll, including one whose request is still in flight.
+  const cancelPoll = useRef<(() => void) | undefined>(undefined);
   // App details typed and not saved yet. Buttons run while a field still has
   // focus, so every action saves what was typed first.
   const [drafts, setDrafts] = useState<Partial<Record<FieldId, string>>>({});
   const draftsRef = useRef<Partial<Record<FieldId, string>>>({});
   const inputs = useRef<Partial<Record<FieldId, TextInputInstance | null>>>({});
 
-  useEffect(() => () => {
-    pollRun.current += 1;
-    clearTimeout(timer.current);
-  }, []);
+  useEffect(() => () => cancelPoll.current?.(), []);
 
   const patch = (id: SyncServiceId, value: Partial<SyncSettings[SyncServiceId]>) => setSettings(updateAccount(id, value));
 
@@ -85,42 +91,39 @@ const WatchSync = () => {
     return next[id];
   };
 
+  const cancelSignIn = () => {
+    cancelPoll.current?.();
+    cancelPoll.current = undefined;
+    setCode(undefined);
+  };
+
   const startDevice = async (id: 'trakt' | 'simkl') => {
-    const account = commitDrafts(id);
-    if (!account.clientId || (id === 'trakt' && !account.clientSecret)) return toast(`Paste the ${HELP[id].name} app details first`);
+    commitDrafts(id);
+    const app = signInApp(id);
+    if (!app.clientId || (id === 'trakt' && !app.clientSecret)) return toast(`Paste the ${HELP[id].name} app details first`);
     try {
-      const device = id === 'trakt' ? await traktStartDevice(account.clientId) : await simklStartPin(account.clientId);
+      const device = id === 'trakt' ? await traktStartDevice(app.clientId, app) : await simklStartPin(app.clientId, app);
+      cancelPoll.current?.();
       setCode({service: id, code: device});
-      copyText(device.userCode);
-      Linking.openURL(device.verificationUrl).catch(() => undefined);
-      clearTimeout(timer.current);
-      pollRun.current += 1;
-      const run = pollRun.current;
-      let delay = device.intervalSeconds * 1000;
-      const stop = (message?: string) => {
-        clearTimeout(timer.current);
-        setCode(undefined);
-        if (message) toast(message);
-      };
-      const tick = async () => {
-        if (run !== pollRun.current) return;
-        if (Date.now() > device.expiresAt) return stop('The code expired. Try again.');
-        try {
-          const result: PollResult = id === 'trakt' ? await traktPollDevice(device) : await simklPollPin(device);
-          if (run !== pollRun.current) return;
-          if (result === 'approved') {
-            stop();
-            setSettings(readSyncSettings());
-            return toast(`${HELP[id].name} connected`);
-          }
-          // Trakt asks for a slower pace with 429: wait five more seconds between checks.
-          if (result === 'slow') delay += 5000;
-          timer.current = setTimeout(tick, delay);
-        } catch (error: any) {
-          if (run === pollRun.current) stop(error?.message || 'Sign-in failed. Try again.');
-        }
-      };
-      timer.current = setTimeout(tick, delay);
+      // On a phone the page opens right here; a TV shows the code and QR code for another device.
+      if (!isTV) {
+        copyText(device.userCode);
+        Linking.openURL(device.verificationUrl).catch(() => undefined);
+      }
+      cancelPoll.current = startDevicePoll(device, {
+        poll: id === 'trakt' ? traktPollDevice : simklPollPin,
+        onApproved: () => {
+          cancelPoll.current = undefined;
+          setCode(undefined);
+          setSettings(readSyncSettings());
+          toast(`${HELP[id].name} connected`);
+        },
+        onStop: message => {
+          cancelPoll.current = undefined;
+          setCode(undefined);
+          toast(message);
+        },
+      });
     } catch (error: any) {
       toast(error?.message || 'Could not start sign-in');
     }
@@ -187,6 +190,9 @@ const WatchSync = () => {
         const account = settings[id];
         const connected = Boolean(account.accessToken);
         const status = describeAccount(id, account);
+        const hasBuiltIn = Boolean(builtInApp(id));
+        // The user's own app details are needed for AniList, for builds without app keys, and when chosen.
+        const ownApp = id === 'anilist' || !hasBuiltIn || Boolean(account.useOwnApp);
         return (
           <View key={id} style={{backgroundColor: colors.surfaceContainer, borderRadius: 20, padding: 12, marginTop: 12}}>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
@@ -199,12 +205,27 @@ const WatchSync = () => {
               </View>
               <Switch accessibilityLabel={`Sync to ${HELP[id].name}`} value={account.enabled} onValueChange={value => patch(id, {enabled: value})} thumbColor={account.enabled ? colors.primary : undefined} />
             </View>
+            {id === 'trakt' && connected ? (
+              <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 8}}>
+                <View style={{flex: 1}}>
+                  <AppText role="bodyMedium" style={{color: colors.onSurface}}>Scrobble while watching</AppText>
+                  <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>Shows what is playing on Trakt and saves where you stopped</AppText>
+                </View>
+                <Switch accessibilityLabel="Scrobble to Trakt while watching" value={account.scrobble !== false} onValueChange={value => patch('trakt', {scrobble: value})} thumbColor={account.scrobble !== false ? colors.primary : undefined} />
+              </View>
+            ) : null}
             {!connected ? (
               <>
-                <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 8}}>{HELP[id].steps}</AppText>
-                {id === 'trakt' ? field(id, 'clientId', 'Client ID', {next: 'trakt.clientSecret'}) : null}
-                {id === 'trakt' ? field(id, 'clientSecret', 'Client Secret', {secret: true, onGo: () => startDevice('trakt')}) : null}
-                {id === 'simkl' ? field(id, 'clientId', 'Client ID', {onGo: () => startDevice('simkl')}) : null}
+                <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 8}}>{ownApp ? HELP[id].steps : CODE_STEPS[id]}</AppText>
+                {hasBuiltIn && id !== 'anilist' ? (
+                  <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 4}}>
+                    <AppText role="bodyMedium" style={{color: colors.onSurface, flex: 1}}>Use my own app (advanced)</AppText>
+                    <Switch accessibilityLabel={`${HELP[id].name} use my own app`} value={Boolean(account.useOwnApp)} onValueChange={value => patch(id, {useOwnApp: value})} thumbColor={account.useOwnApp ? colors.primary : undefined} />
+                  </View>
+                ) : null}
+                {id === 'trakt' && ownApp ? field(id, 'clientId', 'Client ID', {next: 'trakt.clientSecret'}) : null}
+                {id === 'trakt' && ownApp ? field(id, 'clientSecret', 'Client Secret', {secret: true, onGo: () => startDevice('trakt')}) : null}
+                {id === 'simkl' && ownApp ? field(id, 'clientId', 'Client ID', {onGo: () => startDevice('simkl')}) : null}
                 {id === 'anilist' ? field(id, 'clientId', 'Client ID', {next: 'anilist.token'}) : null}
                 {id === 'anilist' ? (
                   <TextInput ref={element => {
@@ -215,13 +236,25 @@ const WatchSync = () => {
                     style={{color: colors.onSurface, minHeight: 44, borderBottomWidth: 1, borderColor: colors.outlineVariant, marginTop: 4}} />
                 ) : null}
                 {code?.service === id ? (
-                  <AppText role="titleLarge" selectable style={{color: colors.primary, marginTop: 8}}>Code {code.code.userCode} (copied) · enter it at {code.code.verificationUrl}</AppText>
+                  <View style={{marginTop: 12, padding: 16, borderRadius: 16, backgroundColor: colors.surfaceContainerHigh, flexDirection: isTV ? 'row' : 'column', alignItems: 'center', gap: 16}}>
+                    <QrCode value={code.code.verificationUrl} size={isTV ? 240 : 200} accessibilityLabel={`QR code for ${code.code.verificationUrl}`} />
+                    <View style={{alignItems: isTV ? 'flex-start' : 'center', flexShrink: 1}}>
+                      <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant}}>Scan the QR code, or go to</AppText>
+                      <AppText role="titleMedium" selectable style={{color: colors.onSurface}}>{code.code.verificationUrl}</AppText>
+                      <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 8}}>and enter</AppText>
+                      <AppText role="displaySmallEmphasized" selectable accessibilityLabel={`Code ${code.code.userCode.split('').join(' ')}`} style={{color: colors.primary, letterSpacing: 4}}>
+                        {code.code.userCode}
+                      </AppText>
+                      <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 4}}>{isTV ? 'Waiting for you to approve…' : 'Code copied. Waiting for you to approve…'}</AppText>
+                    </View>
+                  </View>
                 ) : null}
               </>
             ) : null}
             <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8}}>
-              {!connected ? <Chip label="Create app" icon="open-in-new" onPress={() => Linking.openURL(HELP[id].app)} /> : null}
+              {!connected && ownApp ? <Chip label="Create app" icon="open-in-new" onPress={() => Linking.openURL(HELP[id].app)} /> : null}
               {!connected && id !== 'anilist' ? <Chip label="Sign in" icon="login" onPress={() => startDevice(id)} /> : null}
+              {!connected && code?.service === id ? <Chip label="Cancel" icon="close" onPress={cancelSignIn} /> : null}
               {!connected && id === 'anilist' ? (
                 <>
                   <Chip label="Sign in" icon="login" onPress={signInAnilist} />

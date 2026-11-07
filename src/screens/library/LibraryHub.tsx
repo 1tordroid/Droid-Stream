@@ -10,6 +10,7 @@ import {listSources, type SavedSource, type SourceKind} from '../../lib/sources/
 import {listDeviceSources, loadLibrary} from '../../lib/netlib/cache';
 import {itemTab} from '../../lib/netlib/group';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -71,6 +72,8 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | SourceKind>('all');
   const [saved, setSaved] = useState(() => listSources());
+  // A kids profile does not see debrid, cloud files or network sources.
+  const kids = useIsKidsProfile();
 
   // A source added or removed on the Sources page shows up on return.
   useFocusEffect(useCallback(() => setSaved(listSources()), []));
@@ -92,10 +95,11 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
       <View style={{marginTop: 16}}>
         <Row label="Saved titles" title="Saved" description="Titles you saved from providers." icon="bookmark-outline" onPress={() => navigation.navigate('WatchList')} />
         <Row label="Videos on this device" title="On this device" description="Poster grid for videos in a folder you pick." icon="cellphone" onPress={() => navigation.navigate('LocalLibrary')} />
-        <Row label="Cloud and debrid files" title="Cloud files" description="Play or save files from PikPak, TorBox, Real-Debrid and others." icon="cloud-check-outline" onPress={() => navigation.navigate('CloudFiles')} />
+        {kids ? null : <Row label="Cloud and debrid files" title="Cloud files" description="Play or save files from PikPak, TorBox, Real-Debrid and others." icon="cloud-check-outline" onPress={() => navigation.navigate('CloudFiles')} />}
         <Row label="Live TV" title="Live TV" description="Free Indian channels, JioTV with your Jio number, JioTV Go and your IPTV playlists." icon="television-classic" onPress={() => navigation.navigate('LiveTV')} />
       </View>
 
+      {kids ? null : (<>
       <AppText role="titleMedium" style={{color: colors.onSurface, marginTop: 16, marginBottom: 8}}>Your sources</AppText>
       {saved.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 12}}>
@@ -134,6 +138,7 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
           </Pressable>
         ))}
       </View>
+      </>)}
     </ScrollView>
   );
 };

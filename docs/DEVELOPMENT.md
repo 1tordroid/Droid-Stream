@@ -57,6 +57,17 @@ Local builds are much faster than waiting for CI, so use them for phone testing.
 | `main.yml` | Every night, 00:00 India time | Nightly build of `main`, published as a pre-release. The in-app updater ignores pre-releases. |
 | `release.yml` | A `vX.Y.Z` tag | Signed universal APK (about 28 minutes), published as a normal release that the in-app updater offers to everyone |
 
+Optional build secrets, read by `app.config.js` into `extra` and passed by all four workflows. Set them at repository level and in the `nightly` environment. Locally, export them before `build-local.sh`. A build without them still works: the app asks for the user's own keys instead.
+
+| Secret | Purpose |
+| --- | --- |
+| `TMDB_API_KEY` | Bundled TMDB key. Users can set their own in Settings. |
+| `PROXY_API_URL` | Metadata proxy URL. |
+| `TRAKT_CLIENT_ID`, `TRAKT_CLIENT_SECRET` | Built-in Trakt app, so Watch sync signs in with a code or QR code alone. Create it at https://trakt.tv/oauth/applications/new with redirect URI `urn:ietf:wg:oauth:2.0:oob`. Both must be set, or neither is used. The secret ships inside the APK, as with any device-flow client. |
+| `SIMKL_CLIENT_ID` | Built-in Simkl app for the PIN sign-in (https://simkl.com/settings/developer/new/). |
+
+Users can still pick "Use my own app" in Watch sync. A sign-in keeps the app that issued it (`authApp`), so token renewal always uses the matching Client ID.
+
 ## Releasing
 
 1. Run `npm version X.Y.Z --no-git-tag-version`, which updates `package.json` and `package-lock.json`. Then raise `version` and `versionCode` in `app.config.js`.
@@ -94,6 +105,17 @@ Release certificate: CN=Tordroid, OU=Droid Stream, SHA-256 `76fb06dd1d36edb89ce3
 
 libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD server at `http://127.0.0.1:{port}/stream/{infoHash}/{fileIndex}/{name}`. Seeding is off by default, and schedule, Wi-Fi, VPN and RSS rules apply from app start.
 
+### eD2k downloads
+
+Off by default (Settings > Preferences > Downloads > eD2k downloads). Written from the public eDonkey/eMule protocol descriptions; no aMule, eMule or Kelpie code was used.
+
+- `src/lib/ed2k`: `link.ts` parses `ed2k://` file, server and serverlist links, `settings.ts` keeps the switch and the server list (MMKV), `native.ts` wraps `Ed2kModule`, `intake.ts` handles shared, opened and copied links. `downloadBackends/ed2kBackend.ts` puts eD2k files in the normal downloads list; the screen is `screens/settings/Ed2k.tsx` (paste a link, search, servers).
+- `native-src/android/com/vega/Ed2kProtocol.kt` is the wire format (packets, tags, messages), the part map and MD4 hashing (Bouncy Castle `MD4Digest`), with no Android code. `Ed2kTransfer.kt` is the engine: one shared server connection, a coordinator thread per download and a thread per peer (up to 8). `Ed2kModule.kt` connects it to React Native.
+- Parts are 9,728,000 bytes, fetched in 180 KiB blocks, three requested at a time, plain or zlib-compressed. Each part is checked against its MD4 hash from the hashset (from the link's `p=` or the first peer) and a bad part is fetched again; the hashset is checked against the file hash first. The partial file has a part map next to it (`<file>.part.ed2k`), so pause, a crash or a restart continue from the finished blocks.
+- Upload queues: a peer answers with its queue position ("Waiting in queue (n)" in the list). The client asks again after 29 minutes, or at once when the peer asks for a callback through the server.
+- No uploading or sharing. The client offers the server an empty file list, never listens for connections (so servers give it a low ID and low-ID peers are skipped), and answers peers' file, upload and shared-list requests with "not found" or "denied". Nothing runs unless a download or search is active; the server connection closes a minute after the last one. The torrent Wi-Fi only setting applies (it also allows Ethernet).
+- Not done: obfuscated connections, Kad, AICH recovery, source exchange, UDP reasks.
+
 ### Debrid and cloud
 
 `src/lib/debrid`, with settings in `screens/torrents/DebridSettings`.
@@ -104,7 +126,7 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 ### Streams, add-ons and watch sync
 
 - `src/lib/stremio` is the Stremio add-on client, with Cinemeta. `src/lib/streams/finder.ts` ranks add-on streams, site torrents and debrid caches. `play.ts` plays one (debrid first, then on the phone), picks the episode out of a season pack, and prepares the next episode.
-- `src/lib/releaseName.ts` parses release names. `src/lib/aniskip.ts` maps MAL ids from Jikan to AniSkip times. `src/lib/watchSync` (Trakt device code, Simkl PIN, AniList token) marks titles watched from the player. `src/lib/subtitles/hashMatch.ts` matches OpenSubtitles by file hash over HTTP ranges.
+- `src/lib/releaseName.ts` parses release names. `src/lib/aniskip.ts` maps MAL ids from Jikan to AniSkip times. `src/lib/watchSync` (Trakt device code, Simkl PIN, AniList token) marks titles watched from the player. `devicePoll.ts` polls a device code (400 pending, 429 adds 5 s, 404/409/410/418 stop, three network failures in a row tolerated) and Settings shows the code with a QR code (`lib/qr/encode.ts`, byte mode, level M, versions 1 to 10, drawn by `components/QrCode.tsx`). `scrobble.ts` sends Trakt `/scrobble/start`, `pause` and `stop` through `hooks/useScrobble.ts` in the player; a stop at 80% or more records the watch, so the history POST is skipped while a scrobble session owns the title. Failed stops queue in MMKV (`scrobble:queue` in the watch-sync store, newest per title, 50 at most, 30 days) and are sent on app start, resume and the next playback; 420 and 429 back off (Retry-After, else 1 min or 1 h doubling to 6 h). `src/lib/subtitles/hashMatch.ts` matches OpenSubtitles by file hash over HTTP ranges.
 - The player takes an optional `meta` parameter (`lib/watchMeta.ts`) and guesses it otherwise. Player helpers and components live in `screens/home/player/`.
 
 ### Network sources, links and downloads
@@ -122,6 +144,31 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 - Continue Watching: the player writes `history.ts` (not the synced store); `continueWatching.ts` builds the rows and the resume point, counting 85% as watched.
 - `lib/linkIntake.ts` takes magnets and links shared or opened from other apps, and offers a copied magnet. RSS feeds are polled every 15 minutes.
 - Downloaded files can be checked against an MD5, SHA-1 or SHA-256 hash.
+
+### Video downloader (yt-dlp)
+
+Written for Droid Stream; nothing comes from the GPL YTDLnis or youtubedl-android.
+
+- yt-dlp (Unlicense) runs unchanged in CPython 3.11, built in by Chaquopy 17.2 (MIT) through `plugins/with-ytdlp.js`. Python 3.11 is the newest Chaquopy builds for armeabi-v7a; yt-dlp needs 3.11 or newer today. When yt-dlp drops 3.11, move to a newer Python and limit the downloader to arm64. No Python is needed on the build machine (`pyc.src = false`).
+- The plugin downloads the pinned yt-dlp release (version and SHA-256 at the top of the plugin) into `assets/ytdlp/yt-dlp.zip` at prebuild. `YtdlRuntime.kt` extracts it to `files/ytdlp/bundled/<version>`. "Update yt-dlp" fetches the newest release from github.com/yt-dlp/yt-dlp, checks it against the release's `SHA2-256SUMS`, refuses one that needs a newer Python, and keeps it in `files/ytdlp/releases/<version>`. The newer of the two is loaded; an update that fails to load falls back to the bundled one.
+- `native-src/android/python/droidstream_ytdl.py` is the bridge. yt-dlp's ffmpeg and ffprobe point at placeholder files in `files/ytdlp/bin`; the bridge hands those commands to FFmpegKit (the app's ffmpeg-kit-https) instead of starting a process, so merging, audio conversion, embedding, SponsorBlock cuts and `--download-sections` all work. YouTube's challenge solver (yt-dlp-ejs, bundled with yt-dlp) runs in Jetpack's JavaScript sandbox (`YtdlJsSandbox.kt`, the WebView's V8 in an isolated process). Python's OpenSSL gets Android's certificate store as a PEM file.
+- Downloads are a fourth download backend (`sourceType: 'ytdlp'`, `src/lib/downloadBackends/ytdlpBackend.ts`) in the normal queue: foreground service, notifications, concurrency, pause (stops yt-dlp, which continues its partial files on resume), retry, and saving to the download location. Options are yt-dlp command-line arguments built in `src/lib/ytdl/args.ts` and stored on the record. A record can wait for a start time or Wi-Fi (`src/lib/ytdl/schedule.ts`, checked by `getQueuedDownloads`).
+- Screens: `screens/ytdl/YtdlDownload.tsx` (the Download sheet: shared links that are web pages open it, and Downloads has "Download from link"), `YtdlSettings.tsx` (version, update, defaults, folder, cookies, templates) and `YtdlCookies.tsx` (sign-in browser; its cookies go to `files/ytdlp/cookies.txt`).
+- Cover art in Opus and "Original" audio needs mutagen (GPL), which the app does not ship, so the sheet turns it off there.
+
+### Browser
+
+Written for Droid Stream; ideas from 1DM, PikPak, SnapTube and Titanium Browser, none of their code.
+
+- `src/screens/browser` is the UI (tabs, new-tab page, menus, Media on this page, settings, passwords). Root routes `Browser` ({url?, private?}), `BrowserSettings` and `BrowserPasswords`; none of them opens in a kids profile.
+- The page engine sits behind `src/lib/browser/engine.ts` (`BrowserEngine`: tab view and handle, request hook, blocking, cookies, site data, user agents, passkeys, events). This build uses `engines/webview.ts` (react-native-webview plus `BrowserModule.kt`). A GeckoView engine for the extension build implements the same interface; tabs, media detection, the ad blocker, userscripts, passwords and layouts stay as they are.
+- `BrowserModule.kt` wraps react-native-webview's `WebViewClient` in `BrowserWebClient.kt` for `shouldInterceptRequest` (the library has no request hook), replaces its download listener so page downloads reach the app's downloader, sets autofill and passkeys (`WebSettingsCompat.setWebAuthenticationSupport`, FOR_BROWSER), flushes cookies on pause, and asks for the screen lock.
+- `inject.ts` is the page script: media in the DOM and in fetch/XHR, the download button on videos, element hiding, sign-in detection and filling, find in page, dark pages, the desktop viewport and the GM functions. Calls that matter (sign-ins, GM requests, filling) carry a per-tab token kept in the script's closure.
+- `filters/` parses Adblock Plus filters (`parse.ts`), matches them (`engine.ts`, mirrored by `BrowserFilters.kt` on the same compiled lines) and handles element hiding (`cosmetic.ts`). `lists.ts` downloads EasyList, EasyPrivacy and IndianList on first use and every week (never bundled) and compiles them under `files/browser/filters`.
+- `userscripts/`: metadata and @match (`meta.ts`), installed scripts and GM values (`store.ts`), GM_xmlhttpRequest behind the provider URL guard (`gm.ts`).
+- `passwords.ts`: saved sign-ins per profile in the encrypted `droid-stream-passwords` store (out of backups). `store.ts`: settings (shared), and history, bookmarks, tabs, shortcuts and site layouts per profile. `privacy.ts`: private tabs clear the cookies and site data of the hosts they visited, since WebView has one cookie store.
+- `handoff.ts`: downloads with the page's cookies, Referer and user agent, HLS quality choice, DASH through yt-dlp, the yt-dlp sheet (cookies written to its cookie file, not from private tabs), Torrents, the player, cast, and the `SocialDownload` route when the build has it.
+- File links from other browsers: the `.LinkDownloader` alias (`plugins/with-browser.js`) takes VIEW intents for http(s) files; `TorrentClientModule.consumeLaunchIntent` passes their Cookie, Referer and User-Agent extras to `linkIntake.ts`.
 
 ### Live TV
 
@@ -149,6 +196,6 @@ Not tested yet: Cloud files with real PikPak or debrid accounts, debrid and watc
 - Android TV focus pass on the newer screens, and the TV Maestro flow.
 - `react-native-mmkv-storage` 13. It wraps Android encryption keys in the Keystore ("migrated automatically"), `initialize()` throws instead of failing silently, and `useMMKVStorage` returns stored falsy values. Test the encrypted debrid and network stores on an upgraded install before taking it.
 - Point `extra.eas.projectId` in `app.config.js` at a Droid Stream Expo project. It still names the upstream project.
-- A yt-dlp based downloader, written from scratch (nothing from the GPL YTDLnis or youtubedl-android).
+- Phone tests of the yt-dlp downloader (YouTube with and without cookies, Instagram, X, a playlist, a cut, SponsorBlock, an update).
 - A download engine on the level of IDM: dynamic segment splitting, queues and a scheduler.
 - Port fixes from vega-org/vega-app when needed, keeping the Droid Stream branding, the Vega credit and the license notices.

@@ -15,6 +15,9 @@ import useThemeStore from './zustand/themeStore';
 import {createLibraryBackup, restoreLibraryBackup, validateLibraryBackup, type LibraryBackup} from './libraryBackup';
 import useContinueWatchingStore, {type ContinueWatchingItem} from './zustand/continueWatchingStore';
 import {watchProgressStorage, type WatchProgress} from './storage/WatchProgressStorage';
+import {createProfilesBackup, restoreProfilesBackup, validateProfilesBackup, type ProfilesBackup} from './profiles/profilesBackup';
+import {mergeHistoryItems, progressUpdates, writeProfileData, type ProfileData} from './profiles/profileData';
+import {getActiveProfileId} from './profiles/scope';
 
 // Bump only when older apps would misread the file. New optional sections
 // (history, progress) keep version 2 so older apps still import the rest.
@@ -101,6 +104,8 @@ const BACKUP_SETTINGS: Record<string, SettingType> = {
   [SettingsKeys.WARP_ENABLED]: 'bool',
   [SettingsKeys.BYEDPI_ENABLED]: 'bool',
   [SettingsKeys.BYEDPI_CMD_ARGS]: 'string',
+  [SettingsKeys.UNBLOCK_MODE]: 'string',
+  [SettingsKeys.UNBLOCK_WARP_CONSENT]: 'bool',
   [SettingsKeys.SKIP_IN_APP_WEBVIEW]: 'bool',
   [SettingsKeys.SYNC_ENABLED]: 'bool',
   // Saved by the Preferences screen without a SettingsKeys entry.
@@ -129,6 +134,8 @@ export interface VegaBackup {
   };
   history?: ContinueWatchingItem[];
   progress?: Record<string, WatchProgress>;
+  /** Profiles; older versions ignore it and restore the top-level data. */
+  profiles?: ProfilesBackup;
 }
 
 const readSetting = (key: string, type: SettingType) => {
@@ -261,41 +268,16 @@ export const validateProgressBackup = (value: unknown): void => {
 export const restoreHistoryBackup = (history?: ContinueWatchingItem[]): void => {
   if (history === undefined) return;
   validateHistoryBackup(history);
-  const localItems = useContinueWatchingStore.getState().items;
-  const itemMap = new Map<string, ContinueWatchingItem>();
-  for (const item of localItems) {
-    itemMap.set(item.id, item);
-  }
-  for (const item of history) {
-    const existing = itemMap.get(item.id);
-    if (!existing || item.updatedAt > existing.updatedAt) {
-      itemMap.set(item.id, item);
-    }
-  }
   // Continue watching keeps 30 titles; a restore must not exceed that.
-  const merged = Array.from(itemMap.values())
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 30);
+  const merged = mergeHistoryItems(useContinueWatchingStore.getState().items, history);
   useContinueWatchingStore.setState({items: merged});
 };
 
 export const restoreProgressBackup = (progress?: Record<string, WatchProgress>): void => {
   if (progress === undefined) return;
   validateProgressBackup(progress);
-  const updates: Record<string, WatchProgress> = {};
-  for (const [key, imported] of Object.entries(progress)) {
-    const local = watchProgressStorage.getProgress(key);
-    // Imported progress overwrites only if the local key is missing OR the import is marked more watched (position/duration ratio higher).
-    if (!local) {
-      updates[key] = imported;
-      continue;
-    }
-    const localRatio = local.duration > 0 ? local.position / local.duration : 0;
-    const importRatio = imported.duration > 0 ? imported.position / imported.duration : 0;
-    if (importRatio > localRatio) {
-      updates[key] = imported;
-    }
-  }
+  // Imported progress overwrites only if the local key is missing OR the import is marked more watched (position/duration ratio higher).
+  const updates = progressUpdates(key => watchProgressStorage.getProgress(key), progress);
   if (Object.keys(updates).length > 0) {
     watchProgressStorage.setAllProgress(updates);
   }
@@ -349,6 +331,10 @@ export function createBackup(selection: BackupSelection = ALL_SECTIONS): VegaBac
     }} : {}),
     ...(selection.history ? {history: useContinueWatchingStore.getState().items} : {}),
     ...(selection.progress ? {progress: watchProgressStorage.getAllProgress()} : {}),
+    // Profiles go with any personal section; each profile's data follows the same choices.
+    ...(selection.settings || selection.library || selection.history || selection.progress
+      ? {profiles: createProfilesBackup(selection)}
+      : {}),
   };
 }
 
@@ -383,6 +369,7 @@ export const parseBackup = (text: string): VegaBackup => {
   validateLibraryBackup(data.library);
   validateHistoryBackup(data.history);
   validateProgressBackup(data.progress);
+  validateProfilesBackup(data.profiles, validateHistoryBackup, validateProgressBackup);
   return data;
 };
 
@@ -390,9 +377,17 @@ export const restoreBackup = (backup: VegaBackup): void => {
   validateLibraryBackup(backup.library);
   validateHistoryBackup(backup.history);
   validateProgressBackup(backup.progress);
-  restoreLibraryBackup(backup.library);
-  restoreHistoryBackup(backup.history);
-  restoreProgressBackup(backup.progress);
+  validateProfilesBackup(backup.profiles, validateHistoryBackup, validateProgressBackup);
+  const restoreActive = (data: ProfileData) => {
+    restoreLibraryBackup(data.library);
+    restoreHistoryBackup(data.history);
+    restoreProgressBackup(data.progress);
+  };
+  // The top-level data belongs to the profile in use when the file was made.
+  const target = restoreProfilesBackup(backup.profiles, restoreActive);
+  const topLevel = {library: backup.library, history: backup.history, progress: backup.progress};
+  if (target === getActiveProfileId()) restoreActive(topLevel);
+  else writeProfileData(target, topLevel);
   const settings = backup.settings || {};
   for (const [key, type] of Object.entries(BACKUP_SETTINGS)) {
     const value = settings[key];

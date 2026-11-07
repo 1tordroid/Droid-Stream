@@ -9,11 +9,13 @@ import KeyboardForm from '../../components/ui/KeyboardForm';
 import AppText, {RawTextInput as TextInput} from '../../components/ui/Text';
 import {isTV} from '../../lib/tv';
 import {canLoadEpg, loadNowNext, type NowNext} from '../../lib/livetv/epg';
-import {channelGroups, filterChannels, type LiveChannel} from '../../lib/livetv/m3u';
-import {JIO_SOURCE_ID, getJioStream, jioChannelId, loadJioChannels} from '../../lib/livetv/jio/channels';
+import {channelGroups} from '../../lib/livetv/m3u';
+import {applyFilters, channelFacets, displayChannelName, filterCounts, type ChannelFilters} from '../../lib/livetv/filters';
+import {JIO_SOURCE_ID, loadJioChannels} from '../../lib/livetv/jio/channels';
 import {jioSignedInNumber, sendOtp, signOutJio, verifyOtp} from '../../lib/livetv/jio/session';
 import {
   addPlaylist,
+  getChannelFilters,
   getJioServer,
   jioEpgUrl,
   listFavourites,
@@ -21,61 +23,30 @@ import {
   listRecent,
   listSources,
   loadPlaylist,
-  pushRecent,
   readCachedPlaylist,
   removePlaylist,
+  setChannelFilters,
   setJioServer,
   toggleFavourite,
   type JioQuality,
   type LiveSource,
-  type SavedChannel,
 } from '../../lib/livetv/store';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import {openChannel, type GridChannel} from './play';
+import {showChannelMenu} from './record';
+import ChannelFilterBar, {QualityBadge} from './ChannelFilterBar';
+import {isKidsChannelGroup} from '../../lib/profiles/kids';
+import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
+
+export {openChannel};
 
 type Section = 'favourites' | 'recent' | string;
 type Mode = 'grid' | 'jiotv' | 'add';
-type GridChannel = (LiveChannel | SavedChannel) & {sourceId: string};
 
 const IPTV_ORG_NOTE = 'Publicly listed free-to-air channels from iptv-org. Availability varies and some streams may not play.';
 const JIOTV_NOTE = 'jiotv_go runs on your PC or phone (Termux) and signs in with your own Jio number. Enter its address here.';
 const JIO_NOTE = 'Sign in with your Jio mobile number to watch JioTV channels here. Droid Stream is not affiliated with Jio.';
 const QUALITIES: JioQuality[] = ['auto', 'low', 'medium', 'high'];
-
-const streamType = (url: string) => (/\.mp4(\?|$)/i.test(url) ? 'mp4' : 'm3u8');
-
-/** JioTV addresses expire within hours, so a Jio channel asks for a fresh one each time it opens. */
-const openJioChannel = async (navigation: any, channel: GridChannel, id: string) => {
-  const stream = await getJioStream(id);
-  pushRecent(channel, channel.sourceId);
-  navigation.navigate('Player', {
-    linkIndex: 0,
-    // The placeholder address keeps the short-lived token out of history and logs.
-    episodeList: [{title: channel.name, link: channel.url}],
-    type: 'movie',
-    primaryTitle: channel.name,
-    secondaryTitle: channel.group || 'JioTV',
-    poster: channel.logo ? {logo: channel.logo, poster: channel.logo} : {},
-    initialStream: {server: 'JioTV', link: stream.url, type: stream.type, headers: stream.headers, ...(stream.drm ? {drm: stream.drm} : {})},
-    live: true,
-  });
-};
-
-export const openChannel = (navigation: any, channel: GridChannel, sourceName: string): Promise<void> | void => {
-  const jioId = jioChannelId(channel.url);
-  if (jioId) return openJioChannel(navigation, channel, jioId);
-  pushRecent(channel, channel.sourceId);
-  navigation.navigate('Player', {
-    linkIndex: 0,
-    episodeList: [{title: channel.name, link: channel.url}],
-    directUrl: channel.url,
-    type: 'movie',
-    primaryTitle: channel.name,
-    secondaryTitle: channel.group || sourceName,
-    poster: channel.logo ? {logo: channel.logo, poster: channel.logo} : {},
-    initialStream: {server: sourceName, link: channel.url, type: streamType(channel.url), ...(channel.headers ? {headers: channel.headers} : {})},
-    live: true,
-  });
-};
 
 /** Now / next for the shown channels. Skips gzipped or large guides. */
 const useNowNext = (epgUrl: string | undefined, channels: GridChannel[]) => {
@@ -95,8 +66,11 @@ const useNowNext = (epgUrl: string | undefined, channels: GridChannel[]) => {
   return guide;
 };
 
-const ChannelTile = ({channel, width, favourite, now, preferred, busy, onPress, onLongPress}: {
+const ChannelTile = ({channel, title, badge, width, favourite, now, preferred, busy, onPress, onLongPress}: {
   channel: GridChannel;
+  /** The name as shown (without "(1080p)" when the badge is on). */
+  title: string;
+  badge?: string;
   width: number;
   favourite: boolean;
   now?: string;
@@ -123,12 +97,13 @@ const ChannelTile = ({channel, width, favourite, now, preferred, busy, onPress, 
         ) : (
           <MaterialCommunityIcons name="television-classic" size={30} color={colors.onSurfaceVariant} />
         )}
+        {badge ? <QualityBadge label={badge} /> : null}
         {busy ? <ActivityIndicator color={colors.primary} style={{position: 'absolute'}} /> : null}
         {favourite ? (
           <MaterialCommunityIcons name="star" size={16} color={colors.primary} style={{position: 'absolute', top: 4, right: 4}} />
         ) : null}
       </View>
-      <AppText role="labelLarge" numberOfLines={1} style={{color: colors.onSurface, marginTop: 6}}>{channel.name}</AppText>
+      <AppText role="labelLarge" numberOfLines={1} style={{color: colors.onSurface, marginTop: 6}}>{title}</AppText>
       <AppText role="bodySmall" numberOfLines={1} style={{color: colors.onSurfaceVariant}}>{now || channel.group || ' '}</AppText>
     </TVFocusable>
   );
@@ -145,7 +120,12 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  const [group, setGroup] = useState<string | undefined>();
+  // Filter choices are saved per source and per profile.
+  const [filterState, setFilterState] = useState(() => ({view, filters: getChannelFilters(view)}));
+  if (filterState.view !== view) setFilterState({view, filters: getChannelFilters(view)});
+  const filters = filterState.view === view ? filterState.filters : getChannelFilters(view);
+  // Once a chip is used, new tiles stop taking TV focus away from the chips.
+  const [chipsUsed, setChipsUsed] = useState(false);
   const [favourites, setFavourites] = useState(() => listFavourites());
   const [reload, setReload] = useState(0);
 
@@ -171,9 +151,10 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   const sourceName = (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : sources.find(item => item.id === id)?.name || 'Live TV');
 
   useFocusEffect(useCallback(() => setFavourites(listFavourites()), []));
+  // The guide may have changed the filters.
+  useFocusEffect(useCallback(() => setFilterState({view, filters: getChannelFilters(view)}), [view]));
 
   useEffect(() => {
-    setGroup(undefined);
     setError('');
     if (view === JIO_SOURCE_ID) {
       setEpgUrl(undefined);
@@ -216,8 +197,20 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     };
   }, [view, source?.id, source?.url, reload, jioNumber]);
 
-  const groups = useMemo(() => channelGroups(channels), [channels]);
-  const shown = useMemo(() => filterChannels(channels, query, group), [channels, query, group]);
+  // A kids profile keeps only kids, animation and cartoon groups.
+  const kids = useIsKidsProfile();
+  const allowed = useMemo(() => (kids ? channels.filter(channel => isKidsChannelGroup(channel.group)) : channels), [channels, kids]);
+  const groups = useMemo(() => channelGroups(allowed), [allowed]);
+  // A saved group the list no longer has is ignored.
+  const group = filters.group && groups.includes(filters.group) ? filters.group : undefined;
+  const effective = useMemo<ChannelFilters>(() => ({...filters, group}), [filters, group]);
+  const shown = useMemo(() => applyFilters(allowed, effective, query), [allowed, effective, query]);
+  const counts = useMemo(() => filterCounts(allowed, effective, query), [allowed, effective, query]);
+  const updateFilters = (next: ChannelFilters) => {
+    setChipsUsed(true);
+    setFilterState({view, filters: next});
+    setChannelFilters(view, next);
+  };
   const guide = useNowNext(epgUrl, shown.length > 400 ? [] : shown);
   const favouriteKeys = useMemo(() => new Set(favourites.map(item => `${item.sourceId}|${item.id}`)), [favourites]);
 
@@ -322,12 +315,13 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             icon={item.kind === 'iptv-org' ? 'earth' : item.kind === 'jiotv' ? 'server-network' : 'playlist-play'}
             selected={mode === 'grid' && view === item.id}
             onPress={() => { setMode('grid'); setView(item.id); }}
-            onLongPress={item.kind === 'jiotv' ? () => setMode('jiotv') : undefined}
+            onLongPress={item.kind === 'jiotv' && !kids ? () => setMode('jiotv') : undefined}
           />
         ))}
-        <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />
-        <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />
-        <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />
+        {kids && !jioNumber ? null : <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />}
+        {/* Server and playlist setup is not shown on a kids profile. */}
+        {kids ? null : <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />}
+        {kids ? null : <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />}
       </ScrollView>
     </View>
   );
@@ -522,6 +516,11 @@ const LiveTV = ({navigation}: {navigation: any}) => {
               <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 48, paddingHorizontal: 16}}>
                 <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
                 <TextInput value={query} onChangeText={setQuery} placeholder="Search channels" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search channels" returnKeyType="search" style={{flex: 1, color: colors.onSurface, marginLeft: 8, fontSize: 16}} />
+                {source || (isJio && jioNumber) ? (
+                  <TVFocusable accessibilityRole="button" accessibilityLabel="Open the TV guide" onPress={() => navigation.navigate('LiveGuide', {sourceId: view})} borderRadius={20} style={{padding: 6}}>
+                    <MaterialCommunityIcons name="television-guide" size={22} color={colors.onSurfaceVariant} />
+                  </TVFocusable>
+                ) : null}
                 {source || isJio ? (
                   <TVFocusable accessibilityRole="button" accessibilityLabel="Reload playlist" onPress={() => setReload(value => value + 1)} borderRadius={20} style={{padding: 6}}>
                     <MaterialCommunityIcons name="refresh" size={22} color={colors.onSurfaceVariant} />
@@ -530,9 +529,21 @@ const LiveTV = ({navigation}: {navigation: any}) => {
               </View>
               {groups.length > 1 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingTop: 12}}>
-                  <Chip label="All" selected={!group} onPress={() => setGroup(undefined)} />
-                  {groups.map(item => <Chip key={item} label={item} selected={group === item} onPress={() => setGroup(item)} />)}
+                  <Chip label="All" count={counts.allGroups} selected={!group} onPress={() => updateFilters({...filters, group: undefined})} />
+                  {groups.map(item => (
+                    <Chip key={item} label={item} count={counts.groups.get(item) || 0} selected={group === item} onPress={() => updateFilters({...filters, group: item})} />
+                  ))}
                 </ScrollView>
+              ) : null}
+              {allowed.length ? (
+                <ChannelFilterBar
+                  filters={effective}
+                  counts={counts}
+                  shown={shown.length}
+                  total={allowed.length}
+                  onChange={updateFilters}
+                  onTouch={() => setChipsUsed(true)}
+                />
               ) : null}
               {loading && !channels.length ? <ActivityIndicator color={colors.primary} style={{marginTop: 24}} /> : null}
               {error && channels.length ? <AppText role="bodySmall" style={{color: colors.error, marginTop: 8}}>{error}</AppText> : null}
@@ -544,13 +555,15 @@ const LiveTV = ({navigation}: {navigation: any}) => {
         renderItem={({item, index}) => (
           <ChannelTile
             channel={item}
+            title={filters.qualityBadge ? displayChannelName(item.name) : item.name}
+            badge={filters.qualityBadge ? channelFacets(item).quality : undefined}
             width={tileWidth}
             favourite={favouriteKeys.has(`${item.sourceId}|${item.id}`)}
             now={item.tvgId ? guide.get(item.tvgId)?.now?.title : undefined}
-            preferred={index === 0}
+            preferred={index === 0 && !chipsUsed}
             busy={opening === item.id}
             onPress={() => onPlay(item)}
-            onLongPress={() => onToggleFavourite(item)}
+            onLongPress={() => showChannelMenu(item, favouriteKeys.has(`${item.sourceId}|${item.id}`), () => onToggleFavourite(item))}
           />
         )}
       />

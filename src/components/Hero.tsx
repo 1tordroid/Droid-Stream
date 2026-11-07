@@ -53,6 +53,7 @@ import AppText from './ui/Text';
 import {isTV} from '../lib/tv';
 import {TVFocusable, TVFocusGuide} from './tv';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
+import useProfilesStore from '../lib/profiles/useProfiles';
 
 interface HeroProps {
   isDrawerOpen: boolean;
@@ -209,6 +210,15 @@ const Hero = memo(
     const searchFieldRef = useRef<SearchFieldRef>(null);
     const hamburgerRef = useRef<HostInstance>(null);
     const searchRef = useRef<HostInstance>(null);
+    const profileRef = useRef<HostInstance>(null);
+    const [profileNode, setProfileNode] = useState<number | null>(null);
+    // Switch profile, shown once there is more than one profile.
+    const profileCount = useProfilesStore(state => state.profiles.length);
+    const profileName = useProfilesStore(state => state.profiles.find(item => item.id === state.activeId)?.name);
+    const openProfilePicker = useProfilesStore(state => state.openPicker);
+    const kidsProfile = useProfilesStore(state => state.kids);
+    // The browser has a phone button here; on TV it opens from Search and Downloads.
+    const showBrowser = !isTV && !kidsProfile;
     const watchNowRef = useRef<HostInstance>(null);
 
     const [hamburgerNode, setHamburgerNode] = useState<number | null>(null);
@@ -577,6 +587,7 @@ const Hero = memo(
               alignItems: 'center',
               flexDirection: 'row',
               justifyContent: 'space-between',
+              gap: 8,
               left: isTV ? 24 : 16,
               position: 'absolute',
               right: isTV ? 48 : 16,
@@ -596,6 +607,16 @@ const Hero = memo(
               nextFocusUp={hamburgerNode ?? undefined}
               onPress={onOpenDrawer}
             />
+            {/* Keeps search and the profile button together on the right. */}
+            {profileCount > 1 || showBrowser ? <View pointerEvents="none" style={{flex: 1}} /> : null}
+            {showBrowser ? (
+              <HeroTopButton
+                icon="web"
+                iconColor={searchButtonColor}
+                label="Browser"
+                onPress={() => (navigation.navigate as (screen: string) => void)('Browser')}
+              />
+            ) : null}
             <HeroTopButton
               ref={searchRef}
               onLayout={updateSearchNode}
@@ -603,11 +624,25 @@ const Hero = memo(
               iconColor={searchButtonColor}
               label={`Search in ${provider.display_name}`}
               nextFocusLeft={hamburgerNode ?? undefined}
-              nextFocusRight={searchNode ?? undefined}
+              nextFocusRight={(profileCount > 1 ? profileNode : searchNode) ?? undefined}
               nextFocusDown={watchNowNode ?? undefined}
               nextFocusUp={searchNode ?? undefined}
               onPress={() => setSearchActive(true)}
             />
+            {profileCount > 1 ? (
+              <HeroTopButton
+                ref={profileRef}
+                onLayout={() => setProfileNode(getNodeHandle(profileRef.current))}
+                icon="account-switch"
+                iconColor={searchButtonColor}
+                label={`Switch profile, now ${profileName || 'in use'}`}
+                nextFocusLeft={searchNode ?? undefined}
+                nextFocusRight={profileNode ?? undefined}
+                nextFocusDown={watchNowNode ?? undefined}
+                nextFocusUp={profileNode ?? undefined}
+                onPress={() => openProfilePicker()}
+              />
+            ) : null}
           </TVFocusGuide>
 
           <Animated.View

@@ -8,6 +8,7 @@
  * nothing here removes or works around the protection.
  */
 import type {Drm} from 'react-native-video';
+import {parseResolution} from '../filters';
 import type {LiveChannel} from '../m3u';
 import {
   APP_KEY,
@@ -34,6 +35,8 @@ export const jioChannelUrl = (id: string) => `jiotv:${id}`;
 export const jioChannelId = (url: string): string | undefined => /^jiotv:(\w+)$/.exec(url)?.[1];
 
 export const JIO_CHANNELS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+/** jiotv_go lists catch-up up to seven days back. */
+export const JIO_CATCHUP_DAYS = 7;
 
 const CATEGORIES: Record<number, string> = {
   5: 'Entertainment', 6: 'Movies', 7: 'Kids', 8: 'Sports', 9: 'Lifestyle', 10: 'Infotainment', 12: 'News',
@@ -52,6 +55,7 @@ interface RawChannel {
   channelLanguageId?: number;
   isHD?: boolean;
   business_type?: string;
+  isCatchupAvailable?: boolean;
 }
 
 /** A JioTV channel in the shape the Live TV grid uses. */
@@ -60,6 +64,16 @@ export const toLiveChannel = (raw: RawChannel): LiveChannel | undefined => {
   if (!/^\w+$/.test(id) || !raw.channel_name) return undefined;
   const language = LANGUAGES[raw.channelLanguageId ?? -1];
   const logo = raw.logoUrl ? (/^https?:/i.test(raw.logoUrl) ? raw.logoUrl : URLS.logo + raw.logoUrl) : undefined;
+  const attrs: Record<string, string> = {
+    ...(language ? {language} : {}),
+    ...(raw.isHD ? {hd: 'true'} : {}),
+    // jiotv_go: business_type "premium" needs a separate subscription.
+    ...(String(raw.business_type || '').trim().toLowerCase() === 'premium' ? {premium: 'true'} : {}),
+    // jiotv_go: channels without isCatchupAvailable refuse every catch-up request.
+    ...(raw.isCatchupAvailable ? {catchup: 'jio', 'catchup-days': String(JIO_CATCHUP_DAYS)} : {}),
+  };
+  // Jio says which channels are HD; the rest are SD.
+  const resolution = parseResolution(raw.channel_name, attrs) || (raw.isHD === false ? 'SD' : undefined);
   return {
     id,
     name: raw.channel_name,
@@ -68,12 +82,8 @@ export const toLiveChannel = (raw: RawChannel): LiveChannel | undefined => {
     group: CATEGORIES[raw.channelCategoryId ?? -1] || 'Other',
     // Search matches tvgName too, so "tamil" finds Tamil channels.
     tvgName: language,
-    attrs: {
-      ...(language ? {language} : {}),
-      ...(raw.isHD ? {hd: 'true'} : {}),
-      // jiotv_go: business_type "premium" needs a separate subscription.
-      ...(String(raw.business_type || '').trim().toLowerCase() === 'premium' ? {premium: 'true'} : {}),
-    },
+    ...(resolution ? {resolution} : {}),
+    attrs,
   };
 };
 
@@ -217,9 +227,34 @@ const friendlyPlaybackError = (status: number, message: string): string => {
   return 'JioTV did not return a stream for this channel. Try again, or pick another channel.';
 };
 
-const requestPlayback = async (channelId: string, creds: JioCredentials): Promise<PlaybackAnswer> => {
-  const now = new Date();
-  const body = `channel_id=${encodeURIComponent(channelId)}&stream_type=Seek&begin=${beginTime(now)}&srno=${srnoDate(now)}`;
+/** A past programme to replay: Unix ms times and the guide's srno. */
+export interface JioCatchup {
+  start: number;
+  stop: number;
+  srno: string;
+}
+
+const form = (fields: Record<string, string>) =>
+  Object.entries(fields)
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&');
+
+/** Playback request body: live ("Seek") or, as jiotv_go's GetCatchupURL sends it, catch-up. */
+export const playbackBody = (channelId: string, catchup?: JioCatchup, now = new Date()): string =>
+  catchup
+    ? form({
+        stream_type: 'Catchup',
+        channel_id: channelId,
+        programId: catchup.srno,
+        showtime: '000000',
+        srno: catchup.srno,
+        begin: beginTime(new Date(catchup.start)),
+        end: beginTime(new Date(catchup.stop)),
+      })
+    : `channel_id=${encodeURIComponent(channelId)}&stream_type=Seek&begin=${beginTime(now)}&srno=${srnoDate(now)}`;
+
+const requestPlayback = async (channelId: string, creds: JioCredentials, catchup?: JioCatchup): Promise<PlaybackAnswer> => {
+  const body = playbackBody(channelId, catchup);
   let response: Response;
   try {
     response = await fetch(URLS.playback, {
@@ -229,6 +264,7 @@ const requestPlayback = async (channelId: string, creds: JioCredentials): Promis
         'Content-Type': 'application/x-www-form-urlencoded',
         channel_id: channelId,
         accessToken: creds.accessToken,
+        ...(catchup ? {srno: catchup.srno} : {}),
       },
       body,
     });
@@ -328,3 +364,7 @@ export const buildJioStream = async (channelId: string, answer: PlaybackAnswer, 
 /** A fresh, playable stream for one channel (addresses expire, so fetch it at play time). */
 export const getJioStream = (channelId: string, quality: JioQuality = 'auto'): Promise<JioStream> =>
   withJioSession(async creds => buildJioStream(channelId, await requestPlayback(channelId, creds), creds, quality));
+
+/** A replay stream for a past programme on a channel with catch-up. */
+export const getJioCatchupStream = (channelId: string, catchup: JioCatchup, quality: JioQuality = 'auto'): Promise<JioStream> =>
+  withJioSession(async creds => buildJioStream(channelId, await requestPlayback(channelId, creds, catchup), creds, quality));

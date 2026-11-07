@@ -11,13 +11,20 @@ import AppText from '../../components/ui/Text';
 import {getService} from '../../lib/debrid';
 import {findImdb, fetchMeta, readAddons, type StremioMeta} from '../../lib/stremio';
 import {cachedCandidates, findSources, readPrefs, writePrefs, type Candidate, type FinderPrefs, type FinderStatus, type WantedVideo} from '../../lib/streams/finder';
-import {playCandidate} from '../../lib/streams/play';
+import {playBest, playCandidate} from '../../lib/streams/play';
+import {recentFailures} from '../../lib/streams/failedSources';
+import type {CodecChoice, PlayBestFilters, Resolution} from '../../lib/streams/fallback';
 import {downloadWithClient, toast} from '../../lib/torrentSearch/actions';
 import {candidateToResult} from '../../lib/streams/finder';
 import {formatBytes} from '../../lib/torrentSearch/util';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 
 const RESOLUTIONS: FinderPrefs['maxResolution'][] = ['2160p', '1080p', '720p', '480p'];
+const LIMIT_RESOLUTIONS: (Resolution | '')[] = ['', '480p', '720p', '1080p', '2160p'];
+const SIZE_LIMITS = [0, 2, 5, 10, 20, 40];
+const CODEC_CHOICES: CodecChoice[] = ['any', 'prefer', 'avoid'];
+const FIRST_FRAME_SECONDS = [10, 15, 30, 60];
+const resLabel = (res: Resolution | '') => (res === '' ? 'Any' : res === '2160p' ? '4K' : res);
 
 const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: WantedVideo}}) => {
   const colors = useM3Colors();
@@ -102,10 +109,26 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
     }
   };
 
+  const playBestNow = async () => {
+    if (!want) return;
+    setBusy('Starting…');
+    try {
+      await playBest(candidates, want, navigation, {next: nextEpisode, onStatus: setBusy});
+    } catch (error: any) {
+      toast(error?.message || 'Could not play any source. Choose one from the list.');
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  const failedIds = useMemo(() => (want ? recentFailures(want) : new Set<string>()), [want, candidates]);
+
   const savePrefs = (next: FinderPrefs) => {
     setPrefs(next);
     writePrefs(next);
   };
+
+  const saveFilters = (patch: Partial<PlayBestFilters>) => savePrefs({...prefs, playBestFilters: {...prefs.playBestFilters, ...patch}});
 
   const states = Object.values(status);
   const loading = states.some(item => item.state === 'loading') || (want && !states.length);
@@ -165,11 +188,41 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
                   ['debridForUncached', 'Use my debrid for torrents that are not cached'],
                   ['preloadNext', 'Prepare the next episode in the background'],
                   ['includeSites', 'Also search the torrent sites'],
+                  ['autoFallback', 'Play best tries the next source when one does not play'],
                 ] as [keyof FinderPrefs, string][]).map(([key, text]) => (
                   <View key={key} style={{flexDirection: 'row', alignItems: 'center', minHeight: 48}}>
                     <AppText role="bodyMedium" style={{color: colors.onSurface, flex: 1}}>{text}</AppText>
                     <Switch accessibilityLabel={text} value={Boolean(prefs[key])} onValueChange={value => savePrefs({...prefs, [key]: value})} thumbColor={prefs[key] ? colors.primary : undefined} />
                   </View>
+                ))}
+                {prefs.autoFallback ? (
+                  <>
+                    <AppText role="labelLarge" style={{color: colors.onSurfaceVariant}}>Wait for a source to start</AppText>
+                    <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+                      {FIRST_FRAME_SECONDS.map(sec => <Chip key={sec} label={`${sec} s`} selected={prefs.fallbackFirstFrameSec === sec} onPress={() => savePrefs({...prefs, fallbackFirstFrameSec: sec})} />)}
+                    </View>
+                  </>
+                ) : null}
+                <AppText role="titleSmall" style={{color: colors.onSurface, marginTop: 8}}>Play best filters</AppText>
+                <AppText role="labelLarge" style={{color: colors.onSurfaceVariant}}>Largest file</AppText>
+                <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+                  {SIZE_LIMITS.map(gb => <Chip key={gb} label={gb ? `${gb} GB` : 'Any'} selected={prefs.playBestFilters.maxSizeGB === gb} onPress={() => saveFilters({maxSizeGB: gb})} />)}
+                </View>
+                {([['minResolution', 'Lowest quality'], ['maxResolution', 'Highest quality']] as const).map(([key, text]) => (
+                  <React.Fragment key={key}>
+                    <AppText role="labelLarge" style={{color: colors.onSurfaceVariant}}>{text}</AppText>
+                    <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+                      {LIMIT_RESOLUTIONS.map(res => <Chip key={res || 'any'} label={resLabel(res)} selected={prefs.playBestFilters[key] === res} onPress={() => saveFilters({[key]: res})} />)}
+                    </View>
+                  </React.Fragment>
+                ))}
+                {([['hevc', 'HEVC (x265)'], ['av1', 'AV1']] as const).map(([key, text]) => (
+                  <React.Fragment key={key}>
+                    <AppText role="labelLarge" style={{color: colors.onSurfaceVariant}}>{text}</AppText>
+                    <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+                      {CODEC_CHOICES.map(choice => <Chip key={choice} label={choice === 'any' ? 'Any' : choice === 'prefer' ? 'Prefer' : 'Avoid'} selected={prefs.playBestFilters[key] === choice} onPress={() => saveFilters({[key]: choice})} />)}
+                    </View>
+                  </React.Fragment>
                 ))}
               </View>
             ) : null}
@@ -183,7 +236,7 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
                     {[want.year || meta?.releaseInfo, want.imdbId, want.type === 'series' && want.season !== undefined ? `S${want.season} · E${want.episode}` : ''].filter(Boolean).join(' · ')}
                   </AppText>
                   {best ? (
-                    <TVFocusable accessibilityRole="button" accessibilityLabel="Play best source" onPress={() => play(best)} hasTVPreferredFocus borderRadius={20}
+                    <TVFocusable accessibilityRole="button" accessibilityLabel="Play best source" onPress={playBestNow} hasTVPreferredFocus borderRadius={20}
                       style={{flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.primary, borderRadius: 20, paddingHorizontal: 20, minHeight: 48, marginTop: 12}}>
                       <MaterialCommunityIcons name="play" size={22} color={colors.onPrimary} />
                       <AppText role="labelLarge" style={{color: colors.onPrimary, marginLeft: 8}}>Play best</AppText>
@@ -236,6 +289,7 @@ const StreamFinder = ({navigation, route}: {navigation: any; route?: {params?: W
               {item.cachedOn.map(id => <Chip key={id} label={`${getService(id).name} cached`} icon="lightning-bolt" tone="good" />)}
               {item.resolution ? <Chip label={item.resolution === '2160p' ? '4K' : item.resolution} /> : null}
               {item.lowQuality ? <Chip label="CAM" tone="warn" /> : null}
+              {failedIds.has(item.id) ? <Chip label="Failed recently" icon="alert-circle-outline" tone="warn" /> : null}
               {item.languages.slice(0, 2).map(lang => <Chip key={lang} label={lang} />)}
             </View>
             <AppText role="labelMedium" style={{color: colors.onSurfaceVariant, marginTop: 6}}>

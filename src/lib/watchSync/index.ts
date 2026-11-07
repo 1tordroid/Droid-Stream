@@ -1,12 +1,26 @@
 /**
  * Marks finished movies and episodes as watched on Trakt, Simkl, and AniList.
- * Each person connects their own account. Tokens stay in encrypted storage.
+ * Each person connects their own account, through the app keys built into the
+ * build or their own app. Tokens stay in encrypted storage.
  */
 import {Buffer} from 'buffer';
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import type {WatchMeta} from '../watchMeta';
+import {builtInSimklApp, builtInTraktApp, type AppKeys} from './appKeys';
+import {scopedStringStore} from '../profiles/scope';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-watch-sync').withEncryption().recoverOnKeyLoss().initialize();
+const baseStorage = new MMKVLoader().withInstanceID('droid-stream-watch-sync').withEncryption().recoverOnKeyLoss().initialize();
+
+/**
+ * The encrypted watch-sync store, shared with the scrobble queue (keys under
+ * "scrobble:"). Each profile has its own sign-ins: its keys sit under the
+ * profile in the one store (scopedStringStore), so no new encrypted instance
+ * and backup rule is needed.
+ */
+const storage = scopedStringStore(baseStorage);
+export const watchSyncStorage = storage;
+/** The whole store, every profile included. For deleting a profile's sign-ins. */
+export const watchSyncBaseStorage = baseStorage;
 
 export type SyncServiceId = 'trakt' | 'simkl' | 'anilist';
 
@@ -27,6 +41,12 @@ export interface SyncAccount {
   signedOutReason?: string;
   /** The last failure that did not end the sign-in, for example a rejected Client ID. */
   lastSyncError?: string;
+  /** Sign in with the Client ID typed here even when the build has app keys built in. */
+  useOwnApp?: boolean;
+  /** Which app issued the saved tokens. Renewal must use the same one. Unset means the user's own. */
+  authApp?: 'builtin' | 'own';
+  /** Trakt only: report what is playing (scrobble). On unless turned off. */
+  scrobble?: boolean;
 }
 
 export type SyncSettings = Record<SyncServiceId, SyncAccount>;
@@ -84,13 +104,45 @@ export const updateAccount = (id: SyncServiceId, patch: Partial<SyncAccount>): S
   return next;
 };
 
+/** The app keys this build carries for a service, if any. */
+export const builtInApp = (id: SyncServiceId): AppKeys | undefined =>
+  id === 'trakt' ? builtInTraktApp() : id === 'simkl' ? builtInSimklApp() : undefined;
+
+/**
+ * Whether requests for this account go through the built-in app. A saved
+ * sign-in keeps the app that issued it; otherwise the built-in app is used
+ * unless the user chose their own.
+ */
+export const usesBuiltInApp = (id: SyncServiceId, account: SyncAccount): boolean => {
+  if (!builtInApp(id)) return false;
+  if (account.accessToken || account.refreshToken) return account.authApp === 'builtin';
+  return !account.useOwnApp;
+};
+
+/** The Client ID (and Trakt secret) to send for this account. */
+export const appKeysFor = (id: SyncServiceId, account: SyncAccount): AppKeys =>
+  (usesBuiltInApp(id, account) && builtInApp(id)) || {clientId: account.clientId || '', clientSecret: account.clientSecret};
+
 /** A service answered with an HTTP error. Keeps the status and body so an ended sign-in can be told apart from other failures. */
 export class WatchSyncHttpError extends Error {
-  constructor(message: string, readonly status: number, readonly body: any) {
+  constructor(message: string, readonly status: number, readonly body: any, readonly retryAfterSeconds?: number) {
     super(message);
     this.name = 'WatchSyncHttpError';
   }
 }
+
+/** The device code can no longer be approved (expired, denied, used or unknown). Polling stops. */
+export class DeviceCodeStopError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DeviceCodeStopError';
+  }
+}
+
+const retryAfter = (response: Response): number | undefined => {
+  const value = Number(response.headers?.get?.('Retry-After'));
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+};
 
 /** The service ended the sign-in. Its tokens are cleared and the reason is saved on the account. */
 export class WatchSyncSignedOutError extends Error {
@@ -121,7 +173,7 @@ const request = async (url: string, init: RequestInit = {}): Promise<any> => {
     }
     if (!response.ok) {
       const message = data?.error_description || data?.error || data?.message || data?.errors?.[0]?.message;
-      throw new WatchSyncHttpError(typeof message === 'string' ? message : `HTTP ${response.status}`, response.status, data);
+      throw new WatchSyncHttpError(typeof message === 'string' ? message : `HTTP ${response.status}`, response.status, data, retryAfter(response));
     }
     return data;
   } catch (error: any) {
@@ -165,20 +217,22 @@ const signOutIfCurrent = (id: SyncServiceId, rejectedToken: string | undefined, 
 /** Signs out on this phone. Trakt is also asked to revoke the token, best effort. */
 export const disconnectService = (id: SyncServiceId): SyncSettings => {
   const account = readSyncSettings()[id];
+  const keys = appKeysFor(id, account);
   const next = updateAccount(id, {
     accessToken: '',
     refreshToken: '',
     expiresAt: undefined,
     issuedAt: undefined,
     tokenType: undefined,
+    authApp: undefined,
     username: '',
     signedOutReason: undefined,
     lastSyncError: undefined,
   });
-  if (id === 'trakt' && account.accessToken && account.clientId) {
+  if (id === 'trakt' && account.accessToken && keys.clientId) {
     request(`${TRAKT}/oauth/revoke`, {
       method: 'POST',
-      body: JSON.stringify({token: account.accessToken, client_id: account.clientId, client_secret: account.clientSecret}),
+      body: JSON.stringify({token: account.accessToken, client_id: keys.clientId, client_secret: keys.clientSecret}),
     }).catch(() => undefined);
   }
   return next;
@@ -211,7 +265,7 @@ const isAuthRejection = (id: SyncServiceId, error: unknown): boolean => {
 const TRAKT = 'https://api.trakt.tv';
 const traktHeaders = (account: SyncAccount) => ({
   'trakt-api-version': '2',
-  'trakt-api-key': account.clientId || '',
+  'trakt-api-key': appKeysFor('trakt', account).clientId,
   ...(account.accessToken ? {Authorization: `Bearer ${account.accessToken}`} : {}),
 });
 
@@ -221,11 +275,27 @@ export interface DeviceCode {
   deviceCode: string;
   intervalSeconds: number;
   expiresAt: number;
+  /** The app the code was issued to. The poll must use the same one. */
+  app?: AppKeys & {builtIn: boolean};
 }
 
-export const traktStartDevice = async (clientId: string): Promise<DeviceCode> => {
+/** The app a new sign-in uses right now: built in unless the user chose their own. */
+export const signInApp = (id: 'trakt' | 'simkl'): AppKeys & {builtIn: boolean} => {
+  const account = readSyncSettings()[id];
+  const builtIn = !account.useOwnApp ? builtInApp(id) : undefined;
+  return builtIn ? {...builtIn, builtIn: true} : {clientId: account.clientId || '', clientSecret: account.clientSecret, builtIn: false};
+};
+
+export const traktStartDevice = async (clientId: string, app?: AppKeys & {builtIn: boolean}): Promise<DeviceCode> => {
   const data = await request(`${TRAKT}/oauth/device/code`, {method: 'POST', body: JSON.stringify({client_id: clientId})});
-  return {userCode: data.user_code, verificationUrl: data.verification_url, deviceCode: data.device_code, intervalSeconds: data.interval || 5, expiresAt: Date.now() + data.expires_in * 1000};
+  return {
+    userCode: data.user_code,
+    verificationUrl: data.verification_url,
+    deviceCode: data.device_code,
+    intervalSeconds: data.interval || 5,
+    expiresAt: Date.now() + data.expires_in * 1000,
+    ...(app ? {app} : {}),
+  };
 };
 
 /** 'approved' once the user approved the code, 'pending' while waiting, 'slow' when the service asks to poll less often. */
@@ -252,23 +322,25 @@ const traktTokens = (data: any, previousRefreshToken?: string): Partial<SyncAcco
 
 export const traktPollDevice = async (code: DeviceCode): Promise<PollResult> => {
   const account = readSyncSettings().trakt;
+  const app = code.app || {clientId: account.clientId || '', clientSecret: account.clientSecret, builtIn: false};
   let data: any;
   try {
     data = await request(`${TRAKT}/oauth/device/token`, {
       method: 'POST',
-      body: JSON.stringify({code: code.deviceCode, client_id: account.clientId, client_secret: account.clientSecret}),
+      body: JSON.stringify({code: code.deviceCode, client_id: app.clientId, client_secret: app.clientSecret}),
     });
   } catch (error) {
     if (error instanceof WatchSyncHttpError) {
       if (error.status === 400) return 'pending';
       if (error.status === 429) return 'slow';
       const stop = TRAKT_POLL_STOPS[error.status];
-      if (stop) throw new Error(stop);
+      if (stop) throw new DeviceCodeStopError(stop);
     }
     throw error;
   }
-  const me = await request(`${TRAKT}/users/me`, {headers: traktHeaders({...account, accessToken: data.access_token})}).catch(() => ({}));
-  updateAccount('trakt', {...traktTokens(data), username: me.username, signedOutReason: undefined, lastSyncError: undefined});
+  const authApp = app.builtIn ? 'builtin' : 'own';
+  const me = await request(`${TRAKT}/users/me`, {headers: traktHeaders({...account, accessToken: data.access_token, authApp})}).catch(() => ({}));
+  updateAccount('trakt', {...traktTokens(data), authApp, username: me.username, signedOutReason: undefined, lastSyncError: undefined});
   return 'approved';
 };
 
@@ -287,13 +359,14 @@ const renewTrakt = (): Promise<SyncAccount> =>
   singleFlight('trakt', async () => {
     const account = readSyncSettings().trakt;
     if (!account.refreshToken) throw signOutService('trakt', TRAKT_RESIGN_IN);
+    const keys = appKeysFor('trakt', account);
     // A disconnect or a new sign-in while the request ran wins over its result.
     const replaced = () => readSyncSettings().trakt.refreshToken !== account.refreshToken;
     let data: any;
     try {
       data = await request(`${TRAKT}/oauth/token`, {
         method: 'POST',
-        body: JSON.stringify({refresh_token: account.refreshToken, client_id: account.clientId, client_secret: account.clientSecret, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', grant_type: 'refresh_token'}),
+        body: JSON.stringify({refresh_token: account.refreshToken, client_id: keys.clientId, client_secret: keys.clientSecret, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', grant_type: 'refresh_token'}),
       });
     } catch (error) {
       if (error instanceof WatchSyncHttpError && !replaced()) {
@@ -392,9 +465,16 @@ export const traktMarkWatched = async (meta: WatchMeta): Promise<void> => {
 // ---------------------------------------------------------------- Simkl
 const SIMKL = 'https://api.simkl.com';
 
-export const simklStartPin = async (clientId: string): Promise<DeviceCode> => {
+export const simklStartPin = async (clientId: string, app?: AppKeys & {builtIn: boolean}): Promise<DeviceCode> => {
   const data = await request(`${SIMKL}/oauth/pin?client_id=${encodeURIComponent(clientId)}&redirect=`);
-  return {userCode: data.user_code, verificationUrl: data.verification_url || 'https://simkl.com/pin', deviceCode: data.user_code, intervalSeconds: data.interval || 5, expiresAt: Date.now() + (data.expires_in || 900) * 1000};
+  return {
+    userCode: data.user_code,
+    verificationUrl: data.verification_url || 'https://simkl.com/pin',
+    deviceCode: data.user_code,
+    intervalSeconds: data.interval || 5,
+    expiresAt: Date.now() + (data.expires_in || 900) * 1000,
+    ...(app ? {app} : {}),
+  };
 };
 
 /** Simkl advertises V1 PIN tokens as lasting 157680000 s (about five years). There is no refresh grant. */
@@ -408,11 +488,13 @@ const SIMKL_V1_LIFETIME_S = 157680000;
 // exchanged. See https://api.simkl.org/api-reference/auth-v2.md
 export const simklPollPin = async (code: DeviceCode): Promise<PollResult> => {
   const account = readSyncSettings().simkl;
-  const data = await request(`${SIMKL}/oauth/pin/${code.userCode}?client_id=${encodeURIComponent(account.clientId || '')}`);
+  const clientId = code.app?.clientId ?? account.clientId ?? '';
+  const data = await request(`${SIMKL}/oauth/pin/${code.userCode}?client_id=${encodeURIComponent(clientId)}`);
   if (data.result !== 'OK' || !data.access_token) return 'pending';
   updateAccount('simkl', {
     accessToken: data.access_token,
     tokenType: 'v1',
+    authApp: code.app?.builtIn ? 'builtin' : 'own',
     expiresAt: Date.now() + (Number(data.expires_in) || SIMKL_V1_LIFETIME_S) * 1000,
     signedOutReason: undefined,
     lastSyncError: undefined,
@@ -429,7 +511,7 @@ export const simklMarkWatched = async (meta: WatchMeta): Promise<void> => {
   await authed('simkl', account =>
     request(`${SIMKL}/sync/history`, {
       method: 'POST',
-      headers: {Authorization: `Bearer ${account.accessToken}`, 'simkl-api-key': account.clientId || ''},
+      headers: {Authorization: `Bearer ${account.accessToken}`, 'simkl-api-key': appKeysFor('simkl', account).clientId},
       body: JSON.stringify(body),
     }),
   );
@@ -565,8 +647,28 @@ export const describeAccount = (id: SyncServiceId, account: SyncAccount, now = D
   return {label, tone: 'connected'};
 };
 
+// ---------------------------------------------------------------- scrobble support
+/** A POST to the Trakt API with a live token, renewed as needed. */
+export const traktAuthedPost = (path: string, body: unknown): Promise<any> =>
+  authed('trakt', account => request(`${TRAKT}${path}`, {method: 'POST', headers: traktHeaders(account), body: JSON.stringify(body)}));
+
+/**
+ * Titles a live scrobble session is reporting. While one is, the session's
+ * own stop records the watch on Trakt, so the history POST is skipped and a
+ * watch is never counted twice.
+ */
+const traktWatchedOwners = new Map<string, () => Promise<void>>();
+export const claimTraktWatched = (meta: WatchMeta, finish: () => Promise<void>): (() => void) => {
+  const key = syncedKey(meta);
+  traktWatchedOwners.set(key, finish);
+  return () => {
+    if (traktWatchedOwners.get(key) === finish) traktWatchedOwners.delete(key);
+  };
+};
+
 // ---------------------------------------------------------------- dispatcher
-const syncedKey = (meta: WatchMeta) => `${meta.imdbId || meta.title.toLowerCase()}:${meta.season ?? ''}:${meta.episode ?? ''}`;
+/** One title (and episode) for deduplication. */
+export const syncedKey = (meta: WatchMeta) => `${meta.imdbId || meta.title.toLowerCase()}:${meta.season ?? ''}:${meta.episode ?? ''}`;
 
 export const connectedSync = (settings = readSyncSettings()): SyncServiceId[] =>
   (Object.keys(settings) as SyncServiceId[]).filter(id => settings[id].enabled && settings[id].accessToken);
@@ -606,7 +708,9 @@ const syncNow = async (meta: WatchMeta, key: string, services: SyncServiceId[]):
       .filter(id => !done.has(id))
       .map(async id => {
         try {
-          if (id === 'trakt') await traktMarkWatched(meta);
+          const scrobbleOwner = id === 'trakt' ? traktWatchedOwners.get(key) : undefined;
+          if (scrobbleOwner) await scrobbleOwner();
+          else if (id === 'trakt') await traktMarkWatched(meta);
           if (id === 'simkl') await simklMarkWatched(meta);
           if (id === 'anilist') await anilistMarkWatched(meta);
           done.add(id);

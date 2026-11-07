@@ -1,5 +1,10 @@
 const tmdbApiKey =
   process.env.TMDB_API_KEY || process.env.EXPO_PUBLIC_TMDB_API_KEY || '';
+// Optional built-in watch-sync apps, so users can sign in with a code alone.
+// Without them, Settings > Watch sync asks for the user's own app keys.
+const traktClientId = (process.env.TRAKT_CLIENT_ID || '').trim();
+const traktClientSecret = (process.env.TRAKT_CLIENT_SECRET || '').trim();
+const simklClientId = (process.env.SIMKL_CLIENT_ID || '').trim();
 const proxyApiUrl =
   process.env.PROXY_API_URL ||
   process.env.EXPO_PUBLIC_PROXY_API_URL ||
@@ -25,6 +30,10 @@ module.exports = () => {
       : 'com.tordroid.droidstream';
   const plugins = [
     './plugins/with-custom-native-modules.js',
+    // yt-dlp downloader: Chaquopy Python, the bundled yt-dlp release, JS sandbox.
+    './plugins/with-ytdlp.js',
+    // Built-in browser: request hook, downloads, passkeys, file links from other browsers.
+    './plugins/with-browser.js',
       [
         'expo-camera',
         {
@@ -167,14 +176,14 @@ module.exports = () => {
       plugins,
       slug: 'droid-stream',
       icon: './assets/icon.png',
-      version: '5.5.0',
+      version: '5.6.0',
       userInterfaceStyle: 'dark',
       experiments: {
         reactCompiler: true,
       },
       android: {
         package: PACKAGE_NAME,
-        versionCode: 221,
+        versionCode: 222,
         permissions: [
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',
@@ -235,8 +244,14 @@ module.exports = () => {
         },
         isPlayStore: IS_PLAYSTORE,
         isTV: IS_TV,
+        // Which edition this build is, so the in-app updater only installs the
+        // same edition: 'main', 'ext' (with extension support) or 'tv'.
+        appEdition: process.env.APP_EDITION || (IS_TV ? 'tv' : 'main'),
         tmdbApiKey,
         proxyApiUrl,
+        traktClientId,
+        traktClientSecret,
+        simklClientId,
       },
     },
   };

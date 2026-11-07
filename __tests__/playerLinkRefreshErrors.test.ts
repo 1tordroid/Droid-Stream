@@ -20,7 +20,7 @@ const compiled = ts.transpileModule(`return (${callback});`, {
   compilerOptions: {target: ts.ScriptTarget.ES2022},
 }).outputText;
 
-const setup = () => {
+const setup = (playBestTakesError = false) => {
   const stream = {server: 'A', link: 'https://a.test/expired.mp4', type: 'mp4'};
   const pending: Array<{resolve: (result: boolean) => void; reject: (error: Error) => void}> = [];
   const switchServer = jest.fn(() => false);
@@ -41,6 +41,7 @@ const setup = () => {
     switchToNextStreamRef: {current: switchServer},
     navigation: {isFocused: jest.fn(() => true), goBack: jest.fn()},
     setShowControls: jest.fn(),
+    takePlayBestError: jest.fn(() => playBestTakesError),
   };
   const onError = new Function(...Object.keys(context), compiled)(...Object.values(context));
   const error = {error: {errorCode: '22004'}};
@@ -100,4 +101,13 @@ it('does not block a new stream or clear its guard when an older refresh finishe
   pending[1].resolve(true);
   await settle();
   expect(context.pendingLinkRefreshRef.current).toBeNull();
+});
+
+it('lets a Play best fallback list take the error before refreshing links', () => {
+  const {context, onError, switchServer} = setup(true);
+  onError();
+  expect(context.takePlayBestError).toHaveBeenCalledTimes(1);
+  expect(context.refreshLinks).not.toHaveBeenCalled();
+  expect(switchServer).not.toHaveBeenCalled();
+  expect(context.navigation.goBack).not.toHaveBeenCalled();
 });

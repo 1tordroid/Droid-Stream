@@ -48,6 +48,7 @@ import {matchesDownload, sortDownloads, type DownloadSort, type SourceFilter, ty
 import {ScrollView} from 'react-native';
 import Chip from '../../components/torrentSearch/Chip';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
+import {ytdlSupported} from '../../lib/ytdl/native';
 
 const FILTER_LABEL: Record<string, string> = {
   all: 'All',
@@ -449,6 +450,35 @@ const Downloads = () => {
                 <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
                 <TextInput value={downloadQuery} onChangeText={setDownloadQuery} placeholder="Search downloads" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search downloads" style={{flex: 1, color: colors.onSurface, marginLeft: 8, fontSize: 16}} />
               </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 12}}>
+                <Chip
+                  icon="web"
+                  label="Browser"
+                  accessibilityLabel="Open the browser to find videos on a site"
+                  onPress={() => (navigation.navigate as (screen: string) => void)('Browser')}
+                />
+                {ytdlSupported() ? (
+                  <>
+                    <Chip
+                      icon="link-variant"
+                      label="Download from link"
+                      accessibilityLabel="Download a video or audio from a link"
+                      onPress={() => (navigation.navigate as (screen: string, params?: object) => void)('YtdlDownload', {})}
+                    />
+                    <Chip
+                      icon="image-multiple-outline"
+                      label="Photos from a post"
+                      accessibilityLabel="Save photos from an Instagram, X, Reddit or other post"
+                      onPress={() => (navigation.navigate as (screen: string, params?: object) => void)('SocialDownload', {url: ''})}
+                    />
+                    <Chip
+                      icon="cog-outline"
+                      label="Video downloader"
+                      onPress={() => (navigation.navigate as (screen: string, params?: object) => void)('TabStack', {screen: 'SettingsStack', params: {screen: 'YtdlSettings'}})}
+                    />
+                  </>
+                ) : null}
+              </ScrollView>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 8}}>
                 {(['all', 'downloading', 'completed', 'paused', 'failed'] as StatusFilter[]).map(item => (
                   <Chip key={`status-${item}`} label={FILTER_LABEL[item] || item} accessibilityLabel={`Status ${item}`} selected={statusFilter === item} onPress={() => setStatusFilter(item)} />

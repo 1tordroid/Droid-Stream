@@ -19,11 +19,22 @@ import java.util.concurrent.TimeUnit
 
 private const val TAG = "ByeDpiModule"
 
+/** A proxy that could not start; code is the promise error code. */
+class ProxyStartException(val code: String, message: String) : Exception(message)
+
 class ByeDpiModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
 
+    companion object {
+        /** The live module, so Smart unblock can start ByeDPI when a blocked site needs it. */
+        @Volatile
+        var active: ByeDpiModule? = null
+            private set
+    }
+
     init {
         reactContext.addLifecycleEventListener(this)
+        active = this
     }
 
     override fun getName(): String = "ByeDpiModule"
@@ -112,6 +123,7 @@ class ByeDpiModule(reactContext: ReactApplicationContext) :
         } catch (_: Exception) {}
     }
 
+    @Synchronized
     private fun stopInternal() {
         try {
             val proc = byeDpiProcess
@@ -133,135 +145,145 @@ class ByeDpiModule(reactContext: ReactApplicationContext) :
         }
     }
 
-    @ReactMethod
-    fun startByeDpi(customArgs: String?, promise: Promise) {
-        Thread {
-            try {
-                if (byeDpiProcess?.isAlive == true && currentPort != null) {
-                    val result = Arguments.createMap().apply {
-                        putBoolean("running", true)
-                        putInt("port", currentPort!!)
+    fun stopSync() = stopInternal()
+
+    /**
+     * Starts ByeDPI, or returns the port it already listens on. One start at a
+     * time: requests that need ByeDPI wait here for the same process.
+     */
+    @Synchronized
+    fun startSync(customArgs: String?): Int {
+        currentPort?.let { port -> if (byeDpiProcess?.isAlive == true) return port }
+
+        killOrphanProcesses()
+
+        val binary = getBinaryFile()
+        if (!binary.exists()) {
+            throw ProxyStartException("BYEDPI_BINARY_NOT_FOUND", "libciadpi.so not found at ${binary.absolutePath}")
+        }
+        try {
+            val port = try {
+                ServerSocket(0).use { it.localPort }
+            } catch (e: Exception) {
+                1080
+            }
+
+            // No -I: binding outgoing connections to 0.0.0.0 made every IPv6 site fail,
+            // and on IPv6-first networks blocked sites are often reachable only over IPv6.
+            val cmdList = mutableListOf(
+                binary.absolutePath,
+                "-i", "127.0.0.1",
+                "-p", port.toString()
+            )
+
+            val userTokens = if (!customArgs.isNullOrBlank()) {
+                customArgs.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+            } else {
+                listOf("--split", "1", "--disorder", "1", "--auto=torst")
+            }
+
+            var hasDebug = false
+            var skipNext = false
+            for (token in userTokens) {
+                if (skipNext) {
+                    skipNext = false
+                    continue
+                }
+                if (token == "-i" || token == "--ip" || token == "-p" || token == "--port" ||
+                    token == "-I" || token == "--conn-ip") {
+                    skipNext = true
+                    continue
+                }
+                if (token.startsWith("-i=") || token.startsWith("--ip=") ||
+                    token.startsWith("-p=") || token.startsWith("--port=") ||
+                    token.startsWith("-I=") || token.startsWith("--conn-ip=")) {
+                    continue
+                }
+                if (token == "-x" || token == "--debug" || token.startsWith("-x=") || token.startsWith("--debug=")) {
+                    hasDebug = true
+                }
+                cmdList.add(token)
+            }
+
+            if (!hasDebug) {
+                cmdList.add("-x")
+                cmdList.add("1")
+            }
+
+            VegaLog.i(TAG, "Starting ByeDPI with args: ${cmdList.joinToString(" ")}")
+
+            val pb = ProcessBuilder(cmdList)
+            pb.directory(reactApplicationContext.filesDir)
+            pb.redirectErrorStream(true)
+            val proc = pb.start()
+            byeDpiProcess = proc
+            currentPort = port
+
+            val logLines = StringBuilder()
+            Thread {
+                try {
+                    proc.inputStream.bufferedReader().forEachLine { line ->
+                        VegaLog.d("ByeDpiProcess", line)
+                        logLines.append(line).append("\n")
                     }
-                    promise.resolve(result)
-                    return@Thread
-                }
+                } catch (_: Exception) {}
+            }.start()
 
-                killOrphanProcesses()
-
-                val binary = getBinaryFile()
-                if (!binary.exists()) {
-                    promise.reject("BYEDPI_BINARY_NOT_FOUND", "libciadpi.so not found at ${binary.absolutePath}")
-                    return@Thread
-                }
-
-                val port = try {
-                    ServerSocket(0).use { it.localPort }
-                } catch (e: Exception) {
-                    1080
-                }
-
-                // No -I: binding outgoing connections to 0.0.0.0 made every IPv6 site fail,
-                // and on IPv6-first networks blocked sites are often reachable only over IPv6.
-                val cmdList = mutableListOf(
-                    binary.absolutePath,
-                    "-i", "127.0.0.1",
-                    "-p", port.toString()
-                )
-
-                val userTokens = if (!customArgs.isNullOrBlank()) {
-                    customArgs.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
-                } else {
-                    listOf("--split", "1", "--disorder", "1", "--auto=torst")
-                }
-
-                var hasDebug = false
-                var skipNext = false
-                for (token in userTokens) {
-                    if (skipNext) {
-                        skipNext = false
-                        continue
-                    }
-                    if (token == "-i" || token == "--ip" || token == "-p" || token == "--port" ||
-                        token == "-I" || token == "--conn-ip") {
-                        skipNext = true
-                        continue
-                    }
-                    if (token.startsWith("-i=") || token.startsWith("--ip=") ||
-                        token.startsWith("-p=") || token.startsWith("--port=") ||
-                        token.startsWith("-I=") || token.startsWith("--conn-ip=")) {
-                        continue
-                    }
-                    if (token == "-x" || token == "--debug" || token.startsWith("-x=") || token.startsWith("--debug=")) {
-                        hasDebug = true
-                    }
-                    cmdList.add(token)
-                }
-
-                if (!hasDebug) {
-                    cmdList.add("-x")
-                    cmdList.add("1")
-                }
-
-                VegaLog.i(TAG, "Starting ByeDPI with args: ${cmdList.joinToString(" ")}")
-
-                val pb = ProcessBuilder(cmdList)
-                pb.directory(reactApplicationContext.filesDir)
-                pb.redirectErrorStream(true)
-                val proc = pb.start()
-                byeDpiProcess = proc
-                currentPort = port
-
-                val logLines = StringBuilder()
-                Thread {
-                    try {
-                        proc.inputStream.bufferedReader().forEachLine { line ->
-                            VegaLog.d("ByeDpiProcess", line)
-                            logLines.append(line).append("\n")
-                        }
-                    } catch (_: Exception) {}
-                }.start()
-
-                // Monitor process liveness in background
-                Thread {
-                    try {
-                        proc.waitFor()
-                    } catch (_: Exception) {}
+            // Monitor process liveness in background
+            Thread {
+                try {
+                    proc.waitFor()
+                } catch (_: Exception) {}
+                synchronized(this) {
                     if (byeDpiProcess == proc) {
                         VegaLog.i(TAG, "ByeDPI process terminated unexpectedly")
                         stopInternal()
                     }
-                }.start()
+                }
+            }.start()
 
-                var isListening = false
-                val deadline = System.currentTimeMillis() + 3000
-                while (System.currentTimeMillis() < deadline && proc.isAlive) {
-                    try {
-                        Socket().use { socket ->
-                            socket.connect(InetSocketAddress("127.0.0.1", port), 200)
-                            isListening = true
-                        }
-                        break
-                    } catch (_: Exception) {
-                        Thread.sleep(100)
+            var isListening = false
+            val deadline = System.currentTimeMillis() + 3000
+            while (System.currentTimeMillis() < deadline && proc.isAlive) {
+                try {
+                    Socket().use { socket ->
+                        socket.connect(InetSocketAddress("127.0.0.1", port), 200)
+                        isListening = true
                     }
+                    break
+                } catch (_: Exception) {
+                    Thread.sleep(100)
                 }
+            }
 
-                if (!proc.isAlive || !isListening) {
-                    stopInternal()
-                    promise.reject("BYEDPI_START_FAILED", "ByeDPI failed to start or listen on port $port: $logLines")
-                    return@Thread
-                }
+            if (!proc.isAlive || !isListening) {
+                stopInternal()
+                throw ProxyStartException("BYEDPI_START_FAILED", "ByeDPI failed to start or listen on port $port: $logLines")
+            }
 
-                DohOkHttpFactory.instance?.byeDpiProxyPort = port
-                flushConnections()
+            DohOkHttpFactory.instance?.byeDpiProxyPort = port
+            flushConnections()
+            return port
+        } catch (e: ProxyStartException) {
+            throw e
+        } catch (e: Exception) {
+            stopInternal()
+            throw ProxyStartException("BYEDPI_ERROR", e.message ?: "ByeDPI failed to start")
+        }
+    }
 
-                val result = Arguments.createMap().apply {
+    @ReactMethod
+    fun startByeDpi(customArgs: String?, promise: Promise) {
+        Thread {
+            try {
+                val port = startSync(customArgs)
+                promise.resolve(Arguments.createMap().apply {
                     putBoolean("running", true)
                     putInt("port", port)
-                }
-                promise.resolve(result)
+                })
+            } catch (e: ProxyStartException) {
+                promise.reject(e.code, e.message, e)
             } catch (e: Exception) {
-                stopInternal()
                 promise.reject("BYEDPI_ERROR", e.message, e)
             }
         }.start()

@@ -69,6 +69,20 @@ export const createDownloadSeasonDirectoryName = (
 ): string | undefined =>
   seasonTitle ? createDownloadDirectoryName(seasonTitle) : undefined;
 
+/** Folders inside the download location: the show, then the season, then an extra folder (social downloads use it for the author). */
+export const getDownloadDirectoryNames = (item: {
+  showName?: string;
+  title: string;
+  seasonTitle?: string;
+  subFolder?: string;
+}): string[] => [
+  createDownloadDirectoryName(item.showName || item.title),
+  ...[
+    createDownloadSeasonDirectoryName(item.seasonTitle),
+    item.subFolder ? createDownloadDirectoryName(item.subFolder) : undefined,
+  ].filter((name): name is string => Boolean(name)),
+];
+
 export const createDesktopCompatibleFileName = (
   title: string,
   _type: 'movie' | 'series',

@@ -1,5 +1,7 @@
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {parseM3U, type LiveChannel, type ParsedPlaylist} from './m3u';
+import {DEFAULT_FILTERS, detectLanguages, parseResolution, sanitizeFilters, type ChannelFilters} from './filters';
+import {profileKey} from '../profiles/scope';
 
 const storage = new MMKVLoader().withInstanceID('droid-stream-livetv').initialize();
 
@@ -25,14 +27,28 @@ export interface UserPlaylist {
 }
 
 /** What the grid needs to replay a channel from Favourites or Recent. */
-export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'headers'> & {sourceId: string};
+export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'headers' | 'drm' | 'resolution'> & {
+  sourceId: string;
+  /** Kept so filters still work on Favourites and Recent. */
+  languages?: string[];
+};
 
 const KEYS = {
   playlists: 'playlists',
   jiotv: 'jiotvServer',
-  favourites: 'favourites',
-  recent: 'recent',
+  // Per profile; playlists, the Jio server and caches are shared.
+  get favourites() {
+    return profileKey('favourites');
+  },
+  get recent() {
+    return profileKey('recent');
+  },
+  /** Filter choices for every source, as {sourceId: ChannelFilters}. */
+  get filters() {
+    return profileKey('liveFilters');
+  },
   cache: (sourceId: string) => `cache:${sourceId}`,
+  epg: (sourceId: string) => `epgUrl:${sourceId}`,
 };
 
 const readJson = <T>(key: string, fallback: T): T => {
@@ -44,6 +60,11 @@ const readJson = <T>(key: string, fallback: T): T => {
   }
 };
 const writeJson = (key: string, value: unknown) => storage.setString(key, JSON.stringify(value));
+
+/** Small JSON values for the guide (cache metadata, Jio guide days). */
+export const readLiveJson = <T>(key: string): T | undefined => readJson<T | undefined>(key, undefined);
+export const writeLiveJson = (key: string, value: unknown) => writeJson(key, value);
+export const removeLiveJson = (key: string) => storage.removeItem(key);
 
 // ---- JioTV Go server ----
 
@@ -90,6 +111,20 @@ export const jioPlaylistUrl = (settings: JioServerSettings): string =>
 /** jiotv_go serves a gzipped XMLTV guide here once EPG is turned on in its config. */
 export const jioEpgUrl = (settings: JioServerSettings): string => `${settings.address}/epg.xml.gz`;
 
+// ---- Guide address ----
+
+/** The EPG address typed in for a source; it wins over the playlist's own url-tvg. */
+export const getEpgOverride = (sourceId: string): string | undefined => storage.getString(KEYS.epg(sourceId)) || undefined;
+export const setEpgOverride = (sourceId: string, url: string) => {
+  const clean = url.trim();
+  if (!clean) {
+    storage.removeItem(KEYS.epg(sourceId));
+    return;
+  }
+  if (!isPlaylistUrl(clean)) throw new Error('Enter an http or https guide address.');
+  storage.setString(KEYS.epg(sourceId), clean);
+};
+
 // ---- User playlists ----
 
 export const listPlaylists = (): UserPlaylist[] => readJson<UserPlaylist[]>(KEYS.playlists, []);
@@ -110,6 +145,8 @@ export const addPlaylist = (name: string, url: string): UserPlaylist => {
 export const removePlaylist = (id: string) => {
   writeJson(KEYS.playlists, listPlaylists().filter(item => item.id !== id));
   storage.removeItem(KEYS.cache(id));
+  storage.removeItem(KEYS.epg(id));
+  setChannelFilters(id, DEFAULT_FILTERS);
 };
 
 const hostOf = (url: string) => /^https?:\/\/([^/:?#]+)/i.exec(url)?.[1] || 'Playlist';
@@ -174,16 +211,23 @@ export const loadPlaylist = async (
 
 // ---- Favourites and recent ----
 
-const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedChannel => ({
-  id: channel.id,
-  name: channel.name,
-  url: channel.url,
-  logo: channel.logo,
-  group: channel.group,
-  tvgId: channel.tvgId,
-  headers: channel.headers,
-  sourceId,
-});
+const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedChannel => {
+  const resolution = channel.resolution || parseResolution(channel.name, 'attrs' in channel ? channel.attrs : undefined, channel.tvgId);
+  const languages = detectLanguages(channel);
+  return {
+    id: channel.id,
+    name: channel.name,
+    url: channel.url,
+    logo: channel.logo,
+    group: channel.group,
+    tvgId: channel.tvgId,
+    headers: channel.headers,
+    ...(channel.drm ? {drm: true} : {}),
+    ...(resolution ? {resolution} : {}),
+    ...(languages.length ? {languages} : {}),
+    sourceId,
+  };
+};
 
 export const listFavourites = (): SavedChannel[] => readJson<SavedChannel[]>(KEYS.favourites, []);
 export const isFavourite = (sourceId: string, channelId: string) =>
@@ -205,3 +249,31 @@ export const pushRecent = (channel: LiveChannel | SavedChannel, sourceId: string
   writeJson(KEYS.recent, [toSaved(channel, sourceId), ...rest].slice(0, RECENT_LIMIT));
 };
 export const clearRecent = () => storage.removeItem(KEYS.recent);
+
+// ---- Filters (per profile and per source) ----
+
+const readAllFilters = (): Record<string, unknown> => {
+  const all = readJson<Record<string, unknown> | null>(KEYS.filters, null);
+  return all && typeof all === 'object' && !Array.isArray(all) ? all : {};
+};
+
+/** The quality, language and group choices saved for a source (Favourites and Recent count as sources). */
+export const getChannelFilters = (sourceId: string): ChannelFilters => sanitizeFilters(readAllFilters()[sourceId]);
+
+export const setChannelFilters = (sourceId: string, filters: ChannelFilters) => {
+  const all = readAllFilters();
+  const clean = sanitizeFilters(filters);
+  const isDefault =
+    clean.resolution === DEFAULT_FILTERS.resolution &&
+    !clean.languages.length &&
+    !clean.group &&
+    clean.qualityBadge === DEFAULT_FILTERS.qualityBadge;
+  if (isDefault) {
+    if (!(sourceId in all)) return;
+    delete all[sourceId];
+  } else {
+    all[sourceId] = clean;
+  }
+  if (Object.keys(all).length) writeJson(KEYS.filters, all);
+  else storage.removeItem(KEYS.filters);
+};

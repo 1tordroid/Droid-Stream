@@ -20,6 +20,7 @@ import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
 import SettingsSliderRow from '../../components/ui/SettingsSliderRow';
 import SettingsRow from '../../components/ui/SettingsRow';
 import BufferPreference from './components/BufferPreference';
+import SkipSegmentPreference from './components/SkipSegmentPreference';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'PlayerSettings'>;
 export default function PlayerSettings({navigation}: Props) {
@@ -391,6 +392,8 @@ export default function PlayerSettings({navigation}: Props) {
               }}
             />
           </SettingsSection>
+
+          <SkipSegmentPreference />
 
           <BufferPreference />
 

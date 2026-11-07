@@ -7,8 +7,7 @@ import {
   getDownloadStagingPath,
 } from './downloadDestination';
 import {
-  createDownloadDirectoryName,
-  createDownloadSeasonDirectoryName,
+  getDownloadDirectoryNames,
 } from './downloadId';
 import {isSafDownloadLocation} from './downloadLocation';
 import {notificationService} from './services/Notification';
@@ -83,12 +82,7 @@ const reconcileFinalizing = async (record: DownloadItem): Promise<void> => {
       stagingPath,
       fileName: getOutputName(record),
       fileType: record.videoType || 'mp4',
-      outputDirectoryNames: [
-        createDownloadDirectoryName(record.showName || record.title),
-        ...[createDownloadSeasonDirectoryName(record.seasonTitle)].filter(
-          (name): name is string => Boolean(name),
-        ),
-      ],
+      outputDirectoryNames: getDownloadDirectoryNames(record),
     });
     store.markCompleted(record.id, {
       filePath: output.filePath,

@@ -120,12 +120,15 @@ import FeatureSearchPanel from '../../components/FeatureSearchPanel';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
 import BrandLinkButtons from './components/BrandLinkButtons';
 import DnsPreference from './components/DnsPreference';
+import VersionCard from './components/VersionCard';
 import SettingsRow from '../../components/ui/SettingsRow';
 import SettingsSection from '../../components/ui/SettingsSection';
 import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
+import useProfilesStore from '../../lib/profiles/useProfiles';
+import {editionName} from '../../lib/appVersion';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
 const AnimatedSection = ({
@@ -145,6 +148,7 @@ const Settings = ({navigation}: Props) => {
   const installedProviders = useContentStore(state => state.installedProviders);
   const [searching, setSearching] = useState(false);
   const [advanced, setAdvanced] = useState(() => settingsStorage.isAdvancedMode());
+  const activeProfile = useProfilesStore(state => state.profiles.find(item => item.id === state.activeId) ?? state.profiles[0]);
 
   const handleProviderSelect = useCallback(
     (item: ProviderExtension) => {
@@ -251,6 +255,8 @@ const Settings = ({navigation}: Props) => {
               </>
             )}
 
+            <VersionCard />
+
             {/* Content provider section */}
             <AnimatedSection delay={100}>
               <View className="mb-6">
@@ -316,6 +322,12 @@ const Settings = ({navigation}: Props) => {
             {/* Main options section */}
             <AnimatedSection delay={200}>
               <SettingsSection title="Options">
+                <SettingsRow
+                  title="Profiles"
+                  description={`${activeProfile.emoji} ${activeProfile.name} · Switch, add or edit profiles`}
+                  icon="account-multiple-outline"
+                  onPress={() => navigation.navigate('Profiles')}
+                />
                 <SettingsSwitchRow
                   title="Advanced mode"
                   description="Shows speed limits, player engine, subtitles, and other extra controls"
@@ -354,6 +366,20 @@ const Settings = ({navigation}: Props) => {
                   icon="download-circle-outline"
                   onPress={() => navigation.navigate('DownloadsStack')}
                 />
+                {advanced ? (
+                  <SettingsRow
+                    title="Advanced downloads"
+                    description="FTP, mirrors, link renewal and recording"
+                    icon="download-network-outline"
+                    onPress={() => navigation.navigate('AdvancedDownloads')}
+                  />
+                ) : null}
+                <SettingsRow
+                  title="Video downloader"
+                  description="yt-dlp: save videos and audio from YouTube and other sites"
+                  icon="youtube"
+                  onPress={() => navigation.navigate('YtdlSettings')}
+                />
                 <SettingsRow
                   title="Preferences"
                   icon="tune-variant"
@@ -386,13 +412,14 @@ const Settings = ({navigation}: Props) => {
             <AnimatedSection delay={400}>
               <SettingsSection title="About">
                 <SettingsRow
-                  title="About Droid Stream"
+                  title={`About ${editionName()}`}
+                  description="Update settings and support"
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
                 />
                 <SettingsRow
-                  title="Credits"
-                  description="Projects behind Droid Stream"
+                  title="Credits and licences"
+                  description="Projects, services and licences behind Droid Stream"
                   icon="heart-outline"
                   onPress={() => navigation.navigate('Credits')}
                 />

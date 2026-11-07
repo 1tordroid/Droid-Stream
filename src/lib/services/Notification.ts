@@ -209,7 +209,9 @@ class NotificationService {
         ...(options.groupAlertBehavior !== undefined
           ? {groupAlertBehavior: options.groupAlertBehavior}
           : {}),
-        onlyAlertOnce: options.onlyAlertOnce || false,
+        // A progress notification is posted again on every update. Without
+        // onlyAlertOnce each update sounds and vibrates.
+        onlyAlertOnce: options.onlyAlertOnce ?? Boolean(options.progress),
         asForegroundService: options.asForegroundService ?? false,
         ...(options.asForegroundService
           ? {
@@ -237,7 +239,9 @@ class NotificationService {
    * Display an update notification
    */
   async displayUpdateNotification(options: NotificationOptions): Promise<void> {
-    await this.displayNotification(options, this._updateChannelId);
+    await this.enqueueNotificationOperation(options.id, () =>
+      this.displayNotification(options, this._updateChannelId),
+    );
   }
 
   /**

@@ -1,0 +1,49 @@
+{
+  "resource_response": {
+    "status": "success",
+    "data": {
+      "id": "123456789012345678",
+      "title": "Cozy reading corner",
+      "description": "Ideas for a small room",
+      "pinner": {"username": "repinner"},
+      "native_creator": {"username": "home.ideas"},
+      "images": {
+        "236x": {"url": "https://i.pinimg.com/236x/ab/cd/ef/abcdef.jpg", "width": 236, "height": 354},
+        "736x": {"url": "https://i.pinimg.com/736x/ab/cd/ef/abcdef.jpg", "width": 736, "height": 1104},
+        "orig": {"url": "https://i.pinimg.com/originals/ab/cd/ef/abcdef.jpg", "width": 1000, "height": 1500}
+      },
+      "story_pin_data": {
+        "pages": [
+          {
+            "blocks": [
+              {
+                "block_type": 2,
+                "image": {
+                  "images": {
+                    "originals": {"url": "https://i.pinimg.com/originals/11/22/33/page1.jpg", "width": 1080, "height": 1920},
+                    "736x": {"url": "https://i.pinimg.com/736x/11/22/33/page1.jpg", "width": 736, "height": 1308}
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "blocks": [
+              {
+                "block_type": 3,
+                "video": {
+                  "video_list": {
+                    "V_EXP7": {"url": "https://v1.pinimg.com/videos/iht/expMp4/page2_720w.mp4", "width": 720, "height": 1280},
+                    "V_HLSV3_MOBILE": {"url": "https://v1.pinimg.com/videos/iht/hls/page2.m3u8", "width": 1080, "height": 1920},
+                    "V_EXP4": {"url": "https://v1.pinimg.com/videos/iht/expMp4/page2_360w.mp4", "width": 360, "height": 640}
+                  }
+                },
+                "image": {"images": {"736x": {"url": "https://i.pinimg.com/736x/44/55/66/page2_cover.jpg"}}}
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

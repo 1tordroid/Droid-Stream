@@ -69,6 +69,7 @@ import {
 } from '../../lib/hooks/useStream';
 import {useStreamTrackSelections} from '../../lib/hooks/useStreamTrackSelections';
 import {useStreamResumePosition} from '../../lib/hooks/useStreamResumePosition';
+import {usePlaybackFallback} from '../../lib/hooks/usePlaybackFallback';
 import {getNextEpisode, isWatched} from '../../lib/player/upNext';
 import {
   usePlayerProgress,
@@ -86,9 +87,31 @@ import {syncFromSharedFolder} from '../../lib/sync/syncService';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import TVFocusPressable from '../../components/tv/TVFocusPressable';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
-import {findAnimeSkips} from '../../lib/aniskip';
+import {
+  clearSeasonMarks,
+  fetchSegments,
+  gatherSegments,
+  getSkipModes,
+  NO_FETCHED_SEGMENTS,
+  readSeasonMarks,
+  writeSeasonMarks,
+  type FetchedSegments,
+} from '../../lib/playback/skipSources';
+import {
+  actionFor,
+  isEndSegment,
+  jellyfinItemIdOf,
+  segmentAt,
+  segmentId,
+  setMark,
+  skipLabel,
+  withoutOff,
+  type SkipSegment,
+} from '../../lib/playback/skipSegmentModel';
+import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
+import {useScrobble} from '../../lib/hooks/useScrobble';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
 import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
@@ -171,6 +194,21 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 
 const BOTTOM_CONTROL_ICON_COLOR = 'rgba(255,255,255,0.6)';
 const EditControlsButton = isTV ? TVFocusPressable : TouchableOpacity;
+/** A live window at least this long (seconds) counts as rewindable. */
+const LIVE_DVR_MIN_SECONDS = 120;
+/** Further than this behind the live edge shows "Go live". */
+const LIVE_EDGE_SECONDS = 30;
+const GO_LIVE_STYLE: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  borderRadius: 20,
+  borderWidth: 2,
+  borderColor: 'transparent',
+  backgroundColor: 'rgba(211,47,47,0.9)',
+};
 const goFullScreen = () => {
   SystemBars.setHidden(true);
   if (Platform.OS === 'android') {
@@ -506,7 +544,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     isLoading: streamLoading,
     error: streamError,
     refreshLinks,
-    switchToNextStream,
+    switchToNextStream: switchToNextProviderStream,
   } = useStream({
     activeEpisode,
     routeParams: route.params,
@@ -682,10 +720,24 @@ const Player = ({route}: Props): React.JSX.Element => {
   const playbackRenderKeyRef = useRef('');
   const combinedSkipsRef = useRef<SkipInterval[]>([]);
   const liveTimelineRef = useRef(false);
+  // Runtime of the loaded video, for fitting season marks and cutting segments.
+  const [loadedDuration, setLoadedDuration] = useState(0);
+  // Segments skipped on their own, and segments whose button already took TV focus.
+  const autoSkippedRef = useRef(new Set<string>());
+  const focusedSkipRef = useRef<string | null>(null);
+  // Live channels with a DVR window (HLS that keeps past segments) can pause
+  // and rewind; "Go live" jumps back to the live edge. Replays are not live.
+  const isLiveChannel = !!route.params.live && !route.params.catchup;
+  const liveWindowRef = useRef(0);
+  const [liveSeekable, setLiveSeekable] = useState(false);
+  const [behindLive, setBehindLive] = useState(false);
   useEffect(() => {
     playbackTimeRef.current = 0;
     playbackRenderKeyRef.current = '';
     setCurrentPlaybackTime(0);
+    setLoadedDuration(0);
+    autoSkippedRef.current = new Set();
+    focusedSkipRef.current = null;
   }, [activeEpisodeKey]);
   const [settingsCloseFocused, setSettingsCloseFocused] = useState(false);
   const timelineRef = useRef<HostInstance>(null);
@@ -693,6 +745,8 @@ const Player = ({route}: Props): React.JSX.Element => {
     null,
   );
   const playPauseTVRef = useRef<HostInstance>(null);
+  const goLiveTVRef = useRef<HostInstance>(null);
+  const [goLiveTVHandle, setGoLiveTVHandle] = useState<number | null>(null);
   const [playPauseTVHandle, setPlayPauseTVHandle] = useState<number | null>(
     null,
   );
@@ -702,6 +756,7 @@ const Player = ({route}: Props): React.JSX.Element => {
   const preferredMenuRowRef = useRef<HostInstance>(null);
   const [editingControls, setEditingControls] = useState(false);
   const [showMoreControls, setShowMoreControls] = useState(false);
+  const [showMarksMenu, setShowMarksMenu] = useState(false);
   const nativeVideoViewRef = useRef<HostInstance>(null);
   const [hdrWidth, setHdrWidth] = useState(0);
   const [decoderMode, setDecoderMode] = useState<'hardware' | 'software'>('hardware');
@@ -859,7 +914,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     primaryColor: primary,
     onTogglePlayPause: handleTogglePlayPause,
     onSeekNotification: handleSeekNotification,
-    remoteSuspended: autoNextVisible || editingControls || showMoreControls,
+    remoteSuspended: autoNextVisible || editingControls || showMoreControls || showMarksMenu,
   });
 
   const [showTimeRemaining, setShowTimeRemaining] = useState<boolean>(() =>
@@ -914,6 +969,13 @@ const Player = ({route}: Props): React.JSX.Element => {
       checkSleepTimer();
       prefetchNextEpisode(e.currentTime, e.seekableDuration);
       playbackTimeRef.current = e.currentTime;
+      if (isLiveChannel) {
+        const window = Number.isFinite(e.seekableDuration) ? e.seekableDuration : 0;
+        liveWindowRef.current = window;
+        const seekable = window >= LIVE_DVR_MIN_SECONDS;
+        setLiveSeekable(seekable);
+        setBehindLive(seekable && window - e.currentTime > LIVE_EDGE_SECONDS);
+      }
       if (liveTimelineRef.current) {
         setCurrentPlaybackTime(e.currentTime);
         return;
@@ -928,8 +990,14 @@ const Player = ({route}: Props): React.JSX.Element => {
         setCurrentPlaybackTime(e.currentTime);
       }
     },
-    [handleProgress, videoPositionRef, checkSleepTimer, prefetchNextEpisode],
+    [handleProgress, videoPositionRef, checkSleepTimer, prefetchNextEpisode, isLiveChannel],
   );
+
+  const goLive = useCallback(() => {
+    if (liveWindowRef.current > 0) playerRef.current?.seek(liveWindowRef.current);
+    setBehindLive(false);
+    setIsPaused(false);
+  }, []);
 
   // The TV timeline shows the running time, so it needs every progress tick.
   useEffect(() => {
@@ -970,25 +1038,43 @@ const Player = ({route}: Props): React.JSX.Element => {
   }, [route.params.meta, route.params.primaryTitle, route.params.secondaryTitle, route.params.type, route.params.episodeList.length, activeEpisode?.title]);
   const watchMetaRef = useRef(watchMeta);
   watchMetaRef.current = watchMeta;
+  // Trakt scrobbling (start, pause, stop), when connected with scrobbling on.
+  useScrobble(watchMeta, isPaused, videoPositionRef);
 
-  // Crowd-sourced anime intro and credits times, used when nothing else has skips.
-  const [aniSkips, setAniSkips] = useState<SkipInterval[]>([]);
+  // Times from the viewer's Jellyfin server, AniSkip and IntroDB.
+  const segmentStreamUrls = useMemo(
+    () => [selectedStream?.link, activeEpisode?.link, (route.params as any)?.directUrl as string | undefined],
+    [selectedStream?.link, activeEpisode?.link, route.params],
+  );
+  const jellyfinItemKey = segmentStreamUrls.map(jellyfinItemIdOf).find(Boolean);
+  const [fetchedSegments, setFetchedSegments] = useState<FetchedSegments>(NO_FETCHED_SEGMENTS);
   useEffect(() => {
-    setAniSkips([]);
-    if (!watchMeta || watchMeta.type !== 'series' || !watchMeta.episode) return;
+    setFetchedSegments(NO_FETCHED_SEGMENTS);
     let live = true;
-    findAnimeSkips({title: watchMeta.title, episode: watchMeta.episode, malId: watchMeta.malId})
+    fetchSegments({streamUrls: segmentStreamUrls, meta: watchMeta})
       .then(found => {
-        if (live) setAniSkips(found);
+        if (live) setFetchedSegments(found);
       })
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [watchMeta?.title, watchMeta?.episode, watchMeta?.malId, watchMeta?.type]);
+    // Only what the lookups use; a new stream object for the same item does not refetch.
+  }, [jellyfinItemKey, watchMeta?.title, watchMeta?.season, watchMeta?.episode, watchMeta?.malId, watchMeta?.imdbId, watchMeta?.type]);
 
-  // Combined skip intervals from episode, direct links, stream, downloads, and cache
-  const combinedSkips: SkipInterval[] = useMemo(() => {
+  // Skip modes per segment kind, from Player settings.
+  const [skipModes] = useState(getSkipModes);
+
+  // The viewer's intro and credits marks for this show and season.
+  const marksShowKey = markerKey(route.params.primaryTitle, route.params.providerValue);
+  const marksSeason = watchMeta?.season;
+  const [seasonMarks, setSeasonMarks] = useState(() => readSeasonMarks(marksShowKey, marksSeason));
+  useEffect(() => {
+    setSeasonMarks(readSeasonMarks(marksShowKey, marksSeason));
+  }, [marksShowKey, marksSeason]);
+
+  // Skip intervals the provider gave: episode, direct links, stream, downloads, and cache
+  const providerSkips: SkipInterval[] = useMemo(() => {
     const list: SkipInterval[] = [];
     const addSkips = (items?: SkipInterval[]) => {
       if (!items || !Array.isArray(items)) return;
@@ -1039,53 +1125,50 @@ const Player = ({route}: Props): React.JSX.Element => {
       addSkips(matchedDownloadSkip);
     }
 
+    const episodeKey = getEpisodeIdentity(activeEpisode);
+    const cacheKeys = [
+      activeEpisode?.link,
+      activeEpisode?.sourceLink,
+      activeEpisodeKey,
+      episodeKey ? `${continueWatchingId}:${episodeKey}` : undefined,
+    ];
     // Check cacheStorage if no skips found yet
-    const remembered = markersToSkips(
-      readShowMarkers(markerKey(route.params.primaryTitle, route.params.providerValue)),
-    );
-    addSkips(remembered);
-
     if (list.length === 0) {
-      const episodeKey = getEpisodeIdentity(activeEpisode);
-      const cached = getCachedSkips([
-        activeEpisode?.link,
-        activeEpisode?.sourceLink,
-        activeEpisodeKey,
-        episodeKey ? `${continueWatchingId}:${episodeKey}` : undefined,
-      ]);
-      addSkips(cached);
+      addSkips(getCachedSkips(cacheKeys));
     }
-
-    if (list.length === 0) addSkips(aniSkips);
 
     const sorted = list.sort((a, b) => a.from - b.from);
 
     // Save to cache for future offline / download playback if skips exist
     if (sorted.length > 0) {
-      const episodeKey = getEpisodeIdentity(activeEpisode);
-      cacheSkips(
-        [
-          activeEpisode?.link,
-          activeEpisode?.sourceLink,
-          activeEpisodeKey,
-          episodeKey ? `${continueWatchingId}:${episodeKey}` : undefined,
-        ],
-        sorted,
-      );
+      cacheSkips(cacheKeys, sorted);
     }
 
     return sorted;
   }, [
     activeEpisode,
     activeEpisodeKey,
-    aniSkips,
     continueWatchingId,
     matchedDownloadSkip,
     selectedStream,
     (route.params as any)?.linkList,
-    route.params.primaryTitle,
-    route.params.providerValue,
   ]);
+
+  // Every source merged: provider, Jellyfin, AniSkip, IntroDB, then the
+  // viewer's marks. Kinds set to Off are left out.
+  const combinedSkips: SkipSegment[] = useMemo(() => {
+    const legacy = markersToSkips(readShowMarkers(marksShowKey));
+    return withoutOff(
+      gatherSegments({
+        provider: providerSkips,
+        fetched: fetchedSegments,
+        marks: seasonMarks,
+        legacy,
+        durationSeconds: loadedDuration,
+      }),
+      skipModes,
+    );
+  }, [providerSkips, fetchedSegments, seasonMarks, marksShowKey, loadedDuration, skipModes]);
 
   // New skip intervals change what the current position renders.
   useEffect(() => {
@@ -1099,27 +1182,10 @@ const Player = ({route}: Props): React.JSX.Element => {
   }, [combinedSkips, videoPositionRef]);
 
   // Currently active skip interval based on playback position
-  const activeSkip = useMemo(() => {
-    if (!combinedSkips || combinedSkips.length === 0) return null;
-    return (
-      combinedSkips.find(
-        s => currentPlaybackTime >= s.from && currentPlaybackTime < s.to,
-      ) || null
-    );
-  }, [combinedSkips, currentPlaybackTime]);
-
-  const handleSkip = useCallback(() => {
-    if (!activeSkip) return;
-    if (settingsStorage.isHapticFeedbackEnabled()) {
-      ReactNativeHapticFeedback.trigger('effectTick', {
-        enableVibrateFallback: true,
-        ignoreAndroidSystemSettings: false,
-      });
-    }
-    playerRef.current?.seek(activeSkip.to);
-    playbackTimeRef.current = activeSkip.to;
-    setCurrentPlaybackTime(activeSkip.to);
-  }, [activeSkip]);
+  const activeSkip = useMemo(
+    () => segmentAt(combinedSkips, currentPlaybackTime) || null,
+    [combinedSkips, currentPlaybackTime],
+  );
 
   const handleRemoteSkip = useCallback((seconds: number) => {
     if (settingsStorage.isHapticFeedbackEnabled()) {
@@ -1219,6 +1285,20 @@ const Player = ({route}: Props): React.JSX.Element => {
       savedPosition: watchedDuration,
       videoPositionRef,
     });
+
+  // Play best: a dead source moves on to the next one in its list first.
+  const playBestFallback = usePlaybackFallback({
+    plan: route.params.playBest,
+    selectedStream,
+    setSelectedStream,
+    videoPositionRef,
+    paused: isPaused,
+  });
+  const {handleError: takePlayBestError, handleLoad: markPlayBestLoaded} = playBestFallback;
+  const switchToNextStream = useCallback(
+    () => takePlayBestError() || switchToNextProviderStream(),
+    [takePlayBestError, switchToNextProviderStream],
+  );
 
   // Selected tracks, reset to the defaults whenever the stream changes
   const {
@@ -1578,6 +1658,97 @@ const Player = ({route}: Props): React.JSX.Element => {
 
   useEffect(() => setAutoNextVisible(false), [activeEpisode]);
 
+  // Credits that run to the end hand off to the next episode instead of
+  // seeking past the end.
+  const skipSegment = useCallback(
+    (segment: SkipSegment, manual: boolean): boolean => {
+      const duration = videoPositionRef.current.duration || loadedDuration;
+      if (isEndSegment(segment, duration)) {
+        if (manual && hasNextEpisode) {
+          handleNextEpisode();
+          return true;
+        }
+        const allowed = shouldAutoPlayNext({
+          enabled: settingsStorage.isAutoPlayNextEpisodeEnabled(),
+          hasNext: hasNextEpisode,
+          isCasting,
+          isMovie: route.params?.type === 'movie',
+        });
+        if (!manual) {
+          if (!allowed) return false;
+          setAutoNextVisible(true);
+          return true;
+        }
+      }
+      const target = duration > 0 ? Math.min(segment.to, Math.max(0, duration - 0.5)) : segment.to;
+      playerRef.current?.seek(target);
+      playbackTimeRef.current = target;
+      setCurrentPlaybackTime(target);
+      return true;
+    },
+    [videoPositionRef, loadedDuration, hasNextEpisode, handleNextEpisode, isCasting, route.params?.type],
+  );
+
+  const handleSkip = useCallback(() => {
+    if (!activeSkip) return;
+    if (settingsStorage.isHapticFeedbackEnabled()) {
+      ReactNativeHapticFeedback.trigger('effectTick', {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: false,
+      });
+    }
+    autoSkippedRef.current.add(segmentId(activeSkip));
+    skipSegment(activeSkip, true);
+  }, [activeSkip, skipSegment]);
+
+  // Entering a segment: skip it on its own, or on TV bring up its button.
+  const skipButtonRef = useRef<HostInstance>(null);
+  const [peekSkipId, setPeekSkipId] = useState<string | null>(null);
+  const activeSkipId = activeSkip ? segmentId(activeSkip) : null;
+  useEffect(() => {
+    if (!activeSkip || !activeSkipId || isCasting || streamLoading) return;
+    const action = actionFor(activeSkip, skipModes, autoSkippedRef.current.has(activeSkipId));
+    if (action === 'auto') {
+      autoSkippedRef.current.add(activeSkipId);
+      if (skipSegment(activeSkip, false)) {
+        setToast(`Skipped ${activeSkip.title.toLowerCase()}`, 1500);
+        return;
+      }
+    }
+    if (isPlayerLocked || focusedSkipRef.current === activeSkipId) return;
+    focusedSkipRef.current = activeSkipId;
+    if (!isTV) {
+      // On a phone the button shows for a few seconds without the controls.
+      setPeekSkipId(activeSkipId);
+      const timer = setTimeout(() => setPeekSkipId(null), 6000);
+      return () => clearTimeout(timer);
+    }
+    showTVControls();
+    const timer = setTimeout(() => {
+      const handle = getNodeHandle(skipButtonRef.current);
+      if (handle) requestTVFocusByHandle(handle);
+    }, 300);
+    return () => clearTimeout(timer);
+    // Runs once per segment; the segment object is read when its id changes.
+  }, [activeSkipId, isCasting, streamLoading]);
+
+  // Marks set from the player menu, kept for the whole season.
+  const handleMark = useCallback(
+    (choice: MarkChoice) => {
+      const duration = videoPositionRef.current.duration || loadedDuration;
+      const next = setMark(seasonMarks, choice, playbackTimeRef.current, duration);
+      writeSeasonMarks(marksShowKey, marksSeason, next);
+      setSeasonMarks(next);
+      setToast(marksSeason !== undefined ? `Saved for season ${marksSeason}` : 'Saved', 1500);
+    },
+    [videoPositionRef, loadedDuration, seasonMarks, marksShowKey, marksSeason, setToast],
+  );
+  const handleClearMarks = useCallback(() => {
+    clearSeasonMarks(marksShowKey, marksSeason);
+    setSeasonMarks(readSeasonMarks(marksShowKey, marksSeason));
+    setToast('Marks cleared', 1500);
+  }, [marksShowKey, marksSeason, setToast]);
+
   // Memoized error handler
   const selectedStreamRef = useRef(selectedStream);
   selectedStreamRef.current = selectedStream;
@@ -1668,6 +1839,10 @@ const Player = ({route}: Props): React.JSX.Element => {
           ToastAndroid.show('Playback interrupted, retrying', ToastAndroid.SHORT);
           return;
         }
+        if (takePlayBestError()) {
+          setShowControls(true);
+          return;
+        }
         // The reload failed too, so the link has likely expired. Ask the
         // provider for new links once; the same server then continues from
         // where it stopped.
@@ -1727,6 +1902,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       markStreamsOnline,
       navigation,
       refreshLinks,
+      takePlayBestError,
       route.params.directUrl,
       route.params.externalVideo,
       route.params.file,
@@ -2760,6 +2936,9 @@ const Player = ({route}: Props): React.JSX.Element => {
         setTextTracks(e.textTracks);
       }
       videoLoadedRef.current = true;
+      markPlayBestLoaded();
+      const loadedSeconds = Number(e?.duration);
+      setLoadedDuration(Number.isFinite(loadedSeconds) && loadedSeconds > 0 ? loadedSeconds : 0);
       playbackRetryRef.current = markPlaybackLoaded(
         playbackRetryRef.current,
         selectedStreamRef.current,
@@ -2791,6 +2970,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       setTextTracks,
       getStartPosition,
       markStreamLoaded,
+      markPlayBestLoaded,
     ],
   );
 
@@ -2799,7 +2979,10 @@ const Player = ({route}: Props): React.JSX.Element => {
     () => ({
       disableGesture: isPlayerLocked || !enableSwipeGesture,
       doubleTapTime: 200,
-      disableSeekButtons: isPlayerLocked || hideSeekButtons,
+      disableSeekButtons: isPlayerLocked || hideSeekButtons || (isLiveChannel && !liveSeekable),
+      // A live stream without a DVR window cannot seek; its seekbar would only jitter.
+      disableSeekbar: isLiveChannel && !liveSeekable,
+      live: isLiveChannel,
       showControls,
       showOnStart: showControls,
       // TV visibility and its idle timer are owned by usePlayerTVControls.
@@ -2929,6 +3112,8 @@ const Player = ({route}: Props): React.JSX.Element => {
       handleSeekSnap,
       handleVideoEnd,
       handleVideoSeek,
+      isLiveChannel,
+      liveSeekable,
       processedStreamUrl,
       torrentStartMs,
       reloadStartMs,
@@ -3185,6 +3370,14 @@ const Player = ({route}: Props): React.JSX.Element => {
       onPress: handleNextEpisode,
     },
     {
+      id: 'marks',
+      title: 'Mark intro and credits',
+      label: 'Mark',
+      icon: 'bookmark-outline',
+      visible: !isCasting,
+      onPress: () => setShowMarksMenu(true),
+    },
+    {
       id: 'settings', title: 'Settings', label: 'Settings', icon: 'cog-outline',
       visible: true, onPress: () => setShowMoreControls(true),
     },
@@ -3317,7 +3510,7 @@ const Player = ({route}: Props): React.JSX.Element => {
 
   // Show error state
   if (
-    streamError &&
+    (streamError || playBestFallback.exhausted) &&
     !isRemoteActive &&
     !isCasting &&
     !isLocalOrDownloadedStream
@@ -3346,7 +3539,7 @@ const Player = ({route}: Props): React.JSX.Element => {
             navigation.goBack();
           }}>
           <Text style={{color: '#ffffff', fontWeight: 'bold', fontSize: 16}}>
-            Go Back
+            {playBestFallback.exhausted ? 'Choose source' : 'Go Back'}
           </Text>
         </TVFocusable>
       </SafeAreaView>
@@ -3548,7 +3741,7 @@ const Player = ({route}: Props): React.JSX.Element => {
                 setPlayPauseTVHandle(getNodeHandle(playPauseTVRef.current))
               }
               nextFocusLeft={playPauseTVHandle ?? undefined}
-              nextFocusRight={playPauseTVHandle ?? undefined}
+              nextFocusRight={(behindLive && goLiveTVHandle) || (playPauseTVHandle ?? undefined)}
               nextFocusUp={topControlTVHandle ?? undefined}
               nextFocusDown={timelineFocusHandle ?? undefined}
               accessibilityRole="button"
@@ -3576,6 +3769,24 @@ const Player = ({route}: Props): React.JSX.Element => {
                 color="white"
               />
             </TVFocusPressable>
+            {behindLive ? (
+              <TVFocusPressable
+                ref={goLiveTVRef}
+                focusRadius={24 * controlStyle.scale}
+                focusWidth={3}
+                onLayout={() => setGoLiveTVHandle(getNodeHandle(goLiveTVRef.current))}
+                nextFocusLeft={playPauseTVHandle ?? undefined}
+                nextFocusRight={goLiveTVHandle ?? undefined}
+                nextFocusUp={topControlTVHandle ?? undefined}
+                nextFocusDown={timelineFocusHandle ?? undefined}
+                accessibilityRole="button"
+                accessibilityLabel="Go live"
+                onPress={goLive}
+                style={[GO_LIVE_STYLE, {position: 'absolute', top: '40%', left: '50%', marginLeft: 60 * controlStyle.scale, marginTop: 14 * controlStyle.scale, zIndex: 65}]}>
+                <MaterialCommunityIcons name="broadcast" size={20 * controlStyle.scale} color="white" />
+                <Text style={{color: 'white', fontSize: 15 * controlStyle.scale, fontWeight: '600'}}>Go live</Text>
+              </TVFocusPressable>
+            ) : null}
             <TVFocusPressable
               ref={timelineRef}
               focusWidth={2}
@@ -3652,6 +3863,17 @@ const Player = ({route}: Props): React.JSX.Element => {
           </>
         )}
 
+      {!isTV && !isCasting && !streamLoading && !isPlayerLocked && !showSettings && !showEpisodeSidebar && showControls && behindLive && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go live"
+          onPress={goLive}
+          style={[GO_LIVE_STYLE, {position: 'absolute', alignSelf: 'center', top: 64, zIndex: 60}]}>
+          <MaterialCommunityIcons name="broadcast" size={18} color="white" />
+          <Text style={{color: 'white', fontSize: 14, fontWeight: '600'}}>Go live</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Full-screen overlay to detect taps when locked */}
       {!isCasting && isPlayerLocked && (
         <TouchableOpacity
@@ -3712,12 +3934,27 @@ const Player = ({route}: Props): React.JSX.Element => {
           onClose={closeControlEditor} onSave={saveControlLayout} />
       )}
 
+      {showMarksMenu && !isCasting && (
+        <SkipMarksMenu
+          time={playbackTimeRef.current}
+          marks={seasonMarks}
+          seasonLabel={marksSeason !== undefined ? `season ${marksSeason}` : 'this show'}
+          color={primary}
+          onMark={handleMark}
+          onClear={handleClearMarks}
+          onClose={() => {
+            setShowMarksMenu(false);
+            setShowControls(true);
+          }}
+        />
+      )}
+
       {/* Floating Skip Button (Intro/Outro/Recap) */}
-      {activeSkip && !isCasting && !streamLoading && !isPlayerLocked && (
+      {activeSkip && !autoNextVisible && !isCasting && !streamLoading && !isPlayerLocked && (
         <NativeAnimated.View
-          pointerEvents={showControls ? 'auto' : 'none'}
+          pointerEvents={showControls || peekSkipId === activeSkipId ? 'auto' : 'none'}
           style={[
-            controlsOpacityStyle,
+            peekSkipId === activeSkipId && !showControls ? {opacity: 1} : controlsOpacityStyle,
             {
               position: 'absolute',
               bottom: 95,
@@ -3726,13 +3963,8 @@ const Player = ({route}: Props): React.JSX.Element => {
             },
           ]}>
           <SkipButton
-            label={
-              activeSkip.title
-                ? activeSkip.title.toLowerCase().startsWith('skip')
-                  ? activeSkip.title
-                  : `Skip ${activeSkip.title}`
-                : 'Skip Intro'
-            }
+            buttonRef={skipButtonRef}
+            label={skipLabel(activeSkip)}
             focusColor={colors.primary}
             // The button fades out with the controls. On TV it must not
             // stay focusable while invisible.

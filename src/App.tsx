@@ -20,12 +20,14 @@ import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
+import AdvancedDownloads from './screens/settings/AdvancedDownloads';
 import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
 import SourceLibrary from './screens/library/SourceLibrary';
 import LiveTV from './screens/livetv/LiveTV';
+import LiveGuide from './screens/livetv/LiveGuide';
 import Torrents from './screens/torrents/Torrents';
 import TorrentDetails from './screens/torrents/TorrentDetails';
 import TorrentOptions from './screens/torrents/TorrentOptions';
@@ -36,6 +38,18 @@ import StreamFinder from './screens/torrents/StreamFinder';
 import StremioAddons from './screens/torrents/StremioAddons';
 import WatchSync from './screens/settings/WatchSync';
 import LanguageSettings from './screens/settings/LanguageSettings';
+import Profiles from './screens/settings/Profiles';
+import ProfileEdit from './screens/settings/ProfileEdit';
+import ProfileGate from './components/profiles/ProfileGate';
+import useProfilesStore from './lib/profiles/useProfiles';
+import YtdlDownload from './screens/ytdl/YtdlDownload';
+import YtdlSettings from './screens/ytdl/YtdlSettings';
+import YtdlCookies from './screens/ytdl/YtdlCookies';
+import Browser from './screens/browser/Browser';
+import BrowserSettings from './screens/browser/BrowserSettings';
+import BrowserPasswords from './screens/browser/BrowserPasswords';
+import SocialDownload from './screens/social/SocialDownload';
+import {startYtdlScheduler} from './lib/ytdl/queue';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
@@ -60,6 +74,7 @@ import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 import Preferences from './screens/settings/Preference';
+import Ed2k from './screens/settings/Ed2k';
 import PlayerSettings from './screens/settings/PlayerSettings';
 import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
@@ -78,6 +93,7 @@ import Extensions from './screens/settings/Extensions';
 import Constants from 'expo-constants';
 import {settingsStorage, migrateWatchProgressFromCacheStorage} from './lib/storage';
 import {ensureFreshAll} from './lib/watchSync';
+import {flushScrobbleQueue} from './lib/watchSync/scrobble';
 import {syncParallelStreaming} from './lib/parallelStreaming';
 import {updateProvidersService} from './lib/services/UpdateProviders';
 import {QueryClientProvider} from '@tanstack/react-query';
@@ -89,8 +105,8 @@ import WafWebViewDialog from './components/WafWebViewDialog';
 import VerificationConsentDialog from './components/VerificationConsentDialog';
 import ProviderSandboxHost from './components/ProviderSandboxHost';
 import {syncDohSettings} from './lib/services/dohService';
-import {syncWarpSettings} from './lib/services/warpService';
-import {syncByeDpiSettings} from './lib/services/byeDpiService';
+import {startUnblockEvents, syncUnblock} from './lib/unblock/unblockService';
+import TorrentVpnTip from './components/unblock/TorrentVpnTip';
 import {
   getInitialSourceIntent,
   setPendingSourceToken,
@@ -125,6 +141,7 @@ export type HomeStackParamList = {
   };
   Webview: {link: string};
   LiveTV: undefined;
+  LiveGuide: {sourceId: string; group?: string};
 };
 
 export type RootStackParamList = {
@@ -162,9 +179,21 @@ export type RootStackParamList = {
     meta?: import('./lib/watchMeta').WatchMeta;
     /** A live TV channel: no watch progress or resume point is saved. */
     live?: boolean;
+    /** A Live TV catch-up replay: a fixed programme, so no "Go live". */
+    catchup?: boolean;
     /** A network library file: episode links are version keys, history stays in the netlib store. */
     netlib?: boolean;
+    /** Play best: sources to fall back on when the playing one is dead. */
+    playBest?: import('./lib/streams/play').PlayBestPlan;
   };
+  /** The yt-dlp Download sheet, from Share or from Downloads. */
+  YtdlDownload: {url?: string} | undefined;
+  /** The built-in browser (not in a kids profile). */
+  Browser: {url?: string; private?: boolean} | undefined;
+  BrowserSettings: undefined;
+  BrowserPasswords: undefined;
+  /** Photos, carousels, stories and songs from a social post. */
+  SocialDownload: {url: string};
 };
 
 export type SearchStackParamList = {
@@ -184,6 +213,7 @@ export type WatchListStackParamList = {
   DebridSettings: undefined;
   CloudFiles: undefined;
   LiveTV: undefined;
+  LiveGuide: {sourceId: string; group?: string};
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
@@ -209,6 +239,7 @@ export type SettingsStackParamList = {
   DisableProviders: undefined;
   About: undefined;
   Preferences: undefined;
+  Ed2k: undefined;
   PlayerSettings: undefined;
   PlayerControlSettings: undefined;
   SubTitlesPreferences: undefined;
@@ -217,9 +248,14 @@ export type SettingsStackParamList = {
   DataManagement: undefined;
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
-  Credits: undefined;
+  AdvancedDownloads: undefined;
+  Credits: {section?: import('./screens/settings/creditsData').CreditSectionId} | undefined;
   WatchSync: undefined;
   Languages: undefined;
+  Profiles: undefined;
+  ProfileEdit: {id?: string};
+  YtdlSettings: undefined;
+  YtdlCookies: undefined;
 };
 
 export type DownloadsStackParamList = {
@@ -270,6 +306,8 @@ LogBox.ignoreLogs([
 ]);
 
 export const openDownloadsScreen = (): void => {
+  // Downloads sit under Settings, which a kids profile does not have.
+  if (useProfilesStore.getState().kids) return;
   if (!navigationRef.isReady()) {
     pendingDownloadsNavigation = true;
     return;
@@ -281,9 +319,23 @@ export const openDownloadsScreen = (): void => {
   });
 };
 
+const openTorrentVpnSetting = (): void => {
+  if (!navigationRef.isReady()) return;
+  (navigationRef.navigate as (...args: unknown[]) => void)('TabStack', {
+    screen: 'TorrentsStack',
+    params: {screen: 'TorrentOptions', params: {highlight: 'torrent-vpn'}},
+  });
+};
+
+const openProfilesScreen = (): void => {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('TabStack', {screen: 'SettingsStack', params: {screen: 'Profiles'}});
+};
+
 // Opens Extensions with the add source dialog prefilled. The user still
 // confirms there, so another app or web page cannot add a source silently.
 const openAddSourceScreen = (payload: SourceIntentPayload): void => {
+  if (useProfilesStore.getState().kids) return;
   if (!navigationRef.isReady()) {
     pendingAddSource = payload;
     return;
@@ -414,6 +466,7 @@ function HomeStackScreen() {
       <HomeStack.Screen name="ScrollList" component={ScrollList} />
       <HomeStack.Screen name="Webview" component={WebView} />
       <HomeStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
+      <HomeStack.Screen name="LiveGuide" component={LiveGuide} options={subpageOptions} />
     </HomeStack.Navigator>
   );
 }
@@ -443,6 +496,7 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
       <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
       <WatchListStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
+      <WatchListStack.Screen name="LiveGuide" component={LiveGuide} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
       <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <WatchListStack.Screen name="SourceLibrary" component={SourceLibrary} options={subpageOptions} />
@@ -536,8 +590,15 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <SettingsStack.Screen name="Credits" component={Credits} options={subpageOptions} />
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
+      <SettingsStack.Screen name="AdvancedDownloads" component={AdvancedDownloads} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
+      <SettingsStack.Screen name="Profiles" component={Profiles} options={subpageOptions} />
+      <SettingsStack.Screen name="ProfileEdit" component={ProfileEdit} options={subpageOptions} />
+      {/* These two place themselves below the status bar. */}
+      <SettingsStack.Screen name="YtdlSettings" component={YtdlSettings} />
+      <SettingsStack.Screen name="YtdlCookies" component={YtdlCookies} />
+      <SettingsStack.Screen name="Ed2k" component={Ed2k} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }
@@ -558,6 +619,8 @@ function TabStack() {
     }),
     [isLargeScreen],
   );
+  // A kids profile has no Torrents or Settings tab. Switching profile stays on Home.
+  const kids = useProfilesStore(state => state.kids);
   const tabs = (
     <Tab.Navigator
       screenListeners={navigationWorkListeners}
@@ -574,21 +637,25 @@ function TabStack() {
         component={SearchStackScreen}
         options={searchTabOptions}
       />
-      <Tab.Screen
-        name="TorrentsStack"
-        component={TorrentsStackScreen}
-        options={{title: 'Torrents', tabBarIcon: makeTabIcon('magnet', 'magnet-on')}}
-      />
+      {kids ? null : (
+        <Tab.Screen
+          name="TorrentsStack"
+          component={TorrentsStackScreen}
+          options={{title: 'Torrents', tabBarIcon: makeTabIcon('magnet', 'magnet-on')}}
+        />
+      )}
       <Tab.Screen
         name="WatchListStack"
         component={WatchListStackScreen}
         options={watchListTabOptions}
       />
-      <Tab.Screen
-        name="SettingsStack"
-        component={SettingsStackScreen}
-        options={settingsTabOptions}
-      />
+      {kids ? null : (
+        <Tab.Screen
+          name="SettingsStack"
+          component={SettingsStackScreen}
+          options={settingsTabOptions}
+        />
+      )}
     </Tab.Navigator>
   );
   return tabs;
@@ -602,6 +669,11 @@ const App = () => {
   },[]);
   useEffect(() => {
     syncParallelStreaming();
+  }, []);
+
+  // yt-dlp downloads that wait for a start time or for Wi-Fi.
+  useEffect(() => {
+    startYtdlScheduler();
   }, []);
 
   // Magnets and links opened from other apps, and copied magnets.
@@ -656,7 +728,11 @@ const App = () => {
     // Keeps watch-sync sign-ins renewed at start and on every return to the
     // app. ensureFreshAll itself runs at most once every 6 h.
     const renewWatchSync = () => {
-      ensureFreshAll().catch(() => undefined);
+      // Then sends Trakt scrobbles queued while offline.
+      ensureFreshAll()
+        .catch(() => undefined)
+        .then(() => flushScrobbleQueue())
+        .catch(() => undefined);
     };
     // Android can recreate the activity (for example after a launcher icon
     // change) and report "active" before this listener exists. A stale
@@ -737,17 +813,15 @@ const App = () => {
     };
   }, []);
 
-  // Initialize DNS over HTTPS, Cloudflare WARP & ByeDPI
+  // Initialize DNS over HTTPS and Smart unblock (ByeDPI and Cloudflare WARP)
   useEffect(() => {
     syncDohSettings().catch(e =>
       console.warn('[DoH] Failed to sync settings:', e),
     );
-    syncWarpSettings().catch(e =>
-      console.warn('[WARP] Failed to sync settings:', e),
+    syncUnblock().catch(e =>
+      console.warn('[Unblock] Failed to sync settings:', e),
     );
-    syncByeDpiSettings().catch(e =>
-      console.warn('[ByeDPI] Failed to sync settings:', e),
-    );
+    return startUnblockEvents();
   }, []);
 
   useEffect(() => {
@@ -814,6 +888,19 @@ const App = () => {
                     component={Player}
                     options={playerScreenOptions}
                   />
+                  <Stack.Screen
+                    name="YtdlDownload"
+                    component={YtdlDownload}
+                    options={{animation: 'slide_from_bottom'}}
+                  />
+                  <Stack.Screen name="Browser" component={Browser} />
+                  <Stack.Screen name="BrowserSettings" component={BrowserSettings} />
+                  <Stack.Screen name="BrowserPasswords" component={BrowserPasswords} />
+                  <Stack.Screen
+                    name="SocialDownload"
+                    component={SocialDownload}
+                    options={{animation: 'slide_from_bottom'}}
+                  />
                 </Stack.Navigator>
               </NavigationContainer>
               {/* Global WAF / captcha solving dialog, triggered by providers via
@@ -822,6 +909,8 @@ const App = () => {
               <WafWebViewDialog />
               <RemoteVolumeToast />
               <FirstRunTips />
+              <TorrentVpnTip onOpenSetting={openTorrentVpnSetting} />
+              <ProfileGate onManage={openProfilesScreen} />
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched
                 into it. */}

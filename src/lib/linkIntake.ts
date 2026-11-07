@@ -11,22 +11,34 @@ import {downloadWithClient, quickDebridPlay, streamOnDevice, toast} from './torr
 import {makeResult, infoHashFrom} from './torrentSearch/util';
 import {torrentManager} from './torrentManager';
 import {showAppDialog} from './zustand/appDialogStore';
+import {isPageLink} from './ytdl/formats';
+import {ytdlSupported} from './ytdl/native';
+import {readYtdlSettings} from './ytdl/settings';
+import {isKidsProfileActive} from './profiles/profiles';
+import {offerDashDownload} from './downloadEngine/dashIntake';
+import {ed2kLinksIn, isEd2kLink} from './ed2k/link';
+import {offerEd2kLink} from './ed2k/intake';
+import {socialLinkInText} from './social/urls';
 
 const storage = openStore('droid-stream-intake');
 
-export type IncomingKind = 'magnet' | 'torrent' | 'http';
+export type IncomingKind = 'magnet' | 'torrent' | 'http' | 'ed2k';
 
 export const classifyLink = (value: string): IncomingKind | null => {
   const text = value.trim();
+  if (isEd2kLink(text)) return 'ed2k';
   if (/^magnet:\?/i.test(text)) return 'magnet';
   if (/^content:\/\//i.test(text) || /\.torrent(\?|$)/i.test(text)) return 'torrent';
-  if (/^https?:\/\/\S+$/i.test(text)) return 'http';
+  if (/^(https?|ftps?|ftpes):\/\/\S+$/i.test(text)) return 'http';
   return null;
 };
 
-/** First magnet or URL in copied text, if any. */
+/** First magnet, file link or social post link in copied text, if any. */
 export const linkInText = (text: string): string | undefined =>
-  text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] || text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0];
+  ed2kLinksIn(text)[0] ||
+  text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] ||
+  text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0] ||
+  socialLinkInText(text);
 
 const nameOf = (value: string): string => {
   const dn = value.match(/[?&]dn=([^&]+)/i)?.[1];
@@ -45,7 +57,13 @@ const queueWithToast = (url: string, name?: string) =>
 
 /** Asks which quality to save when a stream offers more than one. */
 const downloadLink = async (url: string): Promise<void> => {
-  if (!/\.(m3u8|mpd)(\?|$)/i.test(url)) {
+  if (/\.mpd(\?|$)/i.test(url)) {
+    await offerDashDownload(url, undefined, (link, name, dash) =>
+      queueLink(link, name, {dash}).then(state => toast(state === 'queued' ? 'Added to Downloads' : 'Already in Downloads')),
+    );
+    return;
+  }
+  if (!/\.m3u8(\?|$)/i.test(url)) {
     await queueWithToast(url);
     return;
   }
@@ -67,16 +85,99 @@ const downloadLink = async (url: string): Promise<void> => {
   });
 };
 
-export const offerLink = (value: string, navigate: (screen: string, params?: object) => void, origin: 'shared' | 'clipboard'): void => {
+/** What another browser sent with a file link it handed over as a download manager. */
+export interface IncomingDownload {
+  headers?: Record<string, string>;
+  mimeType?: string;
+}
+
+/** A file link from another browser: saved with the cookies, Referer and user agent it sent. */
+const offerDownload = (url: string, extra: IncomingDownload): void => {
+  const headers = extra.headers || {};
+  showAppDialog({
+    title: 'Download this file?',
+    message: nameOf(url),
+    actions: [
+      {label: 'Not now'},
+      {
+        label: 'Download',
+        variant: 'primary',
+        onPress: () => {
+          // Loaded here so the intake does not pull the browser in at start.
+          const {downloadFile} = require('./browser/handoff') as typeof import('./browser/handoff');
+          downloadFile({url, mime: extra.mimeType, headers}, {pageUrl: headers.Referer || '', userAgent: headers['User-Agent'] || '', isPrivate: false}).catch(error => toast(error.message));
+        },
+      },
+    ],
+  });
+};
+
+const isUserscriptLink = (value: string): boolean => /^https?:\/\/[^?#\s]+\.user\.js(\?|#|$)/i.test(value);
+
+export const offerLink = (
+  value: string,
+  navigate: (screen: string, params?: object) => void,
+  origin: 'shared' | 'clipboard',
+  download?: IncomingDownload,
+): void => {
   const kind = classifyLink(value);
+  if (kind === 'http' && download) {
+    offerDownload(value, download);
+    return;
+  }
+  // A post, story or profile on Instagram, X, Reddit and the like opens the
+  // photo sheet, which offers the video downloader for video posts.
+  const social = socialLinkInText(value);
+  if (social) {
+    if (origin === 'shared') {
+      navigate('SocialDownload', {url: social});
+      return;
+    }
+    showAppDialog({
+      title: 'Save from the copied post?',
+      message: social,
+      actions: [{label: 'Not now'}, {label: 'Open', variant: 'primary', onPress: () => navigate('SocialDownload', {url: social})}],
+    });
+    return;
+  }
   if (!kind) return;
+  if (kind === 'ed2k') {
+    offerEd2kLink(value, origin);
+    return;
+  }
+  if (kind === 'http' && origin === 'shared' && isUserscriptLink(value) && !isKidsProfileActive()) {
+    showAppDialog({
+      title: 'Install this userscript?',
+      message: value,
+      actions: [
+        {label: 'Not now'},
+        {
+          label: 'Install',
+          variant: 'primary',
+          onPress: () => {
+            const {installUserscriptFromUrl} = require('./browser/userscripts/store') as typeof import('./browser/userscripts/store');
+            installUserscriptFromUrl(value)
+              .then(script => toast(`Installed ${script.meta.name}. It runs in the browser.`))
+              .catch(error => toast(error.message));
+          },
+        },
+      ],
+    });
+    return;
+  }
   const title = nameOf(value);
+  // A shared web page (a YouTube, Instagram or X post) opens the yt-dlp sheet.
+  if (kind === 'http' && origin === 'shared' && isPageLink(value) && ytdlSupported() && readYtdlSettings().offerForAllLinks) {
+    navigate('YtdlDownload', {url: value});
+    return;
+  }
   if (kind === 'http') {
     showAppDialog({
       title: origin === 'clipboard' ? 'Download the copied link?' : 'Download this link?',
       message: value,
       actions: [
         {label: 'Not now'},
+        ...(isKidsProfileActive() ? [] : [{label: 'Open in browser', onPress: () => navigate('Browser', {url: value})}]),
         {label: 'Download', variant: 'primary', onPress: () => downloadLink(value)},
       ],
     });
@@ -108,7 +209,13 @@ export const startLinkIntake = (navigate: (screen: string, params?: object) => v
     try {
       const intent = await torrentManager.consumeLaunchIntent().catch(() => null);
       if (intent?.value) {
-        offerLink(intent.value, navigate, 'shared');
+        let headers: Record<string, string> | undefined;
+        try {
+          headers = intent.headers ? JSON.parse(intent.headers) : undefined;
+        } catch {
+          headers = undefined;
+        }
+        offerLink(intent.value, navigate, 'shared', intent.download ? {headers, mimeType: intent.mimeType} : undefined);
         return;
       }
       const mode = settingsStorage.clipboardGrabber();

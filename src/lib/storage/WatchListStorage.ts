@@ -1,4 +1,5 @@
 import {mainStorage} from './StorageService';
+import {getActiveProfileId, profileKey} from '../profiles/scope';
 
 /**
  * Storage keys for the library (saved titles and their categories)
@@ -74,11 +75,22 @@ export const createCollectionId = (): string =>
  */
 export class WatchListStorage {
   /**
+   * [profileId] reads another profile's library (backup, delete). Without
+   * it, the profile in use.
+   */
+  constructor(private readonly profileId?: string) {}
+
+  /** The key of [key] for this profile. */
+  key(key: WatchListKeys): string {
+    return profileKey(key, this.profileId ?? getActiveProfileId());
+  }
+
+  /**
    * Get all watchlist items
    */
   getWatchList(): WatchListItem[] {
     const watchList =
-      mainStorage.getArray<Partial<WatchListItem>>(WatchListKeys.WATCH_LIST) ||
+      mainStorage.getArray<Partial<WatchListItem>>(this.key(WatchListKeys.WATCH_LIST)) ||
       [];
     return watchList
       .filter(item => Boolean(item.title && item.link && item.provider))
@@ -112,7 +124,7 @@ export class WatchListStorage {
     });
 
     // Save the updated watchlist
-    mainStorage.setArray(WatchListKeys.WATCH_LIST, newWatchList);
+    mainStorage.setArray(this.key(WatchListKeys.WATCH_LIST), newWatchList);
 
     return newWatchList;
   }
@@ -136,7 +148,7 @@ export class WatchListStorage {
       collections: unique,
       updatedAt: Date.now(),
     };
-    mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
+    mainStorage.setArray(this.key(WatchListKeys.WATCH_LIST), watchList);
     return watchList;
   }
 
@@ -147,7 +159,7 @@ export class WatchListStorage {
     const watchList = this.getWatchList();
     const newWatchList = watchList.filter(item => item.link !== link);
 
-    mainStorage.setArray(WatchListKeys.WATCH_LIST, newWatchList);
+    mainStorage.setArray(this.key(WatchListKeys.WATCH_LIST), newWatchList);
 
     return newWatchList;
   }
@@ -157,7 +169,7 @@ export class WatchListStorage {
    */
   clearWatchList(): WatchListItem[] {
     const emptyList: WatchListItem[] = [];
-    mainStorage.setArray(WatchListKeys.WATCH_LIST, emptyList);
+    mainStorage.setArray(this.key(WatchListKeys.WATCH_LIST), emptyList);
     return emptyList;
   }
 
@@ -174,13 +186,13 @@ export class WatchListStorage {
    */
   getCollections(): LibraryCollection[] {
     const collections = (
-      mainStorage.getArray<LibraryCollection>(WatchListKeys.COLLECTIONS) || []
+      mainStorage.getArray<LibraryCollection>(this.key(WatchListKeys.COLLECTIONS)) || []
     ).filter(c => Boolean(c?.id && c.name));
     // Older versions kept Watchlist out of storage. Add it once; after that
     // a missing Watchlist means the user deleted it. Its createdAt and
     // updatedAt of 0 let a synced edit or delete from another device win.
-    if (!mainStorage.getBool(WatchListKeys.DEFAULT_COLLECTION_ADDED, false)) {
-      mainStorage.setBool(WatchListKeys.DEFAULT_COLLECTION_ADDED, true);
+    if (!mainStorage.getBool(this.key(WatchListKeys.DEFAULT_COLLECTION_ADDED), false)) {
+      mainStorage.setBool(this.key(WatchListKeys.DEFAULT_COLLECTION_ADDED), true);
       if (!collections.some(c => c.id === DEFAULT_COLLECTION_ID)) {
         return this.saveCollections([DEFAULT_COLLECTION, ...collections]);
       }
@@ -190,7 +202,7 @@ export class WatchListStorage {
 
   saveCollections(collections: LibraryCollection[]): LibraryCollection[] {
     const sorted = [...collections].sort((a, b) => a.createdAt - b.createdAt);
-    mainStorage.setArray(WatchListKeys.COLLECTIONS, sorted);
+    mainStorage.setArray(this.key(WatchListKeys.COLLECTIONS), sorted);
     return sorted;
   }
 
@@ -223,7 +235,7 @@ export class WatchListStorage {
       };
     });
     if (changed) {
-      mainStorage.setArray(WatchListKeys.WATCH_LIST, watchList);
+      mainStorage.setArray(this.key(WatchListKeys.WATCH_LIST), watchList);
     }
     return {collections, watchList};
   }

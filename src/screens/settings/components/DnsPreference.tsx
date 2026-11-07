@@ -1,7 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, { useEffect, useState } from 'react';
-import {Switch, ToastAndroid, View, Keyboard, BackHandler, type HostInstance, type TextInputInstance} from 'react-native';
-import {getNodeHandle} from '../../../lib/tv/focus';
+import {ToastAndroid, View, Keyboard, BackHandler, type TextInputInstance} from 'react-native';
 import {RawTextInput as TextInput} from '../../../components/ui/Text';
 import { settingsStorage } from '../../../lib/storage';
 import {
@@ -9,41 +8,44 @@ import {
   DohProviderValue,
   syncDohSettings,
 } from '../../../lib/services/dohService';
-import { getWarpStatus, toggleWarp } from '../../../lib/services/warpService';
 import {
   DEFAULT_BYEDPI_ARGS,
   BYEDPI_PRESETS,
   getByeDpiStatus,
   restartByeDpi,
-  toggleByeDpi,
 } from '../../../lib/services/byeDpiService';
+import {
+  forgetUnblockedHost,
+  getUnblockMode,
+  getUnblockStatus,
+  listUnblockedHosts,
+  routeLabel,
+  setUnblockMode,
+  subscribeUnblockedHosts,
+  syncUnblock,
+  type UnblockedHost,
+} from '../../../lib/unblock/unblockService';
+import type {UnblockMode} from '../../../lib/unblock/routing';
+import UnblockModeChoices from '../../../components/unblock/UnblockModeChoices';
 import { useM3Colors } from '../../../theme/M3PaletteContext';
 import AppText from '../../../components/ui/Text';
 import DropdownField from '../../../components/ui/DropdownField';
 import {TVFocusable} from '../../../components/tv';
-import useTVNavigationStore from '../../../lib/zustand/tvNavigationStore';
+
+const STATUS_POLL_MS = 3000;
 
 const DnsPreference = () => {
   const colors = useM3Colors();
 
-  const [warpEnabled, setWarpEnabledState] = useState<boolean>(
-    settingsStorage.isWarpEnabled(),
-  );
-  const [isWarpBusy, setIsWarpBusy] = useState<boolean>(false);
-  const [warpPort, setWarpPort] = useState<number | null>(null);
-  const warpRef = React.useRef<HostInstance>(null);
-  const [warpHandle, setWarpHandle] = useState<number | null>(null);
-  const byeDpiRef = React.useRef<HostInstance>(null);
-  const [byeDpiHandle, setByeDpiHandle] = useState<number | null>(null);
+  const [mode, setModeState] = useState<UnblockMode>(() => getUnblockMode());
+  const [isModeBusy, setIsModeBusy] = useState<boolean>(false);
+  const [running, setRunning] = useState({byeDpi: false, warp: false});
+  const [hosts, setHosts] = useState<UnblockedHost[]>(() => listUnblockedHosts());
 
-  const [byeDpiEnabled, setByeDpiEnabledState] = useState<boolean>(
-    settingsStorage.isByeDpiEnabled(),
-  );
-  const [isByeDpiBusy, setIsByeDpiBusy] = useState<boolean>(false);
-  const [byeDpiPort, setByeDpiPort] = useState<number | null>(null);
   const [byeDpiArgs, setByeDpiArgs] = useState(
     settingsStorage.getByeDpiCmdArgs() || DEFAULT_BYEDPI_ARGS,
   );
+  const [isByeDpiBusy, setIsByeDpiBusy] = useState<boolean>(false);
   const [showArgsEditor, setShowArgsEditor] = useState<boolean>(false);
   const argsInputRef = React.useRef<TextInputInstance>(null);
   const [isArgsInputFocused, setIsArgsInputFocused] = useState<boolean>(false);
@@ -76,17 +78,24 @@ const DnsPreference = () => {
     return () => sub.remove();
   }, [showArgsEditor, isArgsInputFocused, isCustomUrlFocused]);
 
+  // Which proxies run changes on its own in Auto, so keep checking while Settings is open.
   useEffect(() => {
-    getWarpStatus()
-      .then(res => {
-        if (res.running && res.port) setWarpPort(res.port);
-      })
-      .catch(() => { });
-    getByeDpiStatus()
-      .then(res => {
-        if (res.running && res.port) setByeDpiPort(res.port);
-      })
-      .catch(() => { });
+    let active = true;
+    const refresh = () => {
+      getUnblockStatus()
+        .then(status => {
+          if (active) setRunning({byeDpi: status.byeDpiRunning, warp: status.warpRunning});
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const timer = setInterval(refresh, STATUS_POLL_MS);
+    const unsubscribe = subscribeUnblockedHosts(() => setHosts(listUnblockedHosts()));
+    return () => {
+      active = false;
+      clearInterval(timer);
+      unsubscribe();
+    };
   }, []);
 
   const initialProvider = settingsStorage.isDohEnabled()
@@ -95,92 +104,45 @@ const DnsPreference = () => {
   const [provider, setProvider] = useState<DohProviderValue>(initialProvider);
   const [customUrl, setCustomUrl] = useState(settingsStorage.getDohCustomUrl());
 
-  const onToggleWarp = async (value: boolean) => {
-    if (isWarpBusy || isByeDpiBusy) return;
-    setIsWarpBusy(true);
-    setWarpEnabledState(value);
-    if (value) {
-      setByeDpiEnabledState(false);
-      setByeDpiPort(null);
+  const chooseMode = async (next: UnblockMode) => {
+    if (isModeBusy || next === mode) return;
+    setIsModeBusy(true);
+    setModeState(next);
+    if (next === 'warp') {
+      ToastAndroid.show('Connecting to Cloudflare WARP...', ToastAndroid.SHORT);
     }
-
     try {
-      if (value) {
-        ToastAndroid.show(
-          'Connecting to Cloudflare WARP...',
-          ToastAndroid.SHORT,
-        );
-      }
-      const res = await toggleWarp(value);
-      if (value && res.running) {
-        setWarpPort(res.port || null);
-        ToastAndroid.show(
-          `WARP connected (Port ${res.port})`,
-          ToastAndroid.SHORT,
-        );
-      } else if (!value) {
-        setWarpPort(null);
-        ToastAndroid.show('WARP disconnected', ToastAndroid.SHORT);
-      }
+      await setUnblockMode(next);
     } catch (e: any) {
-      setWarpEnabledState(false);
-      setWarpPort(null);
-      settingsStorage.setWarpEnabled(false);
       ToastAndroid.show(
-        `WARP error: ${e?.message || 'Failed to connect'}`,
+        `Unblocking error: ${e?.message || 'could not change it'}`,
         ToastAndroid.LONG,
       );
     } finally {
-      setIsWarpBusy(false);
+      setIsModeBusy(false);
+      getUnblockStatus()
+        .then(status => setRunning({byeDpi: status.byeDpiRunning, warp: status.warpRunning}))
+        .catch(() => undefined);
     }
   };
 
-  const onToggleByeDpi = async (value: boolean) => {
-    if (isByeDpiBusy || isWarpBusy) return;
-    setIsByeDpiBusy(true);
-    setByeDpiEnabledState(value);
-    if (value) {
-      setWarpEnabledState(false);
-      setWarpPort(null);
-    }
-
-    try {
-      if (value) {
-        ToastAndroid.show('Starting ByeDPI...', ToastAndroid.SHORT);
-      }
-      const res = await toggleByeDpi(value, byeDpiArgs);
-      if (value && res.running) {
-        setByeDpiPort(res.port || null);
-        ToastAndroid.show(
-          `ByeDPI connected (Port ${res.port})`,
-          ToastAndroid.SHORT,
-        );
-      } else if (!value) {
-        setByeDpiPort(null);
-        ToastAndroid.show('ByeDPI stopped', ToastAndroid.SHORT);
-      }
-    } catch (e: any) {
-      setByeDpiEnabledState(false);
-      setByeDpiPort(null);
-      settingsStorage.setByeDpiEnabled(false);
-      ToastAndroid.show(
-        `ByeDPI error: ${e?.message || 'Failed to start'}`,
-        ToastAndroid.LONG,
-      );
-    } finally {
-      setIsByeDpiBusy(false);
-    }
+  const forgetHost = async (host: string) => {
+    await forgetUnblockedHost(host);
+    setHosts(listUnblockedHosts());
+    ToastAndroid.show(`${host} will be tried directly again`, ToastAndroid.SHORT);
   };
 
   const saveByeDpiArgs = async (value: string) => {
     const trimmed = value.trim();
     setByeDpiArgs(trimmed);
     settingsStorage.setByeDpiCmdArgs(trimmed);
-    if (byeDpiEnabled) {
+    // The router starts ByeDPI with these when a site needs it.
+    await syncUnblock().catch(() => undefined);
+    const status = await getByeDpiStatus().catch(() => ({running: false}));
+    if (status.running) {
       setIsByeDpiBusy(true);
       try {
         const res = await restartByeDpi(trimmed);
-        setByeDpiPort(res.running ? res.port || null : null);
         if (res.running) {
           ToastAndroid.show(
             'ByeDPI restarted with new parameters',
@@ -188,7 +150,6 @@ const DnsPreference = () => {
           );
         }
       } catch (e: any) {
-        setByeDpiPort(null);
         ToastAndroid.show(`ByeDPI error: ${e?.message}`, ToastAndroid.LONG);
       } finally {
         setIsByeDpiBusy(false);
@@ -217,173 +178,80 @@ const DnsPreference = () => {
     ToastAndroid.show('Custom DNS applied', ToastAndroid.SHORT);
   };
 
+  const warpMode = mode === 'warp';
+  const runningText = [running.byeDpi ? 'ByeDPI' : '', running.warp ? 'WARP' : '']
+    .filter(Boolean)
+    .join(' and ');
+
   return (
     <View className="p-4">
-      {/* Cloudflare WARP Section */}
-      <TVFocusable
-        ref={warpRef}
-        onLayout={() => {
-          if (warpRef.current) setWarpHandle(getNodeHandle(warpRef.current));
-        }}
-        onFocus={() => {
-          if (warpRef.current) {
-            const h = getNodeHandle(warpRef.current);
-            if (h) useTVNavigationStore.getState().setActiveScreenFocusHandle(h);
-          }
-        }}
-        nextFocusRight={warpHandle}
-        accessibilityRole="switch"
-        accessibilityState={{checked: warpEnabled}}
-        accessibilityLabel="Cloudflare WARP Mode"
-        disabled={isWarpBusy || isByeDpiBusy}
-        onPress={() => onToggleWarp(!warpEnabled)}
-        focusScale={1.02}
-        borderRadius={16}
-        style={{
-          marginBottom: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: 8,
-          borderRadius: 16,
-        }}>
-        <View className="mr-3 flex-1 flex-row items-center">
-          <View
-            className="mr-4 h-10 w-10 items-center justify-center rounded-full"
-            style={{ backgroundColor: colors.secondaryContainer }}>
-            <MaterialCommunityIcons
-              name="cloud-outline"
-              size={21}
-              color={colors.onSecondaryContainer}
-            />
-          </View>
-          <View className="flex-1">
-            <View className="flex-row items-center">
-              <AppText role="bodyLarge" className="text-m3-on-surface">
-                WARP Mode
-              </AppText>
-              {warpEnabled && warpPort ? (
-                <View
-                  className="ml-2 rounded px-1.5 py-0.5"
-                  style={{ backgroundColor: colors.primaryContainer }}>
-                  <AppText
-                    role="labelSmall"
-                    style={{ color: colors.onPrimaryContainer, fontSize: 10 }}>
-                    Active :{warpPort}
-                  </AppText>
-                </View>
-              ) : null}
-            </View>
-            <AppText
-              role="bodySmall"
-              className="mt-0.5 text-m3-on-surface-variant">
-              Bypass ISP restrictions with Cloudflare WARP VPN
-            </AppText>
-          </View>
-        </View>
-        <Switch
-          accessibilityLabel="Cloudflare WARP Mode"
-          value={warpEnabled}
-          disabled={true}
-          focusable={false}
-          pointerEvents="none"
-          importantForAccessibility="no"
-          thumbColor={warpEnabled ? colors.onPrimary : colors.outline}
-          trackColor={{
-            false: colors.surfaceContainerHighest,
-            true: colors.primary,
-          }}
-        />
-      </TVFocusable>
-
-      {/* Divider */}
-      <View
-        style={{
-          borderBottomColor: colors.outlineVariant,
-          borderBottomWidth: 1,
-          marginBottom: 16,
-        }}
-      />
-
-      {/* ByeDPI Section */}
-      <View className="mb-4">
-        <TVFocusable
-          ref={byeDpiRef}
-          onLayout={() => {
-            if (byeDpiRef.current) setByeDpiHandle(getNodeHandle(byeDpiRef.current));
-          }}
-          onFocus={() => {
-            if (byeDpiRef.current) {
-              const h = getNodeHandle(byeDpiRef.current);
-              if (h) useTVNavigationStore.getState().setActiveScreenFocusHandle(h);
-            }
-          }}
-          nextFocusRight={byeDpiHandle}
-          accessibilityRole="switch"
-          accessibilityState={{checked: byeDpiEnabled}}
-          accessibilityLabel="ByeDPI Anti-DPI Mode"
-          disabled={isByeDpiBusy || isWarpBusy}
-          onPress={() => onToggleByeDpi(!byeDpiEnabled)}
-          focusScale={1.02}
-          borderRadius={16}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 8,
-            borderRadius: 16,
-          }}>
-          <View className="mr-3 flex-1 flex-row items-center">
-            <View
-              className="mr-4 h-10 w-10 items-center justify-center rounded-full"
-              style={{ backgroundColor: colors.secondaryContainer }}>
-              <MaterialCommunityIcons
-                name="shield-half"
-                size={21}
-                color={colors.onSecondaryContainer}
-              />
-            </View>
-            <View className="flex-1">
-              <View className="flex-row items-center">
-                <AppText role="bodyLarge" className="text-m3-on-surface">
-                  AntiDPI Mode
-                </AppText>
-                {byeDpiEnabled && byeDpiPort ? (
-                  <View
-                    className="ml-2 rounded px-1.5 py-0.5"
-                    style={{ backgroundColor: colors.primaryContainer }}>
-                    <AppText
-                      role="labelSmall"
-                      style={{ color: colors.onPrimaryContainer, fontSize: 10 }}>
-                      Active :{byeDpiPort}
-                    </AppText>
-                  </View>
-                ) : null}
-              </View>
-              <AppText
-                role="bodySmall"
-                className="mt-0.5 text-m3-on-surface-variant">
-                Bypass ISP blocking without VPN
-              </AppText>
-            </View>
-          </View>
-          <Switch
-            accessibilityLabel="ByeDPI Anti-DPI Mode"
-            value={byeDpiEnabled}
-            disabled={true}
-            focusable={false}
-            pointerEvents="none"
-            importantForAccessibility="no"
-            thumbColor={byeDpiEnabled ? colors.onPrimary : colors.outline}
-            trackColor={{
-              false: colors.surfaceContainerHighest,
-              true: colors.primary,
-            }}
+      {/* Smart unblock */}
+      <View className="mb-2 flex-row items-center">
+        <View
+          className="mr-4 h-10 w-10 items-center justify-center rounded-full"
+          style={{ backgroundColor: colors.secondaryContainer }}>
+          <MaterialCommunityIcons
+            name="shield-half"
+            size={21}
+            color={colors.onSecondaryContainer}
           />
-        </TVFocusable>
+        </View>
+        <View className="flex-1">
+          <AppText role="bodyLarge" className="text-m3-on-surface">
+            Unblocking
+          </AppText>
+          <AppText
+            role="bodySmall"
+            className="mt-0.5 text-m3-on-surface-variant">
+            {runningText ? `Running now: ${runningText}` : 'Nothing running now'}
+          </AppText>
+        </View>
+      </View>
 
+      <UnblockModeChoices value={mode} onChange={chooseMode} disabled={isModeBusy} />
+
+      {mode === 'auto' ? (
+        <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 4, marginLeft: 8}}>
+          Debrid services always stay direct. WARP is run by Cloudflare. Torrents and in-app browser pages are not unblocked.
+        </AppText>
+      ) : null}
+
+      {hosts.length ? (
+        <View style={{marginTop: 12}}>
+          <AppText role="labelMedium" style={{color: colors.onSurfaceVariant, marginBottom: 4, marginLeft: 8}}>
+            Sites opened through ByeDPI or WARP
+          </AppText>
+          {hosts.map(item => (
+            <View
+              key={item.host}
+              style={{flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingLeft: 8}}>
+              <View style={{flex: 1}}>
+                <AppText role="bodyMedium" style={{color: colors.onSurface}} numberOfLines={1}>
+                  {item.host}
+                </AppText>
+                <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>
+                  {routeLabel(item.route)} until {new Date(item.until).toLocaleDateString()}
+                </AppText>
+              </View>
+              <TVFocusable
+                onPress={() => forgetHost(item.host)}
+                accessibilityRole="button"
+                accessibilityLabel={`Forget ${item.host}`}
+                focusScale={1.05}
+                borderRadius={16}
+                style={{paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16}}>
+                <AppText role="labelLarge" style={{color: colors.primary}}>
+                  Forget
+                </AppText>
+              </TVFocusable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View className="mb-4">
         {/* Optional Args Editor Toggle & Config */}
-        <View className="mt-2 ml-14">
+        <View className="mt-2 ml-2">
           <TVFocusable
             onPress={() => setShowArgsEditor(!showArgsEditor)}
             focusScale={1.03}
@@ -392,7 +260,7 @@ const DnsPreference = () => {
             <AppText
               role="labelSmall"
               style={{ color: colors.primary, marginRight: 4 }}>
-              {showArgsEditor ? 'Hide parameters' : 'Configure parameters'}
+              {isByeDpiBusy ? 'Restarting ByeDPI...' : showArgsEditor ? 'Hide ByeDPI parameters' : 'ByeDPI parameters'}
             </AppText>
             <MaterialCommunityIcons
               name={showArgsEditor ? 'chevron-up' : 'chevron-down'}
@@ -524,7 +392,7 @@ const DnsPreference = () => {
       />
 
       {/* DNS over HTTPS Section */}
-      <View style={{ opacity: warpEnabled ? 0.45 : 1 }}>
+      <View style={{ opacity: warpMode ? 0.45 : 1 }}>
         <View className="mb-3 flex-row items-center">
           <View
             className="mr-4 h-10 w-10 items-center justify-center rounded-full"
@@ -542,18 +410,16 @@ const DnsPreference = () => {
             <AppText
               role="bodySmall"
               className="mt-0.5 text-m3-on-surface-variant">
-              {warpEnabled
+              {warpMode
                 ? 'Managed by Cloudflare WARP (resolved remotely)'
-                : byeDpiEnabled
-                  ? 'Works in synergy with ByeDPI for DNS privacy'
-                  : 'Encrypt DNS queries with secure resolver'}
+                : 'Encrypt DNS queries with secure resolver. ByeDPI always uses it.'}
             </AppText>
           </View>
         </View>
 
         <View style={{ width: '100%', minHeight: 56 }}>
           <DropdownField
-            disabled={warpEnabled}
+            disabled={warpMode}
             options={DOH_PROVIDERS}
             value={DOH_PROVIDERS.find(option => option.value === provider)}
             getKey={option => option.value}
@@ -562,7 +428,7 @@ const DnsPreference = () => {
           />
         </View>
 
-        {provider === 'custom' && !warpEnabled ? (
+        {provider === 'custom' && !warpMode ? (
           <View
             style={{
               borderTopColor: colors.outlineVariant,

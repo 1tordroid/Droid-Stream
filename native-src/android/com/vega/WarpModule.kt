@@ -49,8 +49,16 @@ private const val TRACE_URL = "https://www.cloudflare.com/cdn-cgi/trace"
 class WarpModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
 
+    companion object {
+        /** The live module, so Smart unblock can start WARP when a blocked site needs it. */
+        @Volatile
+        var active: WarpModule? = null
+            private set
+    }
+
     init {
         reactContext.addLifecycleEventListener(this)
+        active = this
     }
 
     override fun getName(): String = "WarpModule"
@@ -146,6 +154,7 @@ class WarpModule(reactContext: ReactApplicationContext) :
         } catch (_: Exception) {}
     }
 
+    @Synchronized
     private fun stopInternal() {
         try {
             val proc = warpProcess
@@ -384,93 +393,107 @@ class WarpModule(reactContext: ReactApplicationContext) :
         }
     }
 
-    @ReactMethod
-    fun startWarp(promise: Promise) {
-        Thread {
-            try {
-                if (warpProcess?.isAlive == true && currentPort != null) {
-                    val result = Arguments.createMap().apply {
-                        putBoolean("running", true)
-                        putInt("port", currentPort!!)
-                    }
-                    promise.resolve(result)
-                    return@Thread
+    fun stopSync() = stopInternal()
+
+    /**
+     * Starts WARP, registering the Cloudflare account the first time, or
+     * returns the port it already listens on. Returns the port and transport.
+     * One start at a time: requests that need WARP wait here.
+     */
+    @Synchronized
+    private fun startTunnel(): Pair<Int, String?> {
+        currentPort?.let { port -> if (warpProcess?.isAlive == true) return port to null }
+
+        killOrphanProcesses()
+
+        val binary = getBinaryFile()
+        if (!binary.exists()) {
+            throw ProxyStartException("WARP_BINARY_NOT_FOUND", "libusque.so not found at ${binary.absolutePath}")
+        }
+
+        try {
+            val configFile = getConfigFile()
+            if (!configFile.exists() || configFile.length() == 0L) {
+                VegaLog.i(TAG, "Registering Cloudflare WARP account via HTTPS...")
+                try {
+                    registerCloudflare(configFile)
+                } catch (e: Exception) {
+                    VegaLog.e(TAG, "WARP registration error: ${e.message}", e)
+                    throw ProxyStartException("WARP_REGISTRATION_FAILED", "Failed to register WARP client: ${e.message}")
+                }
+            }
+
+            val failures = mutableListOf<String>()
+            for (mode in TUNNEL_MODES) {
+                val port = try {
+                    ServerSocket(0).use { it.localPort }
+                } catch (e: Exception) {
+                    8086
+                }
+                val proc = launchProxy(binary, configFile, port, mode.args)
+                if (proc == null) {
+                    failures.add("${mode.label}: proxy exited")
+                    continue
+                }
+                if (!tunnelWorks(port)) {
+                    failures.add("${mode.label}: no traffic through Cloudflare")
+                    proc.destroy()
+                    proc.waitFor(2, TimeUnit.SECONDS)
+                    if (proc.isAlive) proc.destroyForcibly()
+                    continue
                 }
 
-                killOrphanProcesses()
-
-                val binary = getBinaryFile()
-                if (!binary.exists()) {
-                    promise.reject("WARP_BINARY_NOT_FOUND", "libusque.so not found at ${binary.absolutePath}")
-                    return@Thread
-                }
-
-                val configFile = getConfigFile()
-                if (!configFile.exists() || configFile.length() == 0L) {
-                    VegaLog.i(TAG, "Registering Cloudflare WARP account via HTTPS...")
+                warpProcess = proc
+                currentPort = port
+                // Clears the routing when the proxy dies, so requests stop pointing at a
+                // dead port.
+                Thread {
                     try {
-                        registerCloudflare(configFile)
-                    } catch (e: Exception) {
-                        VegaLog.e(TAG, "WARP registration error: ${e.message}", e)
-                        promise.reject("WARP_REGISTRATION_FAILED", "Failed to register WARP client: ${e.message}", e)
-                        return@Thread
-                    }
-                }
-
-                val failures = mutableListOf<String>()
-                for (mode in TUNNEL_MODES) {
-                    val port = try {
-                        ServerSocket(0).use { it.localPort }
-                    } catch (e: Exception) {
-                        8086
-                    }
-                    val proc = launchProxy(binary, configFile, port, mode.args)
-                    if (proc == null) {
-                        failures.add("${mode.label}: proxy exited")
-                        continue
-                    }
-                    if (!tunnelWorks(port)) {
-                        failures.add("${mode.label}: no traffic through Cloudflare")
-                        proc.destroy()
-                        proc.waitFor(2, TimeUnit.SECONDS)
-                        if (proc.isAlive) proc.destroyForcibly()
-                        continue
-                    }
-
-                    warpProcess = proc
-                    currentPort = port
-                    // Clears the routing when the proxy dies, so requests stop pointing at a
-                    // dead port.
-                    Thread {
-                        try {
-                            proc.waitFor()
-                        } catch (_: Exception) {}
+                        proc.waitFor()
+                    } catch (_: Exception) {}
+                    synchronized(this) {
                         if (warpProcess == proc) {
                             VegaLog.i(TAG, "WARP proxy process terminated unexpectedly")
                             stopInternal()
                         }
-                    }.start()
-
-                    DohOkHttpFactory.instance?.warpProxyPort = port
-                    flushConnections()
-                    VegaLog.i(TAG, "WARP connected over ${mode.label} on port $port")
-
-                    val result = Arguments.createMap().apply {
-                        putBoolean("running", true)
-                        putInt("port", port)
-                        putString("transport", mode.label)
                     }
-                    promise.resolve(result)
-                    return@Thread
-                }
+                }.start()
 
-                stopInternal()
-                promise.reject(
-                    "WARP_TUNNEL_FAILED",
-                    "Could not connect to Cloudflare WARP. ${failures.joinToString("; ")}"
-                )
+                DohOkHttpFactory.instance?.warpProxyPort = port
+                flushConnections()
+                VegaLog.i(TAG, "WARP connected over ${mode.label} on port $port")
+                return port to mode.label
+            }
+
+            stopInternal()
+            throw ProxyStartException(
+                "WARP_TUNNEL_FAILED",
+                "Could not connect to Cloudflare WARP. ${failures.joinToString("; ")}"
+            )
+        } catch (e: ProxyStartException) {
+            throw e
+        } catch (e: Exception) {
+            stopInternal()
+            throw ProxyStartException("WARP_ERROR", e.message ?: "WARP failed to start")
+        }
+    }
+
+    /** Starts WARP and returns its port; throws when it cannot connect. */
+    fun startSync(): Int = startTunnel().first
+
+    @ReactMethod
+    fun startWarp(promise: Promise) {
+        Thread {
+            try {
+                val (port, transport) = startTunnel()
+                promise.resolve(Arguments.createMap().apply {
+                    putBoolean("running", true)
+                    putInt("port", port)
+                    transport?.let { putString("transport", it) }
+                })
+            } catch (e: ProxyStartException) {
+                promise.reject(e.code, e.message, e)
             } catch (e: Exception) {
-                stopInternal()
                 promise.reject("WARP_ERROR", e.message, e)
             }
         }.start()

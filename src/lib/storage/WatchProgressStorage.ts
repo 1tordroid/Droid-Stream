@@ -1,5 +1,6 @@
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {openStore} from './openStore';
+import {getActiveProfileId, isDefaultProfileActive, profileInstanceId} from '../profiles/scope';
 import {cacheStorage, mainStorage, registerStorageClearHook} from './StorageService';
 
 export interface WatchProgress {
@@ -39,13 +40,20 @@ export class WatchProgressStorage {
   private listeners = new Set<() => void>();
   private knownKeys = new Set<string>();
 
+  /** [profileId] opens another profile's positions (backup, delete). Without it, the profile in use. */
+  constructor(private readonly profileId?: string) {}
+
   // Opened on first use so importing the storage index does not start MMKV.
   private get storage() {
     if (!this.instance) {
-      this.instance = openStore('watch-progress');
+      this.instance = openStore(profileInstanceId('watch-progress', this.profileId ?? getActiveProfileId()));
       this.loadKnownKeys();
     }
     return this.instance;
+  }
+
+  private ensureOpen(): void {
+    if (!this.instance) this.storage.getString('__keys__');
   }
 
   private loadKnownKeys(): void {
@@ -119,6 +127,8 @@ export class WatchProgressStorage {
   }
 
   getAllProgress(): Record<string, WatchProgress> {
+    // Opening the store loads the saved key list; a store not used yet has none in memory.
+    this.ensureOpen();
     const result: Record<string, WatchProgress> = {};
     for (const key of Array.from(this.knownKeys)) {
       if (key === '__keys__') continue;
@@ -200,7 +210,8 @@ registerStorageClearHook(() => {
 });
 
 export const migrateWatchProgressFromCacheStorage = async (): Promise<boolean> => {
-  if (mainStorage.getBool(WATCH_PROGRESS_MIGRATED_KEY, false)) {
+  // Positions saved by very old versions belong to the first profile.
+  if (mainStorage.getBool(WATCH_PROGRESS_MIGRATED_KEY, false) || !isDefaultProfileActive()) {
     return false;
   }
   const keys = await cacheStorage.getKeys();

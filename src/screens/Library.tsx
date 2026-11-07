@@ -43,11 +43,13 @@ import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 import useTVNavigationStore from '../lib/zustand/tvNavigationStore';
 import useNavigationPreferencesStore from '../lib/zustand/navigationPreferencesStore';
 import {useWatchStateMap, withoutWatched} from '../lib/watchState';
+import {profileKey} from '../lib/profiles/scope';
 
 /** Chip id for every saved title, across categories. */
 const ALL_FILTER = '__all__';
 /** Last selected chip, kept on this device only (not synced). */
 const SELECTED_FILTER_KEY = 'library-selected-filter';
+const selectedFilterKey = () => profileKey(SELECTED_FILTER_KEY);
 
 type EditorState =
   | {visible: false}
@@ -75,7 +77,7 @@ const Library = () => {
     state => state.removeFromCollection,
   );
   const [filter, setFilter] = useState<string>(
-    () => mainStorage.getString(SELECTED_FILTER_KEY) || ALL_FILTER,
+    () => mainStorage.getString(selectedFilterKey()) || ALL_FILTER,
   );
   const [editor, setEditor] = useState<EditorState>({visible: false});
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
@@ -124,7 +126,7 @@ const Library = () => {
     }
   }, [filter, activeCollection]);
   useEffect(() => {
-    mainStorage.setString(SELECTED_FILTER_KEY, filter);
+    mainStorage.setString(selectedFilterKey(), filter);
   }, [filter]);
 
   const existingIds = useMemo(
