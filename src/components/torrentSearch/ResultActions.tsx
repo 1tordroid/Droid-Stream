@@ -15,6 +15,7 @@ import {
   toast,
 } from '../../lib/torrentSearch/actions';
 import {isBookmarked, toggleBookmark} from '../../lib/torrentSearch/store';
+import {openWatchOnline} from '../../lib/watchOnline/store';
 import type {TorrentResult} from '../../lib/torrentSearch/types';
 import {formatBytes} from '../../lib/torrentSearch/util';
 import {useM3Colors} from '../../theme/M3PaletteContext';
@@ -126,6 +127,8 @@ const ResultActions = ({
             </>
           ) : (
             <>
+              <Action icon="play-circle-outline" accent label="Watch online" detail="Cached debrid first, then PikPak, then the torrent"
+                onPress={() => { onClose(); openWatchOnline({result, cachedOn: cached, navigate: (screen, params) => navigation.navigate(screen, params)}); }} />
               {services.map(service => {
                 const isCached = cached?.includes(service.id);
                 return (

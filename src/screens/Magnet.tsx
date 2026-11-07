@@ -5,6 +5,7 @@ import {RawTextInput as TextInput} from '../components/ui/Text';
 import AppText from '../components/ui/Text';
 import Button from '../components/ui/Button';
 import KeyboardForm from '../components/ui/KeyboardForm';
+import MagnetPreviewCard from '../components/cloud/MagnetPreviewCard';
 import {
   addMagnetTask,
   assertMagnet,
@@ -18,6 +19,9 @@ import {clearPikPakAccount, readPikPakAccount, readPikPakUsername, savePikPakAcc
 import {isPikPakAuthError, withPikPak} from '../lib/pikpak/session';
 import {settingsStorage} from '../lib/storage';
 import {torrentManager} from '../lib/torrentManager';
+import {infoHashFrom, makeResult} from '../lib/torrentSearch/util';
+import {safeDecode} from '../lib/sources/webdav';
+import {openWatchOnline} from '../lib/watchOnline/store';
 import {useM3Colors} from '../theme/M3PaletteContext';
 
 type MagnetRoute = 'pikpak' | 'direct';
@@ -145,6 +149,17 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
     ToastAndroid.show(result.statusCode === 200 ? `Saved ${name}` : 'Download failed', ToastAndroid.LONG);
   };
 
+  // Cached debrid first, then PikPak, then this device; the sheet shows which one it uses.
+  const watchOnline = () => {
+    try {
+      const link = assertMagnet(magnet);
+      const result = makeResult({engine: 'magnet', title: safeDecode(link.match(/[?&]dn=([^&]+)/)?.[1]?.replace(/\+/g, ' ') || 'Magnet'), magnet: link, infoHash: infoHashFrom(link)});
+      openWatchOnline({result, navigate: (screen, params) => navigation.navigate(screen, params)});
+    } catch (error: any) {
+      ToastAndroid.show(error?.message || 'Paste a magnet link first', ToastAndroid.LONG);
+    }
+  };
+
   const label = (text: string) => (
     <AppText role="labelMedium" style={{color: colors.onSurfaceVariant}}>{text}</AppText>
   );
@@ -161,6 +176,10 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
         <Pressable onPress={() => setRoute('pikpak')}><AppText style={{color: route === 'pikpak' ? colors.primary : colors.onSurfaceVariant}}>PikPak (cloud)</AppText></Pressable>
       </View> : null}
       <TextInput accessibilityLabel="Magnet link" value={magnet} onChangeText={setMagnet} placeholder="magnet:?xt=urn:btih:..." placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" multiline style={{color: colors.onSurface, marginBottom: 12}} />
+      <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+        <Button variant="tonal" onPress={watchOnline}>Watch online</Button>
+      </View>
+      <MagnetPreviewCard magnet={magnet} />
       {route === 'direct' ? (
         <View>
           <AppText role="bodySmall" className="mb-3 text-m3-on-surface-variant">

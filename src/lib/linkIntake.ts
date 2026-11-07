@@ -11,6 +11,7 @@ import {downloadWithClient, quickDebridPlay, streamOnDevice, toast} from './torr
 import {makeResult, infoHashFrom} from './torrentSearch/util';
 import {torrentManager} from './torrentManager';
 import {showAppDialog} from './zustand/appDialogStore';
+import {openWatchOnline} from './watchOnline/store';
 import {isPageLink} from './ytdl/formats';
 import {ytdlSupported} from './ytdl/native';
 import {readYtdlSettings} from './ytdl/settings';
@@ -190,6 +191,8 @@ export const offerLink = (
     {label: 'Download', onPress: () => downloadWithClient(result).catch(error => toast(error.message))},
     {label: 'Stream', variant: 'primary' as const, onPress: () => streamOnDevice(result, {navigate}).catch(error => toast(error.message))},
   ];
+  // Watch online picks cached debrid, PikPak or the torrent by itself.
+  actions.splice(1, 0, {label: 'Watch online', onPress: async () => openWatchOnline({result, navigate})});
   if (debrid && kind === 'magnet') {
     actions.splice(1, 0, {label: `Play with ${debrid.name}`, onPress: () => quickDebridPlay(result, {navigate}, debrid.id).then(() => undefined).catch(error => toast(error.message))});
   }

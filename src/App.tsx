@@ -126,6 +126,7 @@ import {
 } from './lib/sync/syncService';
 import StreamingTabBar from './components/navigation/StreamingTabBar';
 import AppDialogHost from './components/AppDialogHost';
+import WatchOnlineHost from './components/watchOnline/WatchOnlineSheet';
 import {RemoteVolumeToast} from './components/remote-player/RemoteVolumeToast';
 
 enableScreens(true);
@@ -874,6 +875,7 @@ const App = () => {
       <SystemBars style="light" />
       <M3ThemeProvider>
         <AppDialogHost />
+        <WatchOnlineHost />
         <GlobalErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <GestureHandlerRootView style={{flex: 1, backgroundColor: THEME_ROLES[themeMode].background}}>
