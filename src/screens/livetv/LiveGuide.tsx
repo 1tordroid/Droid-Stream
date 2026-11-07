@@ -46,14 +46,26 @@ import {
 import {loadXmltvGuide, programmesFor, type GuideData} from '../../lib/livetv/guideLoader';
 import {JIO_CATCHUP_DAYS, JIO_SOURCE_ID, jioChannelId, loadJioChannels} from '../../lib/livetv/jio/channels';
 import {jioDayOffset, loadJioProgrammes} from '../../lib/livetv/jio/epg';
-import {inGroup} from '../../lib/livetv/m3u';
+import {applyFilters, channelFacets, displayChannelName, filterCounts, type ChannelFilters} from '../../lib/livetv/filters';
+import {channelGroups} from '../../lib/livetv/m3u';
 import {reminderId, reminderIds, toggleReminder} from '../../lib/livetv/reminders';
-import {getEpgOverride, getJioServer, jioEpgUrl, listSources, loadPlaylist, readCachedPlaylist, setEpgOverride} from '../../lib/livetv/store';
+import {
+  getChannelFilters,
+  getEpgOverride,
+  getJioServer,
+  jioEpgUrl,
+  listSources,
+  loadPlaylist,
+  readCachedPlaylist,
+  setChannelFilters,
+  setEpgOverride,
+} from '../../lib/livetv/store';
 import {normalizeChannelName} from '../../lib/livetv/xmltv';
 import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {canReplayOn, openChannel, openReplay, type GridChannel} from './play';
+import ChannelFilterBar, {QualityBadge} from './ChannelFilterBar';
 import {isKidsChannelGroup} from '../../lib/profiles/kids';
 import {isKidsProfileActive} from '../../lib/profiles/profiles';
 
@@ -158,7 +170,19 @@ const Cell = memo(function GuideCellView({
   );
 });
 
-const ChannelCell = memo(function ChannelCellView({channel, colors, onPress}: {channel: GridChannel; colors: Colors; onPress: (channel: GridChannel) => void}) {
+const ChannelCell = memo(function ChannelCellView({
+  channel,
+  colors,
+  badge,
+  onPress,
+}: {
+  channel: GridChannel;
+  colors: Colors;
+  /** Shows a quality badge and the name without "(1080p)". */
+  badge: boolean;
+  onPress: (channel: GridChannel) => void;
+}) {
+  const quality = badge ? channelFacets(channel).quality : undefined;
   const [logoFailed, setLogoFailed] = useState(false);
   const content = (
     <>
@@ -168,9 +192,10 @@ const ChannelCell = memo(function ChannelCellView({channel, colors, onPress}: {c
         ) : (
           <MaterialCommunityIcons name="television-classic" size={22} color={colors.onSurfaceVariant} />
         )}
+        {quality ? <QualityBadge label={quality} /> : null}
       </View>
       <AppText role="bodySmall" numberOfLines={2} style={{flex: 1, color: colors.onSurface, marginLeft: 6}}>
-        {channel.name}
+        {badge ? displayChannelName(channel.name) : channel.name}
       </AppText>
     </>
   );
@@ -196,6 +221,7 @@ interface RowProps {
   colors: Colors;
   reminders: Set<string>;
   focusNow: boolean;
+  badge: boolean;
   registerNowCell: (node: HostInstance | null) => void;
   onPressCell: (channel: GridChannel, cell: GuideCell) => void;
   onLongPressCell: (channel: GridChannel, cell: GuideCell) => void;
@@ -214,6 +240,7 @@ const Row = memo(function GuideRow({
   colors,
   reminders,
   focusNow,
+  badge,
   registerNowCell,
   onPressCell,
   onLongPressCell,
@@ -288,29 +315,48 @@ const Row = memo(function GuideRow({
           elevation: 2,
           transform: [{translateX: scrollX}],
         }}>
-        <ChannelCell channel={channel} colors={colors} onPress={onPlayChannel} />
+        <ChannelCell channel={channel} colors={colors} badge={badge} onPress={onPlayChannel} />
       </Animated.View>
     </View>
   );
 });
 
 const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params}}) => {
-  const {sourceId, group} = route.params;
+  const {sourceId, group: groupParam} = route.params;
   const colors = useM3Colors();
   const {width: screenWidth} = useWindowDimensions();
   const isJio = sourceId === JIO_SOURCE_ID;
   const source = useMemo(() => listSources().find(item => item.id === sourceId), [sourceId]);
   const sourceName = isJio ? 'JioTV' : source?.name || 'Live TV';
-  const filterGroup = useCallback((list: GridChannel[]) => {
-    // A kids profile keeps only kids, animation and cartoon groups.
-    const allowed = isKidsProfileActive() ? list.filter(channel => isKidsChannelGroup(channel.group)) : list;
-    return group ? allowed.filter(channel => inGroup(channel, group)) : allowed;
-  }, [group]);
+  // A kids profile keeps only kids, animation and cartoon groups.
+  const filterKids = useCallback(
+    (list: GridChannel[]) => (isKidsProfileActive() ? list.filter(channel => isKidsChannelGroup(channel.group)) : list),
+    [],
+  );
 
-  const [channels, setChannels] = useState<GridChannel[]>(() => {
+  const [allChannels, setAllChannels] = useState<GridChannel[]>(() => {
     const cached = source ? readCachedPlaylist(source) : undefined;
-    return cached ? filterGroup(withSource(cached.playlist.channels, sourceId)) : [];
+    return cached ? filterKids(withSource(cached.playlist.channels, sourceId)) : [];
   });
+  // The same saved filters as the Live TV screen (per source and per profile).
+  const [filters, setFilters] = useState<ChannelFilters>(() => {
+    const saved = getChannelFilters(sourceId);
+    return groupParam ? {...saved, group: groupParam} : saved;
+  });
+  const [filtersUsed, setFiltersUsed] = useState(false);
+  const groups = useMemo(() => channelGroups(allChannels), [allChannels]);
+  const group = filters.group && groups.includes(filters.group) ? filters.group : undefined;
+  const effective = useMemo<ChannelFilters>(() => ({...filters, group}), [filters, group]);
+  const channels = useMemo(() => applyFilters(allChannels, effective), [allChannels, effective]);
+  const counts = useMemo(() => filterCounts(allChannels, effective), [allChannels, effective]);
+  const updateFilters = useCallback(
+    (next: ChannelFilters) => {
+      setFiltersUsed(true);
+      setFilters(next);
+      setChannelFilters(sourceId, next);
+    },
+    [sourceId],
+  );
   const [playlistEpg, setPlaylistEpg] = useState<string | undefined>(() => (source ? readCachedPlaylist(source)?.playlist.epgUrl : undefined));
   const [override, setOverride] = useState(() => getEpgOverride(sourceId) || '');
   const [editing, setEditing] = useState(false);
@@ -336,12 +382,12 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
           })
         : Promise.reject(new Error('This source is no longer in Live TV.'));
     load
-      .then(list => alive && setChannels(filterGroup(list)))
+      .then(list => alive && setAllChannels(filterKids(list)))
       .catch(err => alive && setError(err?.message || 'Could not load the channels.'));
     return () => {
       alive = false;
     };
-  }, [isJio, source, sourceId, filterGroup]);
+  }, [isJio, source, sourceId, filterKids]);
 
   // ---- Time ----
   useEffect(() => {
@@ -350,19 +396,20 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   }, []);
   const backMs = useMemo(() => {
     let days = 0;
-    for (const channel of channels) days = Math.max(days, catchupInfo(channel)?.days || 0);
+    for (const channel of allChannels) days = Math.max(days, catchupInfo(channel)?.days || 0);
     return days ? Math.min(days, MAX_BACK_DAYS) * DAY : NO_CATCHUP_BACK;
-  }, [channels]);
+  }, [allChannels]);
   const window = useMemo(() => guideWindow(Date.now(), backMs, FORWARD), [backMs]);
   const stripWidth = Math.round((window.end - window.start) * PX_PER_MS);
 
   // ---- XMLTV guide ----
   const jiotv = source?.kind === 'jiotv' ? getJioServer() : undefined;
   const epgUrl = isJio ? undefined : override || playlistEpg || (jiotv ? jioEpgUrl(jiotv) : undefined);
+  // Every channel of the source, so changing a filter does not load the guide again.
   const wanted = useMemo(() => {
     const ids = new Set<string>();
     const names = new Set<string>();
-    for (const channel of channels) {
+    for (const channel of allChannels) {
       if (channel.tvgId) ids.add(channel.tvgId);
       for (const name of ['tvgName' in channel ? channel.tvgName : undefined, channel.name]) {
         const clean = name ? normalizeChannelName(name) : '';
@@ -370,7 +417,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
       }
     }
     return {ids: [...ids], names: [...names], key: `${[...ids].join(',')}|${[...names].join(',')}`};
-  }, [channels]);
+  }, [allChannels]);
   const wantedRef = useRef(wanted);
   wantedRef.current = wanted;
 
@@ -540,7 +587,8 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
         scrollX={scrollX}
         colors={colors}
         reminders={reminders}
-        focusNow={!editing}
+        focusNow={!editing && !filtersUsed}
+        badge={filters.qualityBadge}
         registerNowCell={registerNowCell}
         onPressCell={onPressCell}
         onLongPressCell={onLongPressCell}
@@ -548,7 +596,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
         onPlayChannel={playLive}
       />
     ),
-    [guide, window, range, minuteNow, scrollX, colors, reminders, editing, registerNowCell, onPressCell, onLongPressCell, onFocusCell, playLive],
+    [guide, window, range, minuteNow, scrollX, colors, reminders, editing, filtersUsed, filters.qualityBadge, registerNowCell, onPressCell, onLongPressCell, onFocusCell, playLive],
   );
 
   const slots = useMemo(() => timeSlots({start: Math.max(window.start, range.start), end: Math.min(window.end, range.end)}), [window, range]);
@@ -631,6 +679,17 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
             </View>
           </View>
         ) : null}
+        {allChannels.length ? (
+          <ChannelFilterBar
+            filters={effective}
+            counts={counts}
+            groups={groups}
+            shown={channels.length}
+            total={allChannels.length}
+            onChange={updateFilters}
+            onTouch={() => setFiltersUsed(true)}
+          />
+        ) : null}
         <View style={{minHeight: isTV ? 64 : 56, paddingVertical: 6}}>
           {selected ? (
             <>
@@ -668,7 +727,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
       <View style={{flex: 1}} onLayout={onLayout}>
         {!channels.length ? (
           <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, paddingHorizontal: isTV ? 40 : 12}}>
-            {error || 'Loading channels…'}
+            {error || (allChannels.length ? 'No channels match these filters.' : 'Loading channels…')}
           </AppText>
         ) : viewport.height > 0 ? (
           <Animated.ScrollView
