@@ -547,6 +547,17 @@ class NotificationService {
 
   async actionHandler({type, detail}: {type: EventType; detail: EventDetail}) {
     const downloadAction = detail.pressAction?.id;
+    // New-episode alerts: a press opens the Calendar; a delivery plans the next alerts.
+    if (detail.notification?.data?.navigationTarget === 'calendar') {
+      if (type === EventType.PRESS) {
+        const {openCalendarScreen} = require('../../App') as typeof import('../../App');
+        openCalendarScreen();
+      } else if (type === EventType.DELIVERED) {
+        const {refreshAfterDelivery} = require('../calendar/service') as typeof import('../calendar/service');
+        await refreshAfterDelivery();
+      }
+      return;
+    }
     if (
       type === EventType.PRESS &&
       detail.notification?.data?.navigationTarget === 'downloads'

@@ -37,6 +37,27 @@ Built and being tested:
 - Both work on decoded audio. When sound goes encoded to a receiver,
   the menu says so. VLC has night mode (it restarts at the same time);
   dialogue boost is in the built-in player only.
+- Download season: on a show's season list, download all episodes or a
+  range, or the next 1 to 10 unwatched ones. Pick the server once; every
+  episode uses the closest match (same server, quality and language),
+  with its subtitle. Files go to Show/Season 01/S01E02 Title.
+- Keep next ready: a show keeps 1 to 5 unwatched episodes downloaded and
+  adds the next one after you watch (90% or marked watched), also into the
+  next season. Delete after watching is off by default. It runs while the
+  app is open or downloading, waits for Wi-Fi (can be turned off) and stops
+  below a free space limit (1 to 10 GB).
+- Series downloads in Downloads shows each show's rule and progress, with
+  Pause, Edit and Remove.
+- Calendar (Library, and the Home menu): new and recent episodes of shows
+  in your watch list and Continue watching, plus Trakt's calendar when
+  signed in. Today, Tomorrow, This week, Later and Past 7 days, in local
+  time. Air dates come from TVmaze (free, CC BY-SA), Cinemeta, or TMDB
+  with your key.
+- New-episode alerts in Settings > Notifications: off until you turn them
+  on, then for shows in your watch list, at air time or at 09:00, 12:00,
+  18:00 or 20:00. Mute a show, or turn one on, there or by long-pressing it
+  in the Calendar. Each profile has its own; kids profiles see kids shows
+  only.
 
 ## 5.6.1
 

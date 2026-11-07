@@ -40,6 +40,7 @@ import {useShallow} from 'zustand/react/shallow';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import CurrentDownloadsSection from '../settings/components/CurrentDownloadsSection';
 import MissingDownloadsSection from '../settings/components/MissingDownloadsSection';
+import SeriesDownloadsSection from './components/SeriesDownloadsSection';
 import DownloadsEmptyState from './components/DownloadsEmptyState';
 import DownloadsSelectionBottomBar from './components/DownloadsSelectionBottomBar';
 import DownloadsSelectionHeader from './components/DownloadsSelectionHeader';
@@ -502,6 +503,7 @@ const Downloads = () => {
                 include={item => matchesDownload(item, downloadQuery, statusFilter, typeFilter, sourceFilter)}
               />
               <MissingDownloadsSection primary={colors.primary} />
+              <SeriesDownloadsSection />
               {groups.length > 0 ? (
                 <AppText
                   role="titleLargeEmphasized"

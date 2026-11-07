@@ -80,6 +80,7 @@ import {ensureDownloadLocationAccess} from '../lib/downloadLocation';
 import {EpisodeLinkTarget} from '../lib/episodeLinks';
 import {Stream} from '../lib/providers/types';
 import {CURRENT_DOWNLOAD_STATUSES} from '../lib/zustand/downloadsStore';
+import SeasonDownloadActions from './season/SeasonDownloadActions';
 
 const CONTROL_TEXT = '#F5F0EF';
 const CONTROL_TEXT_MUTED = '#D4CBC9';
@@ -755,6 +756,30 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
       providerValue,
     ],
   );
+  // Season, next-episode and rolling downloads work on the whole season.
+  const seasonDownloadShow = useMemo(
+    () => ({
+      showTitle: metaTitle,
+      provider: providerValue,
+      infoUrl: routeParams.link,
+      type,
+      poster: poster.poster,
+      background: poster.background,
+      imdbId,
+      synopsis,
+    }),
+    [metaTitle, providerValue, routeParams.link, type, poster.poster, poster.background, imdbId, synopsis],
+  );
+  const seasonDownloadEpisodes = useMemo(() => {
+    const raw = rangesOnEpisodes ? episodeList : activeSeason.directLinks;
+    const valid = rangesOnEpisodes ? validEpisodes : validDirectLinks;
+    return valid.map((episode, position) => ({
+      title: episode.title,
+      link: episode.link,
+      index: getOriginalLinkIndex(raw, episode.link, position),
+      skip: episode.skip,
+    }));
+  }, [rangesOnEpisodes, episodeList, activeSeason.directLinks, validEpisodes, validDirectLinks]);
   const selection = useEpisodeSelection({
     items: selectableItems,
     resetKey: activeSeason?.episodesLink || activeSeason?.title,
@@ -1760,6 +1785,14 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
             ranges={episodeRanges}
             selectedStart={selectedRange.start}
             onSelect={selectRange}
+          />
+        )}
+
+        {type !== 'movie' && !selection.active && activeSeason?.title && (
+          <SeasonDownloadActions
+            show={seasonDownloadShow}
+            seasonTitle={activeSeason.title}
+            episodes={seasonDownloadEpisodes}
           />
         )}
 

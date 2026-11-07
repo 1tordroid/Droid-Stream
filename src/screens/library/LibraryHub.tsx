@@ -105,6 +105,7 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
         <Row label="Videos on this device" title="On this device" description="Poster grid for videos in a folder you pick." icon="cellphone" onPress={() => navigation.navigate('LocalLibrary')} />
         {kids ? null : <Row label="Cloud and debrid files" title="Cloud files" description="PikPak, TorBox, Real-Debrid and others, as posters or a list." icon="cloud-check-outline" onPress={() => navigation.navigate('CloudFiles')} />}
         <Row label="Live TV" title="Live TV" description="Free Indian channels, JioTV with your Jio number, JioTV Go and your IPTV playlists." icon="television-classic" onPress={() => navigation.navigate('LiveTV')} />
+        <Row label="Calendar" title="Calendar" description="New episodes of your shows by day, with alerts." icon="calendar-month-outline" onPress={() => navigation.navigate('Calendar')} />
       </View>
 
       {kids ? null : (<>
