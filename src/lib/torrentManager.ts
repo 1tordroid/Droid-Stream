@@ -286,6 +286,20 @@ class TorrentManager {
     return TorrentClientModule.applyBlocklist(text);
   }
 
+  /** Keeps the engine's foreground service up while an external app is in front. */
+  async keepEngineInForeground(): Promise<void> {
+    await TorrentClientModule?.keepEngineInForeground?.();
+  }
+
+  /** Ends that service once no torrent is left in the engine. */
+  async releaseEngineForeground(): Promise<void> {
+    try {
+      await TorrentClientModule?.releaseEngineForeground?.();
+    } catch (error) {
+      console.warn('Could not stop the torrent service:', error);
+    }
+  }
+
   /** Safe before the engine starts: the first torrent then follows this value. */
   async setTransfersAllowed(allowed: boolean): Promise<void> {
     await TorrentClientModule?.setTransfersAllowed?.(allowed);

@@ -361,6 +361,27 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
         }
     }
 
+    /** Called while the app is still in front, before an external player opens a torrent stream. */
+    @ReactMethod
+    fun keepEngineInForeground(promise: Promise) {
+        try {
+            TorrentNotifier.update(reactApplicationContext)
+            promise.resolve(true)
+        } catch (error: Throwable) {
+            promise.reject("FOREGROUND", error.message, error)
+        }
+    }
+
+    @ReactMethod
+    fun releaseEngineForeground(promise: Promise) {
+        try {
+            reactApplicationContext.stopService(Intent(reactApplicationContext, TorrentForegroundService::class.java))
+            promise.resolve(true)
+        } catch (error: Throwable) {
+            promise.reject("FOREGROUND", error.message, error)
+        }
+    }
+
     @ReactMethod
     fun setTransfersAllowed(allowed: Boolean, promise: Promise) {
         try {
