@@ -90,7 +90,7 @@ it('opens the detected country, changes it, and remembers the choice', async () 
   let tree = await render();
   expect(fetch).toHaveBeenCalledWith(UK, expect.anything());
   let text = lines(tree);
-  expect(text).toContain('🇬🇧 United Kingdom · detected from your SIM');
+  expect(text).toEqual(expect.arrayContaining(['🇬🇧 United Kingdom', 'Detected from your SIM']));
   expect(text).toEqual(expect.arrayContaining(['BBC One', 'Change country', 'World']));
   expect(text.some(line => /free-to-air/.test(line))).toBe(true);
 

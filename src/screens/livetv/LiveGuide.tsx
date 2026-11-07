@@ -191,12 +191,15 @@ const ChannelCell = memo(function ChannelCellView({
   const [logoFailed, setLogoFailed] = useState(false);
   const content = (
     <>
-      <View style={{width: isTV ? 56 : 40, height: isTV ? 40 : 30, alignItems: 'center', justifyContent: 'center'}}>
-        {channel.logo && !logoFailed ? (
-          <Image source={{uri: channel.logo}} resizeMode="contain" onError={() => setLogoFailed(true)} style={{width: '100%', height: '100%'}} />
-        ) : (
-          <MaterialCommunityIcons name="television-classic" size={22} color={colors.onSurfaceVariant} />
-        )}
+      {/* The quality tag sits under the logo, not on it. */}
+      <View style={{alignItems: 'center', gap: 2}}>
+        <View style={{width: isTV ? 56 : 40, height: isTV ? 40 : 30, alignItems: 'center', justifyContent: 'center'}}>
+          {channel.logo && !logoFailed ? (
+            <Image source={{uri: channel.logo}} resizeMode="contain" onError={() => setLogoFailed(true)} style={{width: '100%', height: '100%'}} />
+          ) : (
+            <MaterialCommunityIcons name="television-classic" size={22} color={colors.onSurfaceVariant} />
+          )}
+        </View>
         {quality ? <QualityBadge label={quality} /> : null}
       </View>
       <AppText role="bodySmall" numberOfLines={2} style={{flex: 1, color: colors.onSurface, marginLeft: 6}}>
