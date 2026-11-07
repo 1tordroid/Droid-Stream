@@ -7,6 +7,29 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
+## Coming in 5.7
+
+Built and being tested:
+
+- Live TV: World channels get a TV guide by themselves. The app loads a
+  free guide file for the country from Open-EPG or EPGSHARE01 (72
+  countries), only when you open the guide or the "on now" line needs it,
+  and keeps it for 12 hours. Free Indian channels get one too; their
+  channels do not change. A guide address you typed still wins.
+  Countries without a free guide say "No guide available for this
+  country."
+- Live TV: All countries, at the top of Change country, shows the free
+  channels of every country in one list (about 11,000). Pick a country
+  from the flag chips, and use groups, quality, language and search as
+  before. Favourites, recent, recording and filters work, and the choice
+  is kept per profile. The TV guide of All countries loads once you pick
+  a country.
+- Change country shows how many channels each country has once All
+  countries has loaded.
+- On phones and TVs with 2 GB of RAM or less, the guide uses one smaller
+  file and the channel grid only shows "on now" from a guide already
+  loaded.
+
 ## 5.6.1
 
 - Watch online for any magnet or torrent (Torrents results, opened magnets,

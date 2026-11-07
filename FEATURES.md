@@ -62,6 +62,9 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Record live channels and programmes.
 - ✅ World: free channels for any country from iptv-org. Starts on your country (from the SIM, network or language settings, never online), and you can change it.
 - ✅ Quality tags (1080p) sit beside the channel's group instead of on its logo, and the chosen source chip stays in view on narrow phones.
+- 🧪 TV guide for World channels without typing an address: a free guide file for the country loads by itself (72 countries), and Free Indian channels get one too. Your own guide address still wins. Countries without a free guide say so.
+- 🧪 All countries: every country's free channels in one list, with a country filter (flags and counts), plus groups, quality, language and search.
+- 🧪 Channel counts for every country in Change country once All countries has loaded.
 - 📋 Watch 2 to 4 channels at once.
 
 ## Torrents
