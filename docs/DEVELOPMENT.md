@@ -45,7 +45,8 @@ Local builds are much faster than waiting for CI, so use them for phone testing.
 - Phone helpers: `source scripts/dev/phone.sh`, then `install_app` (installs the newest APK in the output folder), `open_app`, `tap 'content-desc="Torrents"'`, `shot name`, `dump`, `crash`, `share <url>`, `jank_reset` and `jank`. Screenshots go to `phone-shots/`, which git ignores. Every action first checks that Droid Stream is in front.
 - Install to the personal profile only (`adb install -r --user 0`), never to a work profile.
 - `dump` (uiautomator) returns nothing while a progress bar animates. Take a screenshot instead. Text typed with `adb shell input text` needs `%s` for spaces.
-- End-to-end flows use Maestro 2.12.1 (the official release zip, with `JAVA_HOME` set to JDK 17): `maestro --device <serial> test --include-tags phone .maestro`, or `npm run e2e:phone` and `npm run e2e:tv`. The five phone flows pass.
+- End-to-end flows use Maestro 2.12.1 (the official release zip, with `JAVA_HOME` set to JDK 17): `maestro --device <serial> test --include-tags phone .maestro`, or `npm run e2e:phone` and `npm run e2e:tv`. The six phone flows pass.
+- The flows tagged `ci` (tabs, settings search, debrid and watch sync screens, and Browser + Live TV + About) need no accounts and no torrent sites, and run in CI (`ui-tests.yml`). Run the same set locally on a phone or emulator with the release package installed: `bash scripts/ci/run-maestro.sh <apk> maestro-output ci`, which installs the APK, runs the flows and saves screenshots, the JUnit report and logcat to `maestro-output/`. For an x86_64 emulator, build with `-PdroidstreamAbis=x86_64 -PreactNativeArchitectures=x86_64` (adds the x86_64 torrent engine). One flow on its own: `maestro test .maestro/browser_livetv_about.yaml`.
 - Free test media: Big Buck Bunny, Sintel and Elephants Dream on archive.org, and the HLS stream https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8. The Apple BipBop stream uses byte-range HLS, which the downloader does not support.
 
 ## CI
@@ -54,8 +55,9 @@ Local builds are much faster than waiting for CI, so use them for phone testing.
 | --- | --- | --- |
 | `test-apk.yml` | Every push to a branch other than `main` | Type check and Jest, then a standalone arm64 APK signed with the debug key, attached to the run as an artifact |
 | `action-build.yml` | Pushes to `main` | Signed TV APK and Play Store TV bundle, kept on a draft release |
-| `main.yml` | Every night, 00:00 India time | Nightly build of `main`, published as a pre-release. The in-app updater ignores pre-releases. |
-| `release.yml` | A `vX.Y.Z` tag | Signed universal APK (about 28 minutes), published as a normal release that the in-app updater offers to everyone |
+| `main.yml` | Every night, 00:00 India time | Nightly build of `main`, published as a pre-release `nightly-YYYYMMDD` with a universal and an arm64 APK. The in-app updater offers it only with Settings > About > Get beta builds on. |
+| `release.yml` | A `vX.Y.Z` tag | Signed universal APK (about 28 minutes) and the arm64 APK made from it, published as a normal release that the in-app updater offers to everyone |
+| `ui-tests.yml` | Pull requests, and pushes to `main` and `improve/*`, when app code changed | x86_64 build on an Android 14 emulator, then the Maestro flows tagged `ci`. Screenshots and logs are attached when a flow fails |
 
 Optional build secrets, read by `app.config.js` into `extra` and passed by all four workflows. Set them at repository level and in the `nightly` environment. Locally, export them before `build-local.sh`. A build without them still works: the app asks for the user's own keys instead.
 
@@ -75,6 +77,10 @@ Users can still pick "Use my own app" in Watch sync. A sign-in keeps the app tha
 3. Tag and push the tag: `git tag vX.Y.Z && git push origin refs/tags/vX.Y.Z`.
 
 Releases are signed with the Droid Stream key (alias `droidstream`). The keystore is kept outside the repository, with a backup; `scripts/setup-release-signing.sh` and `.ps1` create one and print the values for the GitHub secrets. The secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` are set at repository level and in the `nightly` environment.
+
+Each release and nightly has two APKs of the same build: `DroidStream-universal-v<ver>.apk` (both ARM ABIs) and `DroidStream-arm64-v<ver>.apk` (nightly: `DroidStream-nightly-v<ver>-arm64-<date>.apk`). The arm64 one is not a second Gradle build: `scripts/release/arm64_apk.py` copies the universal APK without `lib/armeabi-v7a`, zipaligns it and signs it with the same key, then checks the certificate, versionCode and versionName match. A 64-bit device installs only the arm64-v8a libraries from the universal APK anyway, so both behave the same there and update each other. The in-app updater takes the arm64 APK when the device supports arm64-v8a, otherwise the universal one; 5.5 and 5.6 take the universal one. Never put `universal` or `mobile` in another edition's APK names.
+
+Beta builds: with Get beta builds on, the updater also looks at the newest nightly. For the same version, two nightlies go by tag date, and a stable release and a nightly by which came out later (the nightly's tag and build time come from `DROIDSTREAM_BUILD_TAG` and `DROIDSTREAM_BUILD_TIME`, set by `main.yml`). It never offers an older build, so turning beta off on a nightly waits for the next stable release that is newer.
 
 Release certificate: CN=Tordroid, OU=Droid Stream, SHA-256 `76fb06dd1d36edb89ce3ed058c5c520bffcb36eb2667b4707b487138f650d2be`. First used for v5.3.3 (versionCode 218).
 

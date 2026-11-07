@@ -57,6 +57,15 @@ Built and being tested:
   Live TV starts on your country, found on the device from the SIM,
   network or language settings, and Change country picks another.
   Free Indian channels and JioTV stay as they were.
+- A smaller arm64 APK next to the universal one on each release and
+  nightly. The in-app updater picks it on 64-bit devices and the
+  universal one on 32-bit devices.
+- Get beta builds in Settings > About (off by default): the updater also
+  offers nightly builds. Turn it off to go back to stable updates; you
+  get the next stable release when it is newer.
+- Automatic phone tests on GitHub: each pull request builds the app,
+  starts it on an Android emulator and opens the tabs, Browser (loading
+  a page), Live TV and About.
 
 ## 5.6.0
 

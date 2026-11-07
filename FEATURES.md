@@ -183,6 +183,9 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Advanced mode shows every extra control; tab bar labels, haptics and the Home menu are adjustable.
 - ✅ Search inside Settings to jump to any option.
 - ✅ Check for updates and the version in Settings; one Credits and licences page with links.
+- 🧪 Get beta builds (Settings > About, off by default): the in-app updater also offers nightly builds. Turn it off to go back to stable; you get the next stable release when it is newer.
+- 🧪 A smaller arm64 APK next to the universal one on each release and nightly. The updater picks it on 64-bit devices and the universal one on 32-bit devices.
+- 🧪 Automatic phone tests on GitHub: each pull request starts the app on an Android emulator and opens the tabs, Browser (loading a page), Live TV and About.
 - 🧪 The TMDB logo with the TMDB notice in Credits and licences.
 - 📋 IMDb, Rotten Tomatoes and Metacritic scores together.
 
