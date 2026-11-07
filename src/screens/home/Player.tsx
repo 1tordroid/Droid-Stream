@@ -111,6 +111,7 @@ import {
 import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
+import {useScrobble} from '../../lib/hooks/useScrobble';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
 import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
@@ -1001,6 +1002,8 @@ const Player = ({route}: Props): React.JSX.Element => {
   }, [route.params.meta, route.params.primaryTitle, route.params.secondaryTitle, route.params.type, route.params.episodeList.length, activeEpisode?.title]);
   const watchMetaRef = useRef(watchMeta);
   watchMetaRef.current = watchMeta;
+  // Trakt scrobbling (start, pause, stop), when connected with scrobbling on.
+  useScrobble(watchMeta, isPaused, videoPositionRef);
 
   // Times from the viewer's Jellyfin server, AniSkip and IntroDB.
   const segmentStreamUrls = useMemo(

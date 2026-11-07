@@ -84,6 +84,8 @@ The release workflow fails closed until these repository secrets exist. It will 
 | `KEY_PASSWORD` | Key password |
 | `TMDB_API_KEY` | Optional. Bundled TMDB key. Users can set their own in Settings. |
 | `PROXY_API_URL` | Optional. Metadata proxy URL baked into the build. |
+| `TRAKT_CLIENT_ID`, `TRAKT_CLIENT_SECRET` | Optional. Built-in Trakt app for code or QR sign-in. Users can still use their own. |
+| `SIMKL_CLIENT_ID` | Optional. Built-in Simkl app for PIN sign-in. |
 
 Nightly and action builds read the same keystore secrets from the `nightly` GitHub environment. Keep using one upload key so updates install over previous Droid Stream releases.
 

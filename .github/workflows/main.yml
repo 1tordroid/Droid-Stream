@@ -138,6 +138,9 @@ jobs:
       MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
       PROXY_API_URL: ${{ secrets.PROXY_API_URL }}
+      TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+      TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+      SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
 
     steps:
       - name: Checkout specific branch
