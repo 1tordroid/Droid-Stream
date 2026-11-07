@@ -10,6 +10,8 @@ import {
   createDownloadSeasonDirectoryName,
   sanitizeDownloadFileName,
 } from '../downloadId';
+import {browserLikeYtdlArgs} from '../remoteAccess/browserLike';
+import {remoteAccessSettings} from '../remoteAccess/settings';
 import {ytdlCancel, ytdlDownload, onYtdlEvent} from '../ytdl/native';
 import {cleanYtdlError, ProgressAggregator, stageLabel} from '../ytdl/progress';
 import useDownloadsStore, {type DownloadItem} from '../zustand/downloadsStore';
@@ -93,7 +95,9 @@ const run = async ({record, destination}: DownloadBackendContext): Promise<void>
     canResume: false,
   });
   try {
-    const result = await ytdlDownload(id, record.url, spec.args, workDir);
+    // Sites set to "Use a browser-like connection" get Chrome's headers.
+    const args = [...browserLikeYtdlArgs(record.url, remoteAccessSettings.browserLikeSites()), ...spec.args];
+    const result = await ytdlDownload(id, record.url, args, workDir);
     if (result.cancelled || pausing.has(id) || cancelling.has(id)) {
       if (pausing.has(id) && !cancelling.has(id)) throw new DownloadPausedError();
       throw new Error('Download cancelled');
