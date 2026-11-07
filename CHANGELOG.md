@@ -69,6 +69,15 @@ Built and being tested:
   issue with the app, version, Android version and phone model. Recent
   logs are added only if you tick the box, with sign-ins, cookies,
   emails, IP addresses, link details and file paths removed.
+- A smaller arm64 APK next to the universal one on each release and
+  nightly. The in-app updater picks it on 64-bit devices and the
+  universal one on 32-bit devices.
+- Get beta builds in Settings > About (off by default): the updater also
+  offers nightly builds. Turn it off to go back to stable updates; you
+  get the next stable release when it is newer.
+- Automatic phone tests on GitHub: each pull request builds the app,
+  starts it on an Android emulator and opens the tabs, Browser (loading
+  a page), Live TV and About.
 
 ## 5.6.0
 

@@ -249,6 +249,13 @@ module.exports = () => {
         // Which edition this build is, so the in-app updater only installs the
         // same edition: 'main', 'ext' (with extension support) or 'tv'.
         appEdition: process.env.APP_EDITION || (IS_TV ? 'tv' : 'main'),
+        // Set by the nightly workflow (main.yml) so the updater can tell a
+        // nightly from the stable release of the same version. Other builds
+        // are 'stable'.
+        buildChannel:
+          process.env.DROIDSTREAM_BUILD_CHANNEL === 'nightly' ? 'nightly' : 'stable',
+        buildTag: process.env.DROIDSTREAM_BUILD_TAG || '',
+        buildTime: process.env.DROIDSTREAM_BUILD_TIME || '',
         tmdbApiKey,
         proxyApiUrl,
         traktClientId,

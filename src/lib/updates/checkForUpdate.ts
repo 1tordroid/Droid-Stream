@@ -1,17 +1,20 @@
 import {Linking, NativeModules, ToastAndroid} from 'react-native';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import {notificationService} from '../services/Notification';
 import {settingsStorage} from '../storage';
 import {showAppDialog} from '../zustand/appDialogStore';
 import {
+  AppBuild,
   GithubRelease,
   UPDATE_REPOSITORY,
+  UPDATE_RELEASES_LIST_URL,
   UPDATE_RELEASES_URL,
-  compareVersions,
+  buildLabel,
+  installedBuild,
   isAllowedUpdateUrl,
-  selectReleaseApk,
-  stripVersionTag,
+  pickUpdate,
 } from './release';
 import {verifyApkDigest} from './verifyApk';
 import {currentEdition} from '../appVersion';
@@ -107,6 +110,18 @@ export const downloadUpdate = async (
   }
 };
 
+/** This build, as the updater sees it. Releases give a stable build its date. */
+export const currentBuild = (releases: GithubRelease[] = []): AppBuild =>
+  installedBuild(
+    Application.nativeApplicationVersion || '',
+    Constants.expoConfig?.extra,
+    releases,
+  );
+
+/** Shown when beta builds are turned off on a nightly build. */
+export const LEAVE_BETA_MESSAGE =
+  "You're on a nightly build. You'll get the next stable release when it is newer.";
+
 const releaseNotes = (release: GithubRelease, remoteLabel: string): string => {
   const notes = release.body?.trim();
   return notes && notes.length > 0
@@ -115,9 +130,11 @@ const releaseNotes = (release: GithubRelease, remoteLabel: string): string => {
 };
 
 /**
- * Compare the installed version with the latest stable GitHub Release of
- * 1tordroid/Droid-Stream. Automatic checks stay quiet when the user skipped
- * that tag. A manual check from Settings still shows it.
+ * Compare the installed build with the GitHub Releases of
+ * 1tordroid/Droid-Stream: the latest stable release, plus the nightly builds
+ * (pre-releases) when "Get beta builds" is on. See pickUpdate for the rules;
+ * an older build is never offered. Automatic checks stay quiet when the user
+ * skipped that tag. A manual check from Settings still shows it.
  */
 export const checkForUpdate = async (
   setUpdateLoading: (loading: boolean) => void,
@@ -126,8 +143,9 @@ export const checkForUpdate = async (
 ) => {
   setUpdateLoading(true);
   const manual = showToast;
+  const beta = settingsStorage.isBetaUpdatesEnabled();
   try {
-    const res = await fetch(UPDATE_RELEASES_URL, {
+    const res = await fetch(beta ? UPDATE_RELEASES_LIST_URL : UPDATE_RELEASES_URL, {
       headers: {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'DroidStream',
@@ -144,19 +162,27 @@ export const checkForUpdate = async (
     if (!res.ok) {
       throw new Error(`GitHub release check failed with status ${res.status}`);
     }
-    const data = (await res.json()) as GithubRelease;
-    if (!data?.tag_name) {
+    const payload = (await res.json()) as GithubRelease | GithubRelease[];
+    const releases = Array.isArray(payload) ? payload : [payload];
+    if (!releases.some(release => release?.tag_name)) {
       throw new Error('Invalid release data received from GitHub');
     }
     const localVersion = Application.nativeApplicationVersion || '';
-    const remoteLabel = stripVersionTag(data.tag_name);
+    const installed = currentBuild(releases);
+    const choice = pickUpdate(releases, installed, {
+      beta,
+      edition: currentEdition(),
+      supportedAbis: supportedAbis(),
+    });
+    const data = choice?.release;
     const skipped = settingsStorage.getSkippedUpdateTag();
-    if (!manual && skipped && skipped === data.tag_name) {
+    if (!manual && data && skipped && skipped === data.tag_name) {
       setUpdateLoading(false);
       return;
     }
-    if (compareVersions(localVersion, remoteLabel)) {
-      const apkAsset = selectReleaseApk(data.assets, currentEdition(), supportedAbis());
+    if (choice && data?.tag_name) {
+      const remoteLabel = buildLabel(choice.build);
+      const apkAsset = choice.asset;
       const startDownload = (): Promise<unknown> => {
         if (apkAsset?.browser_download_url && apkAsset.name) {
           return downloadUpdate(
@@ -179,7 +205,7 @@ export const checkForUpdate = async (
       }
       ToastAndroid.show('New update available', ToastAndroid.SHORT);
       showAppDialog({
-        title: `Update v${localVersion} -> ${data.tag_name}`,
+        title: `Update ${localVersion ? buildLabel(installed) : 'this build'} -> ${remoteLabel}`,
         message: releaseNotes(data, remoteLabel),
         messageFormat: 'markdown',
         actions: [
@@ -198,7 +224,10 @@ export const checkForUpdate = async (
         ],
       });
     } else if (showToast) {
-      ToastAndroid.show('App is up to date', ToastAndroid.SHORT);
+      ToastAndroid.show(
+        !beta && installed.channel === 'nightly' ? LEAVE_BETA_MESSAGE : 'App is up to date',
+        ToastAndroid.SHORT,
+      );
     }
   } catch (error) {
     const isRateLimit =

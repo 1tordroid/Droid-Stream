@@ -13,3 +13,9 @@ tags: [util]
       visible: "Skip tips"
     commands:
       - tapOn: "Skip tips"
+# An update dialog when GitHub has a newer release than this build.
+- runFlow:
+    when:
+      visible: "Skip this version"
+    commands:
+      - tapOn: "Not now"

@@ -37,9 +37,17 @@ if (project.android) {
 `;
       fs.writeFileSync(helperGradle, helperContent, 'utf8');
 
-      // Write ABI splits gradle which disables splits and ensures universal ARM build
+      // Write ABI splits gradle which disables splits and ensures universal ARM build.
+      // Release builds ship one APK with both ARM ABIs; the release workflows
+      // derive the arm64 APK from it (scripts/release/arm64_apk.py).
+      // -PdroidstreamArm64Only (local phone builds) or -PdroidstreamAbis=x86_64
+      // (the CI emulator) narrow it; pass the same list as
+      // -PreactNativeArchitectures.
       const abiSplitsContent = `// Auto-applied by with-android-release-gradle config plugin
 if (project.android) {
+  def droidstreamAbis = project.hasProperty('droidstreamAbis')
+    ? project.property('droidstreamAbis').toString().split(',').collect { it.trim() }.findAll { it }
+    : []
   project.android {
     splits {
       abi {
@@ -48,7 +56,9 @@ if (project.android) {
     }
     defaultConfig {
       ndk {
-        if (project.hasProperty('droidstreamArm64Only')) {
+        if (!droidstreamAbis.isEmpty()) {
+          abiFilters.addAll(droidstreamAbis)
+        } else if (project.hasProperty('droidstreamArm64Only')) {
           abiFilters 'arm64-v8a'
         } else {
           abiFilters 'armeabi-v7a', 'arm64-v8a'
@@ -65,6 +75,13 @@ if (project.android) {
       resources {
         pickFirsts += ['org/bouncycastle/**', 'META-INF/versions/**']
       }
+    }
+  }
+  // The torrent engine for an x86_64 emulator build. ARM builds get theirs
+  // from with-custom-native-modules.
+  if (droidstreamAbis.contains('x86_64')) {
+    project.dependencies {
+      implementation 'org.libtorrent4j:libtorrent4j-android-x86_64:2.1.0-39'
     }
   }
 }
