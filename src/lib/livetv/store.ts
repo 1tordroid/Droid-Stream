@@ -26,7 +26,7 @@ export interface UserPlaylist {
 }
 
 /** What the grid needs to replay a channel from Favourites or Recent. */
-export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'headers'> & {sourceId: string};
+export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'headers' | 'drm'> & {sourceId: string};
 
 const KEYS = {
   playlists: 'playlists',
@@ -209,6 +209,7 @@ const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedCh
   group: channel.group,
   tvgId: channel.tvgId,
   headers: channel.headers,
+  ...(channel.drm ? {drm: true} : {}),
   sourceId,
 });
 

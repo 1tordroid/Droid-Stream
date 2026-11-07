@@ -3,7 +3,8 @@
  * set time) or for a guide programme (waits for its start, stops at its end).
  */
 import {ensureDownloadLocationAccess, getDownloadFileName} from './downloadLocation';
-import {advancedDownloadSettings, setEngineOptions} from './downloadEngine/engineStore';
+import {advancedDownloadSettings, knownProtectedChannels, setEngineOptions} from './downloadEngine/engineStore';
+import {canRecordChannel, isDrmProtected, PROTECTED_CHANNEL_MESSAGE} from './downloadEngine/recordable';
 import {jioChannelId} from './livetv/jio/channels';
 import type {GuideProgramme} from './livetv/guide';
 import {settingsStorage} from './storage';
@@ -13,6 +14,8 @@ export interface RecordableChannel {
   id: string;
   name: string;
   url: string;
+  drm?: boolean;
+  attrs?: Record<string, string>;
   logo?: string;
   group?: string;
   headers?: Record<string, string>;
@@ -21,20 +24,17 @@ export interface RecordableChannel {
 /** Programmes start a little early and end a little late, as guides are rarely exact. */
 export const RECORDING_PADDING_MS = 2 * 60_000;
 
-const DRM_HINT = /\.mpd(\?|$)/i;
-
 const stamp = (time: number) => {
   const date = new Date(time);
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}.${pad(date.getMinutes())}`;
 };
 
-/** Why this channel cannot be recorded, or undefined when it can. */
-export const recordingBlocker = (channel: Pick<RecordableChannel, 'url'>): string | undefined => {
-  if (jioChannelId(channel.url)) return undefined;
-  if (!/^https?:\/\//i.test(channel.url)) return 'This channel cannot be recorded.';
-  if (DRM_HINT.test(channel.url)) return 'Only HLS channels can be recorded.';
-  return undefined;
+/** Why this channel cannot be recorded, or undefined when it can. Record is shown only when it can. */
+export const recordingBlocker = (channel: Pick<RecordableChannel, 'url' | 'drm' | 'attrs'>): string | undefined => {
+  const known = knownProtectedChannels();
+  if (isDrmProtected(channel, known)) return PROTECTED_CHANNEL_MESSAGE;
+  return canRecordChannel(channel, known) ? undefined : 'This channel cannot be recorded.';
 };
 
 export const startLiveRecording = async (

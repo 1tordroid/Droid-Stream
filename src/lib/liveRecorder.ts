@@ -259,7 +259,11 @@ export const recordLive = async ({
         refreshed = false;
       } catch (error) {
         checkCancelled(downloadId);
-        if (error instanceof LiveDrmError) throw error;
+        if (error instanceof LiveDrmError) {
+          // The stream turned to DRM: keep what was recorded before it.
+          if (tracks[0].entries.length) break;
+          throw error;
+        }
         failures++;
         const status = error instanceof SegmentHttpError ? error.status : 0;
         // Expired channel links (JioTV) get a fresh address once per failure streak.

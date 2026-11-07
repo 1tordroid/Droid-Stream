@@ -6,7 +6,7 @@
 
 export class LiveDrmError extends Error {
   constructor() {
-    super('This channel is protected (DRM) and cannot be recorded.');
+    super("This channel is protected and can't be recorded.");
     this.name = 'LiveDrmError';
   }
 }

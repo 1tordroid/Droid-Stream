@@ -74,6 +74,24 @@ export const scheduledStartDelay = (downloadId: string, now = Date.now()): numbe
   return startAt && startAt > now ? startAt - now : 0;
 };
 
+// ---- Channels found to use DRM (JioTV tells only when a stream is fetched) ----
+
+export const knownProtectedChannels = (): Set<string> => {
+  try {
+    return new Set(JSON.parse(storage.getString('protected-channels') || '[]'));
+  } catch {
+    return new Set();
+  }
+};
+
+export const rememberChannelProtection = (url: string, isProtected: boolean): void => {
+  const known = knownProtectedChannels();
+  if (known.has(url) === isProtected) return;
+  if (isProtected) known.add(url);
+  else known.delete(url);
+  storage.setString('protected-channels', JSON.stringify([...known].slice(-500)));
+};
+
 // ---- Advanced download settings ----
 
 const bool = (key: string, fallback: boolean) => {

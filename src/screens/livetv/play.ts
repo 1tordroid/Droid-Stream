@@ -4,6 +4,7 @@ import {buildCatchupUrl, catchupInfo} from '../../lib/livetv/catchup';
 import type {LiveChannel} from '../../lib/livetv/m3u';
 import {getJioCatchupStream, getJioStream, jioChannelId} from '../../lib/livetv/jio/channels';
 import {pushRecent, type SavedChannel} from '../../lib/livetv/store';
+import {rememberChannelProtection} from '../../lib/downloadEngine/engineStore';
 
 export type GridChannel = (LiveChannel | SavedChannel) & {sourceId: string};
 
@@ -14,6 +15,8 @@ const poster = (channel: GridChannel) => (channel.logo ? {logo: channel.logo, po
 /** JioTV addresses expire within hours, so a Jio channel asks for a fresh one each time it opens. */
 const openJioChannel = async (navigation: any, channel: GridChannel, id: string) => {
   const stream = await getJioStream(id);
+  // JioTV says whether a channel uses DRM only here; Record is hidden for those.
+  rememberChannelProtection(channel.url, Boolean(stream.drm) || stream.type === 'mpd');
   pushRecent(channel, channel.sourceId);
   navigation.navigate('Player', {
     linkIndex: 0,
