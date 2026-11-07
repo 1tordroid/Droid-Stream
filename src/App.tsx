@@ -39,6 +39,8 @@ import StreamFinder from './screens/torrents/StreamFinder';
 import StremioAddons from './screens/torrents/StremioAddons';
 import WatchSync from './screens/settings/WatchSync';
 import LanguageSettings from './screens/settings/LanguageSettings';
+import HomeRowsSettings from './screens/settings/HomeRowsSettings';
+import RatingsSettings from './screens/settings/RatingsSettings';
 import Profiles from './screens/settings/Profiles';
 import ProfileEdit from './screens/settings/ProfileEdit';
 import ProfileGate from './components/profiles/ProfileGate';
@@ -256,6 +258,8 @@ export type SettingsStackParamList = {
   Credits: {section?: import('./screens/settings/creditsData').CreditSectionId} | undefined;
   WatchSync: undefined;
   Languages: undefined;
+  HomeRows: undefined;
+  Ratings: undefined;
   Profiles: undefined;
   ProfileEdit: {id?: string};
   YtdlSettings: undefined;
@@ -598,6 +602,8 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="AdvancedDownloads" component={AdvancedDownloads} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
+      <SettingsStack.Screen name="HomeRows" component={HomeRowsSettings} options={subpageOptions} />
+      <SettingsStack.Screen name="Ratings" component={RatingsSettings} options={subpageOptions} />
       <SettingsStack.Screen name="Profiles" component={Profiles} options={subpageOptions} />
       <SettingsStack.Screen name="ProfileEdit" component={ProfileEdit} options={subpageOptions} />
       {/* These two place themselves below the status bar. */}
