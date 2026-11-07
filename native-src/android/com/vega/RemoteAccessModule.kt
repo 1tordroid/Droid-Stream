@@ -411,7 +411,7 @@ class RemoteAccessModule(private val reactContext: ReactApplicationContext) : Re
 
 class RemoteAccessPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(RemoteAccessModule(reactContext))
+        listOf(RemoteAccessModule(reactContext), SyncTransferModule(reactContext))
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }
