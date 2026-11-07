@@ -56,26 +56,53 @@ export function compareVersions(localVersion: string, remoteVersion: string): bo
   }
 }
 
+export type AppEdition = 'main' | 'ext' | 'tv';
+
 /**
- * Phone builds prefer an APK whose name contains "mobile", TV builds prefer
- * "tv", then either accepts "universal", then any APK. One universal asset
- * therefore updates both.
+ * Which edition an APK on a release belongs to, from its file name:
+ * DroidStreamExt-... is the edition with extension support, DroidStreamTV-...
+ * (or a name with a "tv" word) is the TV edition, anything else is the main app.
+ */
+export function apkEdition(name: string): AppEdition {
+  const lower = name.toLowerCase();
+  if (lower.startsWith('droidstreamext') || /(^|[-_.])ext([-_.]|$)/.test(lower)) {
+    return 'ext';
+  }
+  if (lower.startsWith('droidstreamtv') || /(^|[-_.])tv([-_.]|$)/.test(lower)) {
+    return 'tv';
+  }
+  return 'main';
+}
+
+/**
+ * Picks the APK for this app from a release. Only APKs of the same edition count,
+ * so the main app never installs the extension or TV edition, and the other way
+ * round. Among those, a 64-bit-only APK ("arm64" in the name) is used when the
+ * device supports arm64-v8a; otherwise the universal one, then any of them.
+ * The older boolean form (true = TV) is still accepted.
  */
 export function selectReleaseApk(
   assets: ReleaseAsset[] | undefined,
-  preferTv: boolean,
+  editionOrTv: AppEdition | boolean,
+  supportedAbis: string[] = [],
 ): ReleaseAsset | undefined {
+  const edition: AppEdition =
+    typeof editionOrTv === 'boolean' ? (editionOrTv ? 'tv' : 'main') : editionOrTv;
   const apks = (assets || []).filter(
     asset =>
       typeof asset.name === 'string' &&
       asset.name.toLowerCase().endsWith('.apk') &&
       typeof asset.browser_download_url === 'string' &&
-      asset.browser_download_url.length > 0,
+      asset.browser_download_url.length > 0 &&
+      apkEdition(asset.name) === edition,
   );
-  const keyword = preferTv ? 'tv' : 'mobile';
+  const named = (word: string) => apks.find(asset => asset.name!.toLowerCase().includes(word));
+  const arm64 = supportedAbis.includes('arm64-v8a') ? named('arm64') : undefined;
   return (
-    apks.find(asset => asset.name!.toLowerCase().includes(keyword)) ||
-    apks.find(asset => asset.name!.toLowerCase().includes('universal')) ||
+    arm64 ||
+    named(edition === 'tv' ? 'tv' : 'mobile') ||
+    named('universal') ||
+    apks.find(asset => !asset.name!.toLowerCase().includes('arm64')) ||
     apks[0]
   );
 }

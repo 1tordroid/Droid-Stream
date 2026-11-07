@@ -27,7 +27,11 @@ class DeviceMemoryModule(reactContext: ReactApplicationContext) :
         )
     }
 
-    override fun getConstants(): MutableMap<String, Any> = memoryInfo().toMutableMap()
+    // supportedAbis lets the in-app updater pick the APK built for this device.
+    override fun getConstants(): MutableMap<String, Any> =
+        memoryInfo().toMutableMap().apply {
+            put("supportedAbis", android.os.Build.SUPPORTED_ABIS.joinToString(","))
+        }
 
     @ReactMethod(isBlockingSynchronousMethod = true)
     fun getHeapLimitMB(): Int = memoryInfo()["heapLimitMB"] as Int

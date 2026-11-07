@@ -1,6 +1,7 @@
-import {Linking, ToastAndroid} from 'react-native';
+import {Linking, NativeModules, ToastAndroid} from 'react-native';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import {notificationService} from '../services/Notification';
 import {settingsStorage} from '../storage';
 import {showAppDialog} from '../zustand/appDialogStore';
@@ -12,6 +13,7 @@ import {
   compareVersions,
   isAllowedUpdateUrl,
   selectReleaseApk,
+  type AppEdition,
   stripVersionTag,
 } from './release';
 import {verifyApkDigest} from './verifyApk';
@@ -22,6 +24,21 @@ const deletePartialFile = async (filePath: string) => {
       await RNFS.unlink(filePath);
     }
   } catch {}
+};
+
+/** This build's edition, so updates never switch to another edition's APK. */
+const currentEdition = (): AppEdition => {
+  const value = Constants.expoConfig?.extra?.appEdition;
+  if (value === 'ext' || value === 'tv' || value === 'main') {
+    return value;
+  }
+  return isTV ? 'tv' : 'main';
+};
+
+/** The CPU types this device runs, best first, from the native module. */
+const supportedAbis = (): string[] => {
+  const raw = NativeModules.VegaDeviceMemory?.getConstants?.()?.supportedAbis ?? NativeModules.VegaDeviceMemory?.supportedAbis;
+  return typeof raw === 'string' ? raw.split(',').filter(Boolean) : [];
 };
 
 export const downloadUpdate = async (
@@ -150,7 +167,7 @@ export const checkForUpdate = async (
       return;
     }
     if (compareVersions(localVersion, remoteLabel)) {
-      const apkAsset = selectReleaseApk(data.assets, isTV);
+      const apkAsset = selectReleaseApk(data.assets, currentEdition(), supportedAbis());
       const startDownload = (): Promise<unknown> => {
         if (apkAsset?.browser_download_url && apkAsset.name) {
           return downloadUpdate(
