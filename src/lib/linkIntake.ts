@@ -11,6 +11,9 @@ import {downloadWithClient, quickDebridPlay, streamOnDevice, toast} from './torr
 import {makeResult, infoHashFrom} from './torrentSearch/util';
 import {torrentManager} from './torrentManager';
 import {showAppDialog} from './zustand/appDialogStore';
+import {isPageLink} from './ytdl/formats';
+import {ytdlSupported} from './ytdl/native';
+import {readYtdlSettings} from './ytdl/settings';
 
 const storage = openStore('droid-stream-intake');
 
@@ -71,6 +74,11 @@ export const offerLink = (value: string, navigate: (screen: string, params?: obj
   const kind = classifyLink(value);
   if (!kind) return;
   const title = nameOf(value);
+  // A shared web page (a YouTube, Instagram or X post) opens the yt-dlp sheet.
+  if (kind === 'http' && origin === 'shared' && isPageLink(value) && ytdlSupported() && readYtdlSettings().offerForAllLinks) {
+    navigate('YtdlDownload', {url: value});
+    return;
+  }
   if (kind === 'http') {
     showAppDialog({
       title: origin === 'clipboard' ? 'Download the copied link?' : 'Download this link?',

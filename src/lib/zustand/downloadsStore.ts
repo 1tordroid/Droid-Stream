@@ -13,6 +13,7 @@ import {
   type DownloadPayload,
 } from '../storage/DownloadsStorage';
 import type {SkipInterval} from '../providers/types';
+import type {YtdlJobSpec} from '../ytdl/types';
 
 export const DOWNLOADS_STORAGE_KEY = 'vega-downloads-storage';
 export const DOWNLOADS_SCHEMA_VERSION = 1;
@@ -30,7 +31,7 @@ export type DownloadStatus =
   | 'missing'
   | 'canceling';
 
-export type DownloadSourceType = 'http' | 'hls' | 'torrent';
+export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'ytdlp';
 
 export interface DownloadSubtitle {
   url: string;
@@ -85,6 +86,8 @@ export interface DownloadItem {
   completedAt?: number;
   legacy?: boolean;
   skip?: SkipInterval[];
+  /** yt-dlp options and state, for downloads of web pages. */
+  ytdl?: YtdlJobSpec;
 }
 
 export type DownloadMediaInput = Pick<
@@ -544,7 +547,8 @@ export const useDownloadsStore = create<DownloadState>()(
               if (!INTERRUPTIBLE_STATUSES.has(item.status)) {
                 return [id, item];
               }
-              if (item.sourceType === 'hls' && (item.status === 'paused' || item.status === 'pausing')) {
+              // These continue their partial files, so a paused one stays paused.
+              if ((item.sourceType === 'hls' || item.sourceType === 'ytdlp') && (item.status === 'paused' || item.status === 'pausing')) {
                 return [id, {...item, status: 'paused' as const, speed: 0, canPause: false, canResume: true, updatedAt: now}];
               }
               return [

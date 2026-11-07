@@ -36,6 +36,10 @@ import StreamFinder from './screens/torrents/StreamFinder';
 import StremioAddons from './screens/torrents/StremioAddons';
 import WatchSync from './screens/settings/WatchSync';
 import LanguageSettings from './screens/settings/LanguageSettings';
+import YtdlDownload from './screens/ytdl/YtdlDownload';
+import YtdlSettings from './screens/ytdl/YtdlSettings';
+import YtdlCookies from './screens/ytdl/YtdlCookies';
+import {startYtdlScheduler} from './lib/ytdl/queue';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
@@ -165,6 +169,8 @@ export type RootStackParamList = {
     /** A network library file: episode links are version keys, history stays in the netlib store. */
     netlib?: boolean;
   };
+  /** The yt-dlp Download sheet, from Share or from Downloads. */
+  YtdlDownload: {url?: string} | undefined;
 };
 
 export type SearchStackParamList = {
@@ -220,6 +226,8 @@ export type SettingsStackParamList = {
   Credits: undefined;
   WatchSync: undefined;
   Languages: undefined;
+  YtdlSettings: undefined;
+  YtdlCookies: undefined;
 };
 
 export type DownloadsStackParamList = {
@@ -538,6 +546,9 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
+      {/* These two place themselves below the status bar. */}
+      <SettingsStack.Screen name="YtdlSettings" component={YtdlSettings} />
+      <SettingsStack.Screen name="YtdlCookies" component={YtdlCookies} />
     </SettingsStack.Navigator>
   );
 }
@@ -602,6 +613,11 @@ const App = () => {
   },[]);
   useEffect(() => {
     syncParallelStreaming();
+  }, []);
+
+  // yt-dlp downloads that wait for a start time or for Wi-Fi.
+  useEffect(() => {
+    startYtdlScheduler();
   }, []);
 
   // Magnets and links opened from other apps, and copied magnets.
@@ -813,6 +829,11 @@ const App = () => {
                     name="Player"
                     component={Player}
                     options={playerScreenOptions}
+                  />
+                  <Stack.Screen
+                    name="YtdlDownload"
+                    component={YtdlDownload}
+                    options={{animation: 'slide_from_bottom'}}
                   />
                 </Stack.Navigator>
               </NavigationContainer>

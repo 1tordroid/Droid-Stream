@@ -33,6 +33,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
     // Android keeps the first launch intent on the activity, so a link shared
     // while the app is already running only arrives through onNewIntent.
     private var sharedIntent: Intent? = null
+    private val SHARED_LINK = Regex("https?://[^\\s<>\"']+", RegexOption.IGNORE_CASE)
 
     init {
         reactContext.addActivityEventListener(this)
@@ -448,6 +449,8 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
             val mime = intent.type.orEmpty()
             val value = when {
                 shared.startsWith("magnet:", true) || shared.startsWith("http", true) -> shared
+                // Apps often share "Some title https://link"; keep the link.
+                SHARED_LINK.containsMatchIn(shared) -> SHARED_LINK.find(shared)!!.value.trimEnd(')', '.', ',', ';', '!', '?')
                 data?.scheme.equals("magnet", true) -> data.toString()
                 data != null && (mime == "application/x-bittorrent" || data.lastPathSegment?.endsWith(".torrent") == true) -> data.toString()
                 else -> ""

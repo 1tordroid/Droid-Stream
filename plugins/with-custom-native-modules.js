@@ -112,6 +112,7 @@ allprojects {
       'DlnaPackage()',
       'VideoIntentPackage()',
       'SmbPackage()',
+      'YtdlPackage()',
     ];
 
     for (const pkg of packagesToAdd) {
