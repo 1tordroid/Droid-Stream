@@ -16,6 +16,7 @@ import {TVFocusGuide, TVFocusable} from '../components/tv';
 import {isTV} from '../lib/tv';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import {runProviderSearches} from '../lib/search/runProviderSearches';
+import {insertRankedRow, rankPosts} from '../lib/search/rankSearchResults';
 import type {ProviderExtension} from '../lib/storage/extensionStorage';
 
 type Props = NativeStackScreenProps<SearchStackParamList, 'SearchResults'>;
@@ -78,8 +79,14 @@ const SearchResults = ({route, navigation}: Props): React.ReactElement => {
   const searchDataRef = useRef<SearchPageData[]>([]);
   const emptyResultsRef = useRef<SearchPageData[]>([]);
 
+  // Rows with the closest title match go first, and so do posts within a row.
   const updateSearchData = useCallback((newData: SearchPageData) => {
-    searchDataRef.current = [...searchDataRef.current, newData];
+    const ranked = {...newData, Posts: rankPosts(newData.filter, newData.Posts)};
+    searchDataRef.current = insertRankedRow(
+      newData.filter,
+      searchDataRef.current,
+      ranked,
+    );
     setSearchData(searchDataRef.current);
   }, []);
 
