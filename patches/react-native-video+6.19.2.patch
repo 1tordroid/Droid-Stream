@@ -944,10 +944,10 @@ index 96a7887..cb10d8a 100644
      @JvmStatic
 diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DelayRenderersFactory.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DelayRenderersFactory.java
 new file mode 100644
-index 0000000..89bb112
+index 0000000..78f01c8
 --- /dev/null
 +++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DelayRenderersFactory.java
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,181 @@
 +package com.brentvatne.exoplayer;
 +
 +import android.content.Context;
@@ -1057,7 +1057,9 @@ index 0000000..89bb112
 +            long allowedVideoJoiningTimeMs,
 +            @NonNull ArrayList<Renderer> out) {
 +        ArrayList<Renderer> built = new ArrayList<>();
-+        super.buildVideoRenderers(context, extensionRendererMode, mediaCodecSelector,
++        // Extension decoders are for audio only (extra audio formats): video
++        // keeps the device's decoders and the renderer indices stay the same.
++        super.buildVideoRenderers(context, EXTENSION_RENDERER_MODE_OFF, mediaCodecSelector,
 +                enableDecoderFallback, eventHandler, eventListener, allowedVideoJoiningTimeMs, built);
 +        for (Renderer renderer : built) {
 +            out.add(new OffsetRenderer(renderer, delays, false));
@@ -2216,7 +2218,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private DefaultTrackSelector trackSelector;
      private boolean playerNeedsSource;
      private ServiceConnection playbackServiceConnection;
-@@ -203,6 +218,62 @@
+@@ -203,6 +218,69 @@
  
      private int resumeWindow;
      private long resumePosition;
@@ -2228,6 +2230,13 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +    private Format decoderSwitchFormat;
 +    @Nullable private Boolean recoveryVideoDecoderSoftware;
 +    private final java.util.Set<String> failedVideoDecoders = new java.util.HashSet<>();
++    // Extra audio formats: the FFmpeg audio decoder, when the app has it. Read
++    // when the player is created.
++    private boolean extraAudioFormats = true;
++
++    public void setExtraAudioFormats(boolean enabled) {
++        extraAudioFormats = enabled;
++    }
 +
 +    public void setVideoZoom(float zoom) {
 +        exoPlayerView.setVideoZoom(zoom);
@@ -2279,7 +2288,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private boolean loadVideoStarted;
      private boolean isFullscreen;
      private boolean isInBackground;
-@@ -213,6 +284,8 @@
+@@ -213,6 +291,8 @@
      private PictureInPictureParams.Builder pictureInPictureParamsBuilder;
      private boolean hasAudioFocus = false;
      private float rate = 1f;
@@ -2288,7 +2297,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private AudioOutput audioOutput = AudioOutput.SPEAKER;
      private float audioVolume = 1f;
      private int maxBitRate = 0;
-@@ -234,6 +307,7 @@
+@@ -234,6 +314,7 @@
      private boolean isSeeking = false;
      private long seekPosition = -1;
      private boolean hasVideoEnded = false;
@@ -2296,7 +2305,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
      // Props from React
      private Source source = new Source();
-@@ -332,6 +406,7 @@
+@@ -332,6 +413,7 @@
              this.pictureInPictureParamsBuilder = new PictureInPictureParams.Builder();
          }
          mainHandler = new Handler();
@@ -2304,7 +2313,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          createViews();
  
-@@ -562,8 +637,19 @@
+@@ -562,8 +644,19 @@
      }
  
      private class RNVLoadControl extends DefaultLoadControl {
@@ -2324,7 +2333,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          public RNVLoadControl(DefaultAllocator allocator, BufferConfig config) {
              super(allocator,
                      config.getMinBufferMs() != BufferConfig.Companion.getBufferConfigPropUnsetInt()
-@@ -583,17 +669,92 @@
+@@ -583,17 +676,92 @@
                      config.getBackBufferDurationMs() != BufferConfig.Companion.getBufferConfigPropUnsetInt()
                              ? config.getBackBufferDurationMs()
                              : DefaultLoadControl.DEFAULT_BACK_BUFFER_DURATION_MS,
@@ -2366,8 +2375,8 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +        // Back buffer size the budget leaves room for (the heap cap can be below forward + back).
 +        private long backBudgetBytes() {
 +            return Math.max(0, Math.min(backBufferBytes, availableHeapInBytes - Math.min(forwardBufferBytes, availableHeapInBytes)));
-+        }
-+
+         }
+ 
 +        // True when the back buffer has a size cap, enforced by SizeLimitedBackBufferSource.
 +        boolean limitsBackBufferBySize() {
 +            return forwardBufferBytes > 0 && backBufferBytes > 0 && getBackBufferDurationUs(null) > 0;
@@ -2398,8 +2407,8 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +            long loadedBytes = getAllocator().getTotalBytesAllocated();
 +            long forwardBytes = loadedBytes * lastForwardUs / bufferedUs;
 +            return forwardBytes >= Math.min(forwardBufferBytes, availableHeapInBytes);
-         }
- 
++        }
++
 +        // Media3 1.8 calls this overload; DefaultLoadControl's version never reaches the
 +        // deprecated three-argument overload RNV used to override, so without this the memory checks never ran.
          @Override
@@ -2420,7 +2429,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              if (bufferingStrategy == BufferingStrategy.BufferingStrategyEnum.DisableBuffering) {
                  return false;
              } else if (bufferingStrategy == BufferingStrategy.BufferingStrategyEnum.DependingOnMemory) {
-@@ -601,7 +762,9 @@
+@@ -601,7 +769,9 @@
                  // when available memory on device become low.
                  int loadedBytes = getAllocator().getTotalBytesAllocated();
                  boolean isHeapReached = availableHeapInBytes > 0 && loadedBytes >= availableHeapInBytes;
@@ -2431,7 +2440,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      return false;
                  }
                  long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-@@ -609,7 +772,7 @@
+@@ -609,7 +779,7 @@
                  double minBufferMemoryReservePercent = source.getBufferConfig().getMinBufferMemoryReservePercent() != BufferConfig.Companion.getBufferConfigPropUnsetDouble()
                          ? source.getBufferConfig().getMinBufferMemoryReservePercent()
                          : ReactExoplayerView.DEFAULT_MIN_BUFFER_MEMORY_RESERVE;
@@ -2440,7 +2449,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  long bufferedMs = bufferedDurationUs / (long) 1000;
                  if (reserveMemory > freeMemory && bufferedMs > 2000) {
                      // We don't have enough memory in reserve so we stop buffering to allow other components to use it instead
-@@ -622,7 +785,128 @@
+@@ -622,7 +792,128 @@
                  }
              }
              // "default" case or normal case for "DependingOnMemory"
@@ -2570,7 +2579,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
      }
  
-@@ -715,11 +999,12 @@
+@@ -715,11 +1006,12 @@
      private void initializePlayerCore(ReactExoplayerView self) {
          ExoTrackSelection.Factory videoTrackSelectionFactory = new AdaptiveTrackSelection.Factory();
          self.trackSelector = new DefaultTrackSelector(getContext(), videoTrackSelectionFactory);
@@ -2584,14 +2593,20 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  allocator,
                  source.getBufferConfig()
          );
-@@ -731,10 +1016,31 @@
+@@ -730,11 +1022,37 @@
+             this.bandwidthMeter = config.getBandwidthMeter();
          }
  
++        // The FFmpeg audio decoder (extra audio formats) comes after the device's
++        // own decoders, so it only plays audio such as DTS or TrueHD that the
++        // device can neither decode nor pass through to a receiver.
          DefaultRenderersFactory renderersFactory =
 -                new DefaultRenderersFactory(getContext())
 -                        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
 +                new DelayRenderersFactory(getContext(), playbackDelays)
-+                        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
++                        .setExtensionRendererMode(extraAudioFormats
++                                ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
++                                : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
                          .setEnableDecoderFallback(true)
 +                        .setMediaCodecSelector((mime, secure, tunneling) -> {
 +                            List<MediaCodecInfo> candidates = new ArrayList<>(MediaCodecUtil.getDecoderInfos(mime, secure, tunneling));
@@ -2618,7 +2633,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          DefaultMediaSourceFactory mediaSourceFactory;
          
-@@ -759,7 +1065,20 @@
+@@ -759,7 +1077,20 @@
          ReactNativeVideoManager.Companion.getInstance().onInstanceCreated(instanceId, player);
          refreshDebugState();
          player.addListener(self);
@@ -2640,7 +2655,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          exoPlayerView.setPlayer(player);
  
          audioBecomingNoisyReceiver.setListener(self);
-@@ -877,6 +1196,10 @@
+@@ -877,6 +1208,10 @@
              }
          }
  
@@ -2651,7 +2666,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          boolean haveResumePosition = resumeWindow != C.INDEX_UNSET;
          if (haveResumePosition) {
              player.seekTo(resumeWindow, resumePosition);
-@@ -969,10 +1292,19 @@
+@@ -969,10 +1304,19 @@
          Intent intent = new Intent(themedReactContext, VideoPlaybackService.class);
          intent.setAction(MediaSessionService.SERVICE_INTERFACE);
  
@@ -2675,7 +2690,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
  
          int flags;
-@@ -1088,7 +1420,8 @@
+@@ -1088,7 +1432,8 @@
  
                  mediaSourceFactory = new HlsMediaSource.Factory(
                          dataSourceFactory
@@ -2685,7 +2700,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  break;
              case CONTENT_TYPE_OTHER:
                  if ("asset".equals(uri.getScheme())) {
-@@ -1100,12 +1433,18 @@
+@@ -1100,12 +1445,18 @@
                      }
                  } else if ("file".equals(uri.getScheme()) ||
                          !useCache) {
@@ -2706,7 +2721,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      );
  
                  }
-@@ -1144,12 +1483,63 @@
+@@ -1144,12 +1495,63 @@
                  ? overridenMediaItemBuilder.build()
                  : mediaItemBuilder.build();
  
@@ -2771,7 +2786,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          if (cropStartMs >= 0 && cropEndMs >= 0) {
              return new ClippingMediaSource(mediaSource, cropStartMs * 1000, cropEndMs * 1000);
-@@ -1162,6 +1552,109 @@
+@@ -1162,6 +1564,109 @@
          return mediaSource;
      }
  
@@ -2881,7 +2896,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      @Nullable
      private List<MediaItem.SubtitleConfiguration> buildSubtitleConfigurations() {
          if (source.getSideLoadedTextTracks() == null || source.getSideLoadedTextTracks().getTracks().isEmpty()) {
-@@ -1183,9 +1676,23 @@
+@@ -1183,9 +1688,23 @@
                      }
                  }
                  
@@ -2906,7 +2921,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          .setLabel(label)
                          .setRoleFlags(C.ROLE_FLAG_SUBTITLE);
                  
-@@ -1219,6 +1726,7 @@
+@@ -1219,6 +1738,7 @@
      }
  
      private void releasePlayer() {
@@ -2914,7 +2929,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (player != null) {
              if(playbackServiceBinder != null) {
                  playbackServiceBinder.getService().unregisterPlayer(player);
-@@ -1298,14 +1806,14 @@
+@@ -1298,14 +1818,14 @@
                      // Lower the volume
                      if (!view.muted) {
                          activity.runOnUiThread(() ->
@@ -2931,7 +2946,38 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          );
                      }
                  }
-@@ -1586,7 +2094,17 @@
+@@ -1545,18 +2065,18 @@
+         }
+ 
+         MappingTrackSelector.MappedTrackInfo info = trackSelector.getCurrentMappedTrackInfo();
+-        int index = getTrackRendererIndex(C.TRACK_TYPE_AUDIO);
+-        if (info == null || index == C.INDEX_UNSET) {
++        if (info == null) {
+             return audioTracks;
+         }
+-        TrackGroupArray groups = info.getTrackGroups(index);
++        AudioGroups audio = getAudioGroups(info);
++        TrackGroupArray groups = audio.groups;
+         TrackSelectionArray selectionArray = player.getCurrentTrackSelections();
+-        TrackSelection selection = selectionArray.get(C.TRACK_TYPE_AUDIO);
+ 
+ 
+         for (int groupIndex = 0; groupIndex < groups.length; ++groupIndex) {
+             TrackGroup group = groups.get(groupIndex);
+             Format format = group.getFormat(0);
++            TrackSelection selection = selectionArray.get(audio.renderers[groupIndex]);
+             
+             // Check if this specific group is the currently selected one
+             boolean isSelected = false;
+@@ -1567,6 +2087,7 @@
+             Track audioTrack = exoplayerTrackToGenericTrack(format, groupIndex, selection, group);
+             audioTrack.setBitrate(format.bitrate == Format.NO_VALUE ? 0 : format.bitrate);
+             audioTrack.setSelected(isSelected);
++            audioTrack.setSoftwareDecoded(isSoftwareAudioRenderer(audio.renderers[groupIndex]));
+             audioTracks.add(audioTrack);
+         }
+         
+@@ -1586,7 +2107,17 @@
      }
  
      private ArrayList<VideoTrack> getVideoTrackInfo() {
@@ -2950,7 +2996,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (trackSelector == null) {
              // Likely player is unmounting so no video tracks are available anymore
              return videoTracks;
-@@ -1612,6 +2130,72 @@
+@@ -1612,6 +2143,72 @@
          return videoTracks;
      }
  
@@ -3023,7 +3069,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private ArrayList<VideoTrack> getVideoTrackInfoFromManifest() {
          return this.getVideoTrackInfoFromManifest(0);
      }
-@@ -1703,7 +2287,7 @@
+@@ -1703,7 +2300,7 @@
          }
          
          TrackSelectionArray selectionArray = player.getCurrentTrackSelections();
@@ -3032,7 +3078,31 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          TrackGroupArray groups = info.getTrackGroups(index);
  
          for (int groupIndex = 0; groupIndex < groups.length; ++groupIndex) {
-@@ -1861,6 +2445,9 @@
+@@ -1738,12 +2335,12 @@
+         }
+ 
+         MappingTrackSelector.MappedTrackInfo info = trackSelector.getCurrentMappedTrackInfo();
+-        int index = getTrackRendererIndex(C.TRACK_TYPE_AUDIO);
+-        if (info == null || index == C.INDEX_UNSET) {
++        if (info == null) {
+             return tracks;
+         }
+ 
+-        TrackGroupArray groups = info.getTrackGroups(index);
++        AudioGroups audio = getAudioGroups(info);
++        TrackGroupArray groups = audio.groups;
+         
+         for (int groupIndex = 0; groupIndex < groups.length; ++groupIndex) {
+             TrackGroup group = groups.get(groupIndex);
+@@ -1757,6 +2354,7 @@
+             track.setSelected(false); // Don't report selection status - let PlayerView handle it
+             if (format.sampleMimeType != null) track.setMimeType(format.sampleMimeType);
+             track.setBitrate(format.bitrate == Format.NO_VALUE ? 0 : format.bitrate);
++            track.setSoftwareDecoded(isSoftwareAudioRenderer(audio.renderers[groupIndex]));
+             
+             tracks.add(track);
+         }
+@@ -1861,6 +2459,9 @@
  
      @Override
      public void onTracksChanged(@NonNull Tracks tracks) {
@@ -3042,7 +3112,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          DebugLog.d(TAG, "onTracksChanged called - updating track information, controls=" + controls);
          
          if (controls) {
-@@ -1890,6 +2477,13 @@
+@@ -1890,6 +2491,13 @@
          updateSubtitleButtonVisibility();
      }
  
@@ -3056,7 +3126,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      
      private boolean hasBuiltInTextTracks() {
          if (player == null || trackSelector == null) return false;
-@@ -1950,10 +2544,71 @@
+@@ -1950,10 +2558,71 @@
          }
      }
  
@@ -3128,7 +3198,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          switch(e.errorCode) {
              case PlaybackException.ERROR_CODE_DRM_DEVICE_REVOKED:
              case PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED:
-@@ -2031,6 +2686,9 @@
+@@ -2031,6 +2700,9 @@
      }
  
      public void onCues(CueGroup cueGroup) {
@@ -3138,7 +3208,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (!cueGroup.cues.isEmpty() && cueGroup.cues.get(0).text != null) {
              String subtitleText = cueGroup.cues.get(0).text.toString();
              eventEmitter.onTextTrackDataChanged.invoke(subtitleText);
-@@ -2061,6 +2719,9 @@
+@@ -2061,6 +2733,9 @@
              }
  
              if (!isSourceEqual) {
@@ -3148,7 +3218,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  hasVideoEnded = false;
                  playerNeedsSource = true;
                  initializePlayer();
-@@ -2147,6 +2808,12 @@
+@@ -2147,6 +2822,12 @@
                      TrackGroupArray groups = info.getTrackGroups(textRendererIndex);
                      boolean trackFound = false;
                      
@@ -3161,7 +3231,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      for (int groupIndex = 0; groupIndex < groups.length; groupIndex++) {
                          TrackGroup group = groups.get(groupIndex);
                          for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
-@@ -2159,18 +2826,21 @@
+@@ -2159,18 +2840,21 @@
                                  isMatch = true;
                              } else if ("index".equals(type)) {
                                  int targetIndex = ReactBridgeUtils.safeParseInt(value, -1);
@@ -3184,7 +3254,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          }
                          if (trackFound) break;
                      }
-@@ -2178,13 +2848,17 @@
+@@ -2178,13 +2862,17 @@
                      if (!trackFound) {
                          DebugLog.w(TAG, "Text track not found for type=" + type + ", value=" + value + 
                              ". Keeping current selection.");
@@ -3203,7 +3273,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              
              // Give PlayerView time to update its controls
              mainHandler.postDelayed(() -> {
-@@ -2197,6 +2871,101 @@
+@@ -2197,6 +2885,101 @@
          }
      }
  
@@ -3305,7 +3375,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      public void setSelectedTrack(int trackType, String type, String value) {
          if (player == null || trackSelector == null) return;
  
-@@ -2209,6 +2978,14 @@
+@@ -2209,12 +2992,22 @@
              return;
          }
  
@@ -3320,15 +3390,32 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          MappingTrackSelector.MappedTrackInfo info = trackSelector.getCurrentMappedTrackInfo();
          if (info == null) {
              return;
-@@ -2317,6 +3094,15 @@
+         }
+ 
+-        TrackGroupArray groups = info.getTrackGroups(rendererIndex);
++        // Audio groups can sit on two renderers (see AudioGroups).
++        AudioGroups audio = trackType == C.TRACK_TYPE_AUDIO ? getAudioGroups(info) : null;
++        TrackGroupArray groups = audio != null ? audio.groups : info.getTrackGroups(rendererIndex);
+         int groupIndex = C.INDEX_UNSET;
+         List<Integer> tracks = new ArrayList<>();
+         tracks.add(0);
+@@ -2224,7 +3017,7 @@
+         }
+ 
+         if ("disabled".equals(type)) {
+-            disableTrack(rendererIndex);
++            disableTrackType(trackType);
+             return;
+         } else if ("language".equals(type)) {
+             for (int i = 0; i < groups.length; ++i) {
+@@ -2317,6 +3110,14 @@
              groupIndex = getGroupIndexForDefaultLocale(groups);
          }
  
-+        if (trackType == C.TRACK_TYPE_AUDIO) {
++        if (audio != null) {
 +            groupIndex = getPreferredSupportedAudioGroupIndex(
 +                    info,
-+                    rendererIndex,
-+                    groups,
++                    audio,
 +                    type,
 +                    value);
 +        }
@@ -3336,16 +3423,31 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (groupIndex == C.INDEX_UNSET && trackType == C.TRACK_TYPE_VIDEO && groups.length != 0) { // Video auto
              // Add all tracks as valid options for ABR to choose from
              TrackGroup group = groups.get(0);
-@@ -2359,7 +3145,7 @@
+@@ -2349,7 +3150,7 @@
+         }
+ 
+         if (groupIndex == C.INDEX_UNSET) {
+-            disableTrack(rendererIndex);
++            disableTrackType(trackType);
+             return;
+         }
+ 
+@@ -2359,9 +3160,11 @@
              DefaultTrackSelector.Parameters.Builder selectionParameters = trackSelector.getParameters()
                      .buildUpon()
                      .setExceedAudioConstraintsIfNecessary(true)
 -                    .setExceedRendererCapabilitiesIfNecessary(true)
+-                    .setExceedVideoConstraintsIfNecessary(true)
+-                    .setRendererDisabled(rendererIndex, false);
 +                    .setExceedRendererCapabilitiesIfNecessary(trackType != C.TRACK_TYPE_AUDIO)
-                     .setExceedVideoConstraintsIfNecessary(true)
-                     .setRendererDisabled(rendererIndex, false);
++                    .setExceedVideoConstraintsIfNecessary(true);
++            for (int typeRendererIndex : getTrackRendererIndices(trackType)) {
++                selectionParameters.setRendererDisabled(typeRendererIndex, false);
++            }
  
-@@ -2429,10 +3215,225 @@
+             // Clear existing overrides for this track type to avoid conflicts  
+             // But be careful with audio tracks - don't clear unless explicitly selecting a different track
+@@ -2429,10 +3232,296 @@
          return groupIndex;
      }
  
@@ -3357,20 +3459,25 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +                    "audio/true-hd"
 +            ));
 +
-+    private static final boolean FFMPEG_AUDIO_AVAILABLE;
-+    static {
-+        boolean available = false;
-+        try {
-+            available = Boolean.TRUE.equals(Class.forName("androidx.media3.decoder.ffmpeg.FfmpegLibrary").getMethod("isAvailable").invoke(null));
-+        } catch (NoClassDefFoundError | Exception ignored) {}
-+        FFMPEG_AUDIO_AVAILABLE = available;
++    @Nullable private static Boolean ffmpegAudioAvailable;
++
++    /** Whether the app has the FFmpeg audio decoder for this ABI. Loads it on first use. */
++    private static synchronized boolean isFfmpegAudioAvailable() {
++        if (ffmpegAudioAvailable == null) {
++            boolean available = false;
++            try {
++                available = Boolean.TRUE.equals(Class.forName("androidx.media3.decoder.ffmpeg.FfmpegLibrary").getMethod("isAvailable").invoke(null));
++            } catch (NoClassDefFoundError | Exception ignored) {}
++            ffmpegAudioAvailable = available;
++        }
++        return ffmpegAudioAvailable;
 +    }
 +
 +    private boolean isPassthroughOnlyMimeType(String mimeType) {
 +        if (mimeType == null || !PASSTHROUGH_AUDIO_MIME_TYPES.contains(mimeType)) {
 +            return false;
 +        }
-+        if (FFMPEG_AUDIO_AVAILABLE) {
++        if (extraAudioFormats && isFfmpegAudioAvailable()) {
 +            return false;
 +        }
 +        try {
@@ -3385,18 +3492,92 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +        return true;
 +    }
 +
++    /**
++     * The audio track groups of every audio renderer, in the order the media
++     * lists them. With extra audio formats there are two audio renderers (the
++     * device's decoders, then FFmpeg) and each group goes to one of them, so
++     * the track list, its indices and the support checks use this list.
++     */
++    private static final class AudioGroups {
++        final TrackGroupArray groups;
++        final int[] renderers;
++        final int[] rendererGroups;
++
++        AudioGroups(TrackGroupArray groups, int[] renderers, int[] rendererGroups) {
++            this.groups = groups;
++            this.renderers = renderers;
++            this.rendererGroups = rendererGroups;
++        }
++    }
++
++    @SuppressWarnings("deprecation") // getCurrentTrackGroups keeps the media's own order.
++    private AudioGroups getAudioGroups(MappingTrackSelector.MappedTrackInfo info) {
++        List<int[]> refs = new ArrayList<>();
++        for (int rendererIndex = 0; rendererIndex < info.getRendererCount(); rendererIndex++) {
++            if (info.getRendererType(rendererIndex) != C.TRACK_TYPE_AUDIO) continue;
++            TrackGroupArray rendererGroups = info.getTrackGroups(rendererIndex);
++            for (int groupIndex = 0; groupIndex < rendererGroups.length; groupIndex++) {
++                refs.add(new int[]{rendererIndex, groupIndex});
++            }
++        }
++        if (refs.size() > 1 && player != null) {
++            TrackGroupArray mediaGroups = player.getCurrentTrackGroups();
++            // Stable sort: groups missing from the media list keep renderer order at the end.
++            refs.sort(java.util.Comparator.comparingInt(ref -> {
++                int position = mediaGroups.indexOf(info.getTrackGroups(ref[0]).get(ref[1]));
++                return position == C.INDEX_UNSET ? Integer.MAX_VALUE : position;
++            }));
++        }
++        TrackGroup[] groups = new TrackGroup[refs.size()];
++        int[] renderers = new int[refs.size()];
++        int[] rendererGroups = new int[refs.size()];
++        for (int i = 0; i < refs.size(); i++) {
++            int[] ref = refs.get(i);
++            groups[i] = info.getTrackGroups(ref[0]).get(ref[1]);
++            renderers[i] = ref[0];
++            rendererGroups[i] = ref[1];
++        }
++        return new AudioGroups(new TrackGroupArray(groups), renderers, rendererGroups);
++    }
++
++    /** True for an audio renderer of the app's own decoders (FFmpeg), not the device's. */
++    private boolean isSoftwareAudioRenderer(int rendererIndex) {
++        return player != null
++                && player.getRenderer(rendererIndex) instanceof androidx.media3.exoplayer.audio.DecoderAudioRenderer;
++    }
++
++    /** Every renderer of a track type: audio has two with extra audio formats. */
++    private List<Integer> getTrackRendererIndices(int trackType) {
++        List<Integer> indices = new ArrayList<>();
++        if (player != null) {
++            for (int rendererIndex = 0; rendererIndex < player.getRendererCount(); rendererIndex++) {
++                if (player.getRendererType(rendererIndex) == trackType) indices.add(rendererIndex);
++            }
++        }
++        return indices;
++    }
++
++    private void disableTrackType(int trackType) {
++        if (trackSelector == null) return;
++        DefaultTrackSelector.Parameters.Builder parameters = trackSelector.getParameters().buildUpon();
++        for (int rendererIndex : getTrackRendererIndices(trackType)) {
++            parameters.setRendererDisabled(rendererIndex, true);
++        }
++        trackSelector.setParameters(parameters.build());
++    }
++
 +    private boolean isTrackSupported(
 +            MappingTrackSelector.MappedTrackInfo info,
-+            int rendererIndex,
++            AudioGroups audio,
 +            int groupIndex,
 +            int trackIndex
 +    ) {
-+        int support = RendererCapabilities.getFormatSupport(
-+                info.getTrackSupport(rendererIndex, groupIndex, trackIndex));
++        int support = RendererCapabilities.getFormatSupport(info.getTrackSupport(
++                audio.renderers[groupIndex], audio.rendererGroups[groupIndex], trackIndex));
 +        if (support != C.FORMAT_HANDLED && support != C.FORMAT_EXCEEDS_CAPABILITIES) {
 +            return false;
 +        }
-+        Format format = info.getTrackGroups(rendererIndex).get(groupIndex).getFormat(trackIndex);
++        Format format = audio.groups.get(groupIndex).getFormat(trackIndex);
 +        if (isPassthroughOnlyMimeType(format.sampleMimeType)) {
 +            return false;
 +        }
@@ -3405,17 +3586,16 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +
 +    private boolean isTrackGroupSupported(
 +            MappingTrackSelector.MappedTrackInfo info,
-+            int rendererIndex,
-+            TrackGroupArray groups,
++            AudioGroups audio,
 +            int groupIndex
 +    ) {
-+        if (groupIndex == C.INDEX_UNSET || groupIndex >= groups.length) {
++        if (groupIndex == C.INDEX_UNSET || groupIndex >= audio.groups.length) {
 +            return false;
 +        }
 +
-+        TrackGroup group = groups.get(groupIndex);
++        TrackGroup group = audio.groups.get(groupIndex);
 +        for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
-+            if (isTrackSupported(info, rendererIndex, groupIndex, trackIndex)) {
++            if (isTrackSupported(info, audio, groupIndex, trackIndex)) {
 +                return true;
 +            }
 +        }
@@ -3425,11 +3605,10 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +
 +    private int getFirstSupportedGroupIndex(
 +            MappingTrackSelector.MappedTrackInfo info,
-+            int rendererIndex,
-+            TrackGroupArray groups
++            AudioGroups audio
 +    ) {
-+        for (int groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-+            if (isTrackGroupSupported(info, rendererIndex, groups, groupIndex)) {
++        for (int groupIndex = 0; groupIndex < audio.groups.length; groupIndex++) {
++            if (isTrackGroupSupported(info, audio, groupIndex)) {
 +                return groupIndex;
 +            }
 +        }
@@ -3439,11 +3618,11 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +
 +    private int getPreferredSupportedAudioGroupIndex(
 +            MappingTrackSelector.MappedTrackInfo info,
-+            int rendererIndex,
-+            TrackGroupArray groups,
++            AudioGroups audio,
 +            String type,
 +            String value
 +    ) {
++        TrackGroupArray groups = audio.groups;
 +        if (groups.length == 0) {
 +            return C.INDEX_UNSET;
 +        }
@@ -3456,7 +3635,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +                Format format = groups.get(groupIndex).getFormat(0);
 +                if (format.language != null
 +                        && format.language.equals(value)
-+                        && isTrackGroupSupported(info, rendererIndex, groups, groupIndex)) {
++                        && isTrackGroupSupported(info, audio, groupIndex)) {
 +                    preferredGroupIndex = groupIndex;
 +                    break;
 +                }
@@ -3466,7 +3645,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +                Format format = groups.get(groupIndex).getFormat(0);
 +                if (format.label != null
 +                        && format.label.equals(value)
-+                        && isTrackGroupSupported(info, rendererIndex, groups, groupIndex)) {
++                        && isTrackGroupSupported(info, audio, groupIndex)) {
 +                    preferredGroupIndex = groupIndex;
 +                    break;
 +                }
@@ -3475,12 +3654,12 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +            int requestedIndex = ReactBridgeUtils.safeParseInt(value, C.INDEX_UNSET);
 +            if (requestedIndex != C.INDEX_UNSET
 +                    && requestedIndex < groups.length
-+                    && isTrackGroupSupported(info, rendererIndex, groups, requestedIndex)) {
++                    && isTrackGroupSupported(info, audio, requestedIndex)) {
 +                preferredGroupIndex = requestedIndex;
 +            }
 +        } else {
 +            int localeGroupIndex = getGroupIndexForDefaultLocale(groups);
-+            if (isTrackGroupSupported(info, rendererIndex, groups, localeGroupIndex)) {
++            if (isTrackGroupSupported(info, audio, localeGroupIndex)) {
 +                preferredGroupIndex = localeGroupIndex;
 +            }
 +        }
@@ -3489,17 +3668,14 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +            return preferredGroupIndex;
 +        }
 +
-+        return getFirstSupportedGroupIndex(info, rendererIndex, groups);
++        return getFirstSupportedGroupIndex(info, audio);
 +    }
 +
-+    private int getSelectedGroupIndex(TrackSelection selection, TrackGroupArray groups) {
-+        if (selection == null) {
-+            return C.INDEX_UNSET;
-+        }
-+
-+        TrackGroup selectedGroup = selection.getTrackGroup();
-+        for (int groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-+            if (groups.get(groupIndex) == selectedGroup) {
++    private int getSelectedAudioGroupIndex(AudioGroups audio) {
++        TrackSelectionArray selections = player.getCurrentTrackSelections();
++        for (int groupIndex = 0; groupIndex < audio.groups.length; groupIndex++) {
++            TrackSelection selection = selections.get(audio.renderers[groupIndex]);
++            if (selection != null && selection.getTrackGroup() == audio.groups.get(groupIndex)) {
 +                return groupIndex;
 +            }
 +        }
@@ -3513,26 +3689,23 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +        }
 +
 +        MappingTrackSelector.MappedTrackInfo info = trackSelector.getCurrentMappedTrackInfo();
-+        int rendererIndex = getTrackRendererIndex(C.TRACK_TYPE_AUDIO);
-+        if (info == null || rendererIndex == C.INDEX_UNSET) {
++        if (info == null) {
 +            return false;
 +        }
 +
-+        TrackGroupArray groups = info.getTrackGroups(rendererIndex);
-+        if (groups.length == 0) {
++        AudioGroups audio = getAudioGroups(info);
++        if (audio.groups.length == 0) {
 +            return false;
 +        }
 +
-+        TrackSelection currentSelection = player.getCurrentTrackSelections().get(rendererIndex);
-+        int currentGroupIndex = getSelectedGroupIndex(currentSelection, groups);
-+        if (isTrackGroupSupported(info, rendererIndex, groups, currentGroupIndex)) {
++        int currentGroupIndex = getSelectedAudioGroupIndex(audio);
++        if (isTrackGroupSupported(info, audio, currentGroupIndex)) {
 +            return false;
 +        }
 +
 +        int fallbackGroupIndex = getPreferredSupportedAudioGroupIndex(
 +                info,
-+                rendererIndex,
-+                groups,
++                audio,
 +                audioTrackType,
 +                audioTrackValue);
 +
@@ -3572,7 +3745,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      }
  
      public void setSelectedAudioTrack(String type, String value) {
-@@ -2546,9 +3547,7 @@
+@@ -2546,9 +3635,7 @@
  
      public void setMutedModifier(boolean muted) {
          this.muted = muted;
@@ -3583,7 +3756,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      }
  
      private void changeAudioOutput(AudioOutput output) {
-@@ -2577,9 +3576,14 @@
+@@ -2577,9 +3664,14 @@
      }
  
      public void setVolumeModifier(float volume) {
@@ -3600,7 +3773,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
      }
  
-@@ -2589,6 +3593,77 @@
+@@ -2589,6 +3681,77 @@
          }
      }
  
@@ -3681,7 +3854,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
 --- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
 +++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
-@@ -41,6 +41,10 @@
+@@ -41,6 +41,11 @@
          private const val PROP_PROGRESS_UPDATE_INTERVAL = "progressUpdateInterval"
          private const val PROP_REPORT_BANDWIDTH = "reportBandwidth"
          private const val PROP_RATE = "rate"
@@ -3689,10 +3862,11 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +        private const val PROP_AUDIO_DELAY_MS = "audioDelayMs"
 +        private const val PROP_NIGHT_MODE = "nightMode"
 +        private const val PROP_DIALOGUE_BOOST = "dialogueBoost"
++        private const val PROP_EXTRA_AUDIO_FORMATS = "extraAudioFormats"
          private const val PROP_MAXIMUM_BIT_RATE = "maxBitRate"
          private const val PROP_PLAY_IN_BACKGROUND = "playInBackground"
          private const val PROP_DISABLE_FOCUS = "disableFocus"
-@@ -180,11 +184,36 @@
+@@ -180,11 +185,41 @@
          videoView.setReportBandwidth(reportBandwidth)
      }
  
@@ -3724,6 +3898,11 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +    @ReactProp(name = PROP_DIALOGUE_BOOST, defaultInt = 0)
 +    fun setDialogueBoost(videoView: ReactExoplayerView, level: Int) {
 +        videoView.setDialogueBoost(level)
++    }
++
++    @ReactProp(name = PROP_EXTRA_AUDIO_FORMATS, defaultBoolean = true)
++    fun setExtraAudioFormats(videoView: ReactExoplayerView, enabled: Boolean) {
++        videoView.setExtraAudioFormats(enabled)
 +    }
 +
      @ReactProp(name = PROP_MAXIMUM_BIT_RATE)
@@ -3785,7 +3964,7 @@ diff --git a/node_modules/react-native-video/lib/specs/VideoNativeComponent.d.ts
      minBackBufferMemoryReservePercent?: Float;
      minBufferMemoryReservePercent?: Float;
      cacheSizeMB?: Float;
-@@ -306,6 +308,10 @@
+@@ -306,6 +308,11 @@
      ignoreSilentSwitch?: WithDefault<string, 'inherit'>;
      mixWithOthers?: WithDefault<string, 'inherit'>;
      rate?: Float;
@@ -3793,10 +3972,11 @@ diff --git a/node_modules/react-native-video/lib/specs/VideoNativeComponent.d.ts
 +    audioDelayMs?: Int32;
 +    nightMode?: Int32;
 +    dialogueBoost?: Int32;
++    extraAudioFormats?: WithDefault<boolean, true>;
      fullscreen?: boolean;
      fullscreenAutorotate?: boolean;
      fullscreenOrientation?: WithDefault<string, 'all'>;
-@@ -319,6 +325,7 @@
+@@ -319,6 +326,7 @@
      hideShutterView?: boolean;
      reportBandwidth?: boolean;
      subtitleStyle?: SubtitleStyle;
@@ -3816,7 +3996,7 @@ diff --git a/node_modules/react-native-video/lib/types/video.d.ts b/node_modules
      maxHeapAllocationPercent?: number;
      minBackBufferMemoryReservePercent?: number;
      minBufferMemoryReservePercent?: number;
-@@ -284,6 +286,10 @@
+@@ -284,6 +286,11 @@
      preventsDisplaySleepDuringVideoPlayback?: boolean;
      progressUpdateInterval?: number;
      rate?: number;
@@ -3824,10 +4004,11 @@ diff --git a/node_modules/react-native-video/lib/types/video.d.ts b/node_modules
 +    audioDelayMs?: number;
 +    nightMode?: number;
 +    dialogueBoost?: number;
++    extraAudioFormats?: boolean;
      renderLoader?: ReactNode | ((arg0: ReactVideoRenderLoaderProps) => ReactNode);
      repeat?: boolean;
      reportBandwidth?: boolean;
-@@ -293,6 +299,7 @@
+@@ -293,6 +300,7 @@
      selectedTextTrack?: SelectedTrack;
      selectedVideoTrack?: SelectedVideoTrack;
      subtitleStyle?: SubtitleStyle;
@@ -3847,7 +4028,7 @@ diff --git a/node_modules/react-native-video/src/specs/VideoNativeComponent.ts b
    minBackBufferMemoryReservePercent?: Float;
    minBufferMemoryReservePercent?: Float;
    cacheSizeMB?: Float;
-@@ -362,6 +364,10 @@
+@@ -362,6 +364,11 @@
    ignoreSilentSwitch?: WithDefault<string, 'inherit'>; // ios, 'inherit'
    mixWithOthers?: WithDefault<string, 'inherit'>; // ios, 'inherit'
    rate?: Float;
@@ -3855,10 +4036,11 @@ diff --git a/node_modules/react-native-video/src/specs/VideoNativeComponent.ts b
 +  audioDelayMs?: Int32; // Android: positive plays audio later
 +  nightMode?: Int32; // Android: 0 off, 1 light, 2 medium, 3 strong
 +  dialogueBoost?: Int32; // Android: 0 off, 1 on, 2 strong
++  extraAudioFormats?: WithDefault<boolean, true>; // Android: FFmpeg audio decoder for DTS, TrueHD and more
    fullscreen?: boolean; // ios, false
    fullscreenAutorotate?: boolean;
    fullscreenOrientation?: WithDefault<string, 'all'>;
-@@ -375,6 +381,7 @@
+@@ -375,6 +382,7 @@
    hideShutterView?: boolean; //	Android
    reportBandwidth?: boolean; //Android
    subtitleStyle?: SubtitleStyle; // android
@@ -3878,7 +4060,7 @@ diff --git a/node_modules/react-native-video/src/types/video.ts b/node_modules/r
    maxHeapAllocationPercent?: number;
    minBackBufferMemoryReservePercent?: number;
    minBufferMemoryReservePercent?: number;
-@@ -360,6 +362,10 @@
+@@ -360,6 +362,11 @@
    preventsDisplaySleepDuringVideoPlayback?: boolean;
    progressUpdateInterval?: number;
    rate?: number;
@@ -3886,10 +4068,11 @@ diff --git a/node_modules/react-native-video/src/types/video.ts b/node_modules/r
 +  audioDelayMs?: number; // Android: positive plays audio later
 +  nightMode?: number; // Android: 0 off, 1 light, 2 medium, 3 strong
 +  dialogueBoost?: number; // Android: 0 off, 1 on, 2 strong
++  extraAudioFormats?: boolean; // Android: FFmpeg audio decoder for DTS, TrueHD and more
    renderLoader?: ReactNode | ((arg0: ReactVideoRenderLoaderProps) => ReactNode);
    repeat?: boolean;
    reportBandwidth?: boolean; //Android
-@@ -369,6 +375,7 @@
+@@ -369,6 +376,7 @@
    selectedTextTrack?: SelectedTrack;
    selectedVideoTrack?: SelectedVideoTrack; // android
    subtitleStyle?: SubtitleStyle; // android
@@ -4770,3 +4953,25 @@ index 0000000..fc761fe
 +        return (float) Math.exp(-1.0 / (milliseconds * 0.001 * sampleRate));
 +    }
 +}
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/api/Track.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/api/Track.kt
+--- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/api/Track.kt
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/api/Track.kt
+@@ -12,4 +12,7 @@
+     // in bps available only on audio tracks
+     var bitrate = 0
+     var index = 0
++
++    // Audio decoded by the app's FFmpeg decoder instead of the device
++    var isSoftwareDecoded = false
+ }
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/react/VideoEventEmitter.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/react/VideoEventEmitter.kt
+--- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/react/VideoEventEmitter.kt
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/common/react/VideoEventEmitter.kt
+@@ -336,6 +336,7 @@
+                         format.language?.let { putString("language", it) }
+                         if (format.bitrate > 0) putInt("bitrate", format.bitrate)
+                         putBoolean("selected", format.isSelected)
++                        if (format.isSoftwareDecoded) putBoolean("softwareDecoded", true)
+                     }
+                 )
+             }

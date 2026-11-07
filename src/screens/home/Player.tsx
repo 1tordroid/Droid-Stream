@@ -11,6 +11,7 @@ import useLocalContentStore from '../../lib/zustand/localContentStore';
 import PlayerMoreMenu from '../../components/PlayerMoreMenu';
 import {PlayerControlStyle} from '../../lib/player/controlStyle';
 import {languageLabel, shortLanguageLabel} from '../../lib/player/languageLabel';
+import {audioTrackFormatLabel} from '../../lib/player/audioTrackLabel';
 import {
   DIALOGUE_BOOST_HINT,
   DIALOGUE_BOOST_NEEDS_DECODED,
@@ -781,6 +782,8 @@ const Player = ({route}: Props): React.JSX.Element => {
   // the player menu applies live and becomes the new default.
   const [nightMode, setNightMode] = useState<NightMode>(() => settingsStorage.getNightMode());
   const [dialogueBoost, setDialogueBoost] = useState<DialogueBoost>(() => settingsStorage.getDialogueBoost());
+  // Read when the player is created, so a change applies from the next video.
+  const [extraAudioFormats] = useState(() => settingsStorage.isExtraAudioFormatsEnabled());
   // Encoded (passthrough) audio skips the PCM effects, so the menu says so.
   const [encodedAudio, setEncodedAudio] = useState(false);
   const changeNightMode = useCallback((mode: NightMode) => {
@@ -3081,6 +3084,7 @@ const Player = ({route}: Props): React.JSX.Element => {
         ? {
             nightMode: nightModeNativeValue(nightMode),
             dialogueBoost: dialogueBoostNativeValue(dialogueBoost),
+            extraAudioFormats,
           }
         : {}),
       subtitleStyle,
@@ -3150,6 +3154,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       audioDelayMs,
       nightMode,
       dialogueBoost,
+      extraAudioFormats,
       primary,
       navigation,
       handleShowControls,
@@ -4185,7 +4190,7 @@ const Player = ({route}: Props): React.JSX.Element => {
                             : undefined
                         }
                         title={languageLabel(track.language, `Audio track ${i + 1}`)}
-                        detail={[track.type, track.title]
+                        detail={[audioTrackFormatLabel(track), track.title]
                           .filter(Boolean)
                           .join(' · ')}
                         selected={selectedAudioTrackIndex === i}

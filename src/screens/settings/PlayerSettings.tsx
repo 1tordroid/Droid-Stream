@@ -109,6 +109,9 @@ export default function PlayerSettings({navigation}: Props) {
   const [enableVolumeBoost, setEnableVolumeBoost] = useState(() =>
     settingsStorage.isVolumeBoostEnabled(),
   );
+  const [extraAudioFormats, setExtraAudioFormats] = useState(() =>
+    settingsStorage.isExtraAudioFormatsEnabled(),
+  );
   const [nightMode, setNightMode] = useState(() => settingsStorage.getNightMode());
   const [dialogueBoost, setDialogueBoost] = useState(() => settingsStorage.getDialogueBoost());
   // The player menu changes these too, so read them again on return.
@@ -419,6 +422,15 @@ export default function PlayerSettings({navigation}: Props) {
               }}
             />
             {Platform.OS === 'android' && <>
+              <SettingsSwitchRow
+                title="Extra audio formats (DTS, TrueHD)"
+                description="Plays DTS, TrueHD and other sound this device can't decode. The app decodes it, which uses a little more battery. Built-in player, from the next video."
+                value={extraAudioFormats}
+                onValueChange={next => {
+                  settingsStorage.setExtraAudioFormatsEnabled(next);
+                  setExtraAudioFormats(next);
+                }}
+              />
               <ChoiceRow title="Night mode" description={`${NIGHT_MODE_HINT}. Built-in player and VLC.`}
                 options={NIGHT_MODE_OPTIONS} value={nightMode}
                 onChange={next => {settingsStorage.setNightMode(next); setNightMode(next);}} />

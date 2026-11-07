@@ -49,6 +49,20 @@ const SMB_RULES = `
 -keepattributes *Annotation*
 `;
 
+// Media3's FFmpeg audio decoder (extra audio formats): its own rules from
+// native-src/android/decoder_ffmpeg, plus the classes that are looked up by
+// name. Media3 creates FfmpegAudioRenderer through reflection, and
+// react-native-video asks FfmpegLibrary whether the native part loaded.
+const FFMPEG_DECODER_RULES = `
+# FFmpeg audio decoder: classes looked up by name
+-keep class androidx.media3.decoder.ffmpeg.FfmpegLibrary {
+  public static boolean isAvailable();
+}
+-keep class androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer {
+  <init>(android.os.Handler, androidx.media3.exoplayer.audio.AudioRendererEventListener, androidx.media3.exoplayer.audio.AudioSink);
+}
+`;
+
 module.exports = function withProguardRules(config) {
   config = withLenientKeepRules(config);
   return withDangerousMod(config, [
@@ -77,6 +91,16 @@ module.exports = function withProguardRules(config) {
         }
         if (!content.includes('-dontwarn org.ietf.jgss.**')) {
           content += SMB_RULES;
+        }
+        if (!content.includes('androidx.media3.decoder.ffmpeg.FfmpegLibrary')) {
+          const upstreamRules = path.join(
+            cfg.modRequest.projectRoot,
+            'native-src',
+            'android',
+            'decoder_ffmpeg',
+            'proguard-rules.txt',
+          );
+          content += FFMPEG_DECODER_RULES + fs.readFileSync(upstreamRules, 'utf8');
         }
         fs.writeFileSync(proguardRulesFile, content, 'utf8');
       }
