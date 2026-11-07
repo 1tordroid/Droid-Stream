@@ -1,10 +1,10 @@
 import {create} from 'zustand';
 import {persist, createJSONStorage} from 'zustand/middleware';
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from '../storage/openStore';
 import {settingsStorage} from '../storage';
 import type {ThemeMode} from '../../theme/themeMode';
 
-const storage = new MMKVLoader().initialize();
+const storage = openStore();
 
 export type AccentSource = 'wallpaper' | 'custom';
 

@@ -2,10 +2,10 @@
  * Crowd-sourced anime intro, recap, and credits times from AniSkip
  * (api.aniskip.com), matched to MyAnimeList ids through Jikan.
  */
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from './storage/openStore';
 import type {SkipInterval} from './providers/types';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-aniskip').initialize();
+const storage = openStore('droid-stream-aniskip');
 
 export const isAniSkipEnabled = (): boolean => storage.getBool('enabled') !== false;
 export const setAniSkipEnabled = (value: boolean): void => {

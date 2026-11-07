@@ -1,10 +1,10 @@
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from '../storage/openStore';
 import type {TorznabInstance} from './engines/torznab';
 import type {SiteAdapter} from './engines/custom';
 import type {ResultFilters, SortKey, TorrentCategory, TorrentResult} from './types';
 import {defaultFilters} from './types';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-torrent-search').initialize();
+const storage = openStore('droid-stream-torrent-search');
 
 export interface EngineConfig {
   enabled: boolean;

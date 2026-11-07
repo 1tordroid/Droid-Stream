@@ -12,7 +12,7 @@ const getStorage = () => {
   if (!storage) {
     storage = new MMKVLoader()
       .withInstanceID('provider-source-tokens')
-      .withEncryption()
+      .withEncryption().recoverOnKeyLoss()
       .initialize();
   }
   return storage;

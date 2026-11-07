@@ -5,7 +5,7 @@
  */
 import {MMKVLoader} from 'react-native-mmkv-storage';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-stremio').withEncryption().initialize();
+const storage = new MMKVLoader().withInstanceID('droid-stream-stremio').withEncryption().recoverOnKeyLoss().initialize();
 
 export type StremioType = 'movie' | 'series' | 'anime' | 'tv' | 'channel' | string;
 

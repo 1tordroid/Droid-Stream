@@ -1,6 +1,6 @@
 import {MMKVLoader} from 'react-native-mmkv-storage';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-torrents').withEncryption().initialize();
+const storage = new MMKVLoader().withInstanceID('droid-stream-torrents').withEncryption().recoverOnKeyLoss().initialize();
 
 export interface TorrentSettings {
   downloadRateLimit: number;

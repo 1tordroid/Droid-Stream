@@ -8,6 +8,9 @@ jest.mock('react-native-mmkv-storage', () => ({
     withEncryption() {
       return this;
     }
+    recoverOnKeyLoss() {
+      return this;
+    }
     initialize() {
       return {
         getString: (key: string) => mockTokens.get(key),

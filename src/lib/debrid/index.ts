@@ -10,7 +10,7 @@ export {ALLDEBRID_BANNED, ALLDEBRID_BLOCKED, authProblemLabel, DebridAuthError, 
 
 export const DEBRID_SERVICES: DebridService[] = [torbox, realDebrid, allDebrid, premiumize, offcloud, debridLink, pikpak];
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-debrid').withEncryption().initialize();
+const storage = new MMKVLoader().withInstanceID('droid-stream-debrid').withEncryption().recoverOnKeyLoss().initialize();
 
 export interface DebridSettings {
   keys: Partial<Record<DebridId, string>>;

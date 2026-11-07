@@ -1,7 +1,7 @@
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from '../storage/openStore';
 import type {QueueMeta} from './planner';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-download-queue').initialize();
+const storage = openStore('droid-stream-download-queue');
 const KEY = 'queue-meta';
 
 export const readQueueMeta = (): Record<string, QueueMeta> => {

@@ -5,7 +5,10 @@ import {MMKVLoader} from 'react-native-mmkv-storage';
  * PikPak, debrid, watch sync), Stremio add-ons, torrent settings with the
  * proxy password, and private provider source tokens. plugins/
  * with-backup-rules.js keeps the same list out of Auto Backup; a Jest test
- * checks both lists against the source.
+ * checks both lists against the source. Each also opens with
+ * recoverOnKeyLoss(): when its Keystore key is gone (a reinstall over kept
+ * files), mmkv 13 empties the store instead of throwing KeyUnavailableError,
+ * so the user signs in again rather than the app failing to start.
  */
 export const SECURE_STORE_IDS = [
   'droid-stream-sources',
@@ -25,7 +28,7 @@ export const SECURE_STORE_IDS = [
 export const clearSignInStores = (): void => {
   for (const id of SECURE_STORE_IDS) {
     try {
-      new MMKVLoader().withInstanceID(id).withEncryption().initialize().clearStore();
+      new MMKVLoader().withInstanceID(id).withEncryption().recoverOnKeyLoss().initialize().clearStore();
     } catch (e) {
       console.error(`Error clearing encrypted store ${id}:`, e);
     }

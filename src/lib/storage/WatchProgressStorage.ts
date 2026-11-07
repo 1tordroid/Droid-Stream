@@ -1,4 +1,5 @@
 import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from './openStore';
 import {cacheStorage, mainStorage, registerStorageClearHook} from './StorageService';
 
 export interface WatchProgress {
@@ -41,7 +42,7 @@ export class WatchProgressStorage {
   // Opened on first use so importing the storage index does not start MMKV.
   private get storage() {
     if (!this.instance) {
-      this.instance = new MMKVLoader().withInstanceID('watch-progress').initialize();
+      this.instance = openStore('watch-progress');
       this.loadKnownKeys();
     }
     return this.instance;

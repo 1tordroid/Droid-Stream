@@ -1,12 +1,12 @@
 import {create} from 'zustand';
 import {persist, createJSONStorage} from 'zustand/middleware';
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from '../storage/openStore';
 // import {ProvidersList, providersList} from '../constants';
 import {extensionStorage, ProviderExtension} from '../storage/extensionStorage';
 import {settingsStorage} from '../storage/SettingsStorage';
 import {sortInstalledProviders} from '../providerOrder';
 
-const storage = new MMKVLoader().initialize();
+const storage = openStore();
 
 export interface Content {
   provider: ProviderExtension;

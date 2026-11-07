@@ -6,7 +6,7 @@ import {Buffer} from 'buffer';
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import type {WatchMeta} from '../watchMeta';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-watch-sync').withEncryption().initialize();
+const storage = new MMKVLoader().withInstanceID('droid-stream-watch-sync').withEncryption().recoverOnKeyLoss().initialize();
 
 export type SyncServiceId = 'trakt' | 'simkl' | 'anilist';
 

@@ -1,6 +1,6 @@
 jest.mock('react-native-mmkv-storage', () => ({
   MMKVLoader: jest.fn().mockImplementation(() => ({
-    withInstanceID: () => ({withEncryption: () => ({initialize: () => ({getString: () => undefined, setString: jest.fn()})}), initialize: () => ({getString: () => undefined, setString: jest.fn()})}),
+    withInstanceID: () => ({withEncryption: () => ({recoverOnKeyLoss: () => ({initialize: () => ({getString: () => undefined, setString: jest.fn()})})}), initialize: () => ({getString: () => undefined, setString: jest.fn()})}),
     withEncryption: () => ({initialize: () => ({getString: () => undefined, setString: jest.fn()})}),
     initialize: () => ({getString: () => undefined, setString: jest.fn()}),
   })),

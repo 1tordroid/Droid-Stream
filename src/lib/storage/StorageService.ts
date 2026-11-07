@@ -1,4 +1,4 @@
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from './openStore';
 import type {StateStorage} from 'zustand/middleware';
 
 /**
@@ -42,10 +42,7 @@ export class StorageService implements IStorageService {
   }
 
   constructor(instanceId?: string) {
-    const loader = new MMKVLoader();
-    this.storage = instanceId
-      ? loader.withInstanceID(instanceId).initialize()
-      : loader.initialize();
+    this.storage = openStore(instanceId);
   }
 
   // String operations

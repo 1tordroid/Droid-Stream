@@ -28,7 +28,7 @@ export interface SavedSource {
 
 const storage = new MMKVLoader()
   .withInstanceID('droid-stream-sources')
-  .withEncryption()
+  .withEncryption().recoverOnKeyLoss()
   .initialize();
 
 const KEY = 'sources';

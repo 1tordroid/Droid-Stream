@@ -1,12 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useState} from 'react';
 import {Pressable, View} from 'react-native';
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from '../lib/storage/openStore';
 import {settingsStorage} from '../lib/storage';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import AppText from './ui/Text';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-ui').initialize();
+const storage = openStore('droid-stream-ui');
 
 const MoreOptions = ({
   id,
