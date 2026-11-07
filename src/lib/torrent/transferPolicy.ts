@@ -10,6 +10,7 @@ import {setTransfersOpen, transfersOpen} from '../downloadEngine/queueStore';
 import {torrentManager, type NetworkStatus} from '../torrentManager';
 import {feedItemMatches, parseFeedLinks} from './rss';
 import {readStoredTorrents, readTorrentSettings, writeStoredTorrents, writeTorrentSettings, type TorrentSettings} from './settings';
+import {noteTorrentStarted} from '../unblock/torrentVpnTip';
 
 const ENGINE_CHECK_MS = 3000;
 const IDLE_CHECK_MS = 30000;
@@ -132,6 +133,7 @@ export const startTransferRules = (): (() => void) => {
     const network = await torrentManager.networkStatus();
     await torrentManager.setTransfersAllowed(decideTransfers(settings, network, new Date()).torrents);
     await applyToEngine(settings, network);
+    noteTorrentStarted(network.vpn);
   });
 
   let timer: ReturnType<typeof setTimeout> | undefined;

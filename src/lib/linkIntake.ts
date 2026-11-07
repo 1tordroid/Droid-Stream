@@ -15,22 +15,30 @@ import {isPageLink} from './ytdl/formats';
 import {ytdlSupported} from './ytdl/native';
 import {readYtdlSettings} from './ytdl/settings';
 import {isKidsProfileActive} from './profiles/profiles';
+import {offerDashDownload} from './downloadEngine/dashIntake';
+import {ed2kLinksIn, isEd2kLink} from './ed2k/link';
+import {offerEd2kLink} from './ed2k/intake';
+import {socialLinkInText} from './social/urls';
 
 const storage = openStore('droid-stream-intake');
 
-export type IncomingKind = 'magnet' | 'torrent' | 'http';
+export type IncomingKind = 'magnet' | 'torrent' | 'http' | 'ed2k';
 
 export const classifyLink = (value: string): IncomingKind | null => {
   const text = value.trim();
+  if (isEd2kLink(text)) return 'ed2k';
   if (/^magnet:\?/i.test(text)) return 'magnet';
   if (/^content:\/\//i.test(text) || /\.torrent(\?|$)/i.test(text)) return 'torrent';
-  if (/^https?:\/\/\S+$/i.test(text)) return 'http';
+  if (/^(https?|ftps?|ftpes):\/\/\S+$/i.test(text)) return 'http';
   return null;
 };
 
-/** First magnet or URL in copied text, if any. */
+/** First magnet, file link or social post link in copied text, if any. */
 export const linkInText = (text: string): string | undefined =>
-  text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] || text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0];
+  ed2kLinksIn(text)[0] ||
+  text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] ||
+  text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0] ||
+  socialLinkInText(text);
 
 const nameOf = (value: string): string => {
   const dn = value.match(/[?&]dn=([^&]+)/i)?.[1];
@@ -49,7 +57,13 @@ const queueWithToast = (url: string, name?: string) =>
 
 /** Asks which quality to save when a stream offers more than one. */
 const downloadLink = async (url: string): Promise<void> => {
-  if (!/\.(m3u8|mpd)(\?|$)/i.test(url)) {
+  if (/\.mpd(\?|$)/i.test(url)) {
+    await offerDashDownload(url, undefined, (link, name, dash) =>
+      queueLink(link, name, {dash}).then(state => toast(state === 'queued' ? 'Added to Downloads' : 'Already in Downloads')),
+    );
+    return;
+  }
+  if (!/\.m3u8(\?|$)/i.test(url)) {
     await queueWithToast(url);
     return;
   }
@@ -107,9 +121,28 @@ export const offerLink = (
   download?: IncomingDownload,
 ): void => {
   const kind = classifyLink(value);
-  if (!kind) return;
   if (kind === 'http' && download) {
     offerDownload(value, download);
+    return;
+  }
+  // A post, story or profile on Instagram, X, Reddit and the like opens the
+  // photo sheet, which offers the video downloader for video posts.
+  const social = socialLinkInText(value);
+  if (social) {
+    if (origin === 'shared') {
+      navigate('SocialDownload', {url: social});
+      return;
+    }
+    showAppDialog({
+      title: 'Save from the copied post?',
+      message: social,
+      actions: [{label: 'Not now'}, {label: 'Open', variant: 'primary', onPress: () => navigate('SocialDownload', {url: social})}],
+    });
+    return;
+  }
+  if (!kind) return;
+  if (kind === 'ed2k') {
+    offerEd2kLink(value, origin);
     return;
   }
   if (kind === 'http' && origin === 'shared' && isUserscriptLink(value) && !isKidsProfileActive()) {

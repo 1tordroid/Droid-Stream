@@ -1,0 +1,51 @@
+{
+  "pages": [
+    {
+      "items": [
+        {
+          "pk": "5001",
+          "code": "FeedOne0001",
+          "media_type": 1,
+          "image_versions2": {"candidates": [{"width": 1080, "height": 1080, "url": "https://scontent.cdninstagram.com/v/t51/feed1.jpg"}]}
+        },
+        {
+          "pk": "5002",
+          "code": "FeedTwo0002",
+          "media_type": 2,
+          "image_versions2": {"candidates": [{"width": 1080, "height": 1920, "url": "https://scontent.cdninstagram.com/v/t51/feed2_cover.jpg"}]},
+          "video_versions": [{"width": 1080, "height": 1920, "url": "https://scontent.cdninstagram.com/o1/v/t16/feed2.mp4"}]
+        }
+      ],
+      "more_available": true,
+      "next_max_id": "5002_123456"
+    },
+    {
+      "items": [
+        {
+          "pk": "5003",
+          "code": "FeedThree03",
+          "media_type": 8,
+          "carousel_media": [
+            {"pk": "50031", "media_type": 1, "image_versions2": {"candidates": [{"width": 1080, "height": 1350, "url": "https://scontent.cdninstagram.com/v/t51/feed3a.jpg"}]}},
+            {"pk": "50032", "media_type": 1, "image_versions2": {"candidates": [{"width": 1080, "height": 1350, "url": "https://scontent.cdninstagram.com/v/t51/feed3b.jpg"}]}}
+          ]
+        },
+        {
+          "pk": "5004",
+          "code": "FeedFour004",
+          "media_type": 1,
+          "image_versions2": {"candidates": [{"width": 1080, "height": 1080, "url": "https://scontent.cdninstagram.com/v/t51/feed4.jpg"}]}
+        }
+      ],
+      "more_available": false
+    }
+  ],
+  "userInfo": {
+    "user": {
+      "pk": "123456",
+      "username": "sample.user",
+      "hd_profile_pic_url_info": {"url": "https://scontent.cdninstagram.com/v/t51/profile_1080.jpg", "width": 1080, "height": 1080}
+    },
+    "status": "ok"
+  }
+}

@@ -1,19 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
-import {View} from 'react-native';
+import {View, type HostInstance} from 'react-native';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable} from '../tv';
 import AppText from '../ui/Text';
 
-const Chip = ({
-  label,
-  selected,
-  icon,
-  onPress,
-  onLongPress,
-  accessibilityLabel,
-  tone = 'default',
-}: {
+const Chip = React.forwardRef<HostInstance, {
   label: string;
   selected?: boolean;
   icon?: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -21,7 +13,9 @@ const Chip = ({
   onLongPress?: () => void;
   accessibilityLabel?: string;
   tone?: 'default' | 'good' | 'warn';
-}) => {
+  /** A number shown after the label, such as how many items the choice has. */
+  count?: number;
+}>(function ChipView({label, selected, icon, onPress, onLongPress, accessibilityLabel, tone = 'default', count}, ref) {
   const colors = useM3Colors();
   const background = selected
     ? colors.secondaryContainer
@@ -41,6 +35,9 @@ const Chip = ({
     <>
       {icon ? <MaterialCommunityIcons name={icon} size={16} color={foreground} style={{marginRight: 6}} /> : null}
       <AppText role="labelLarge" numberOfLines={1} style={{color: foreground}}>{label}</AppText>
+      {count !== undefined ? (
+        <AppText role="labelMedium" numberOfLines={1} style={{color: foreground, opacity: 0.75, marginLeft: 6}}>{count}</AppText>
+      ) : null}
     </>
   );
   const style = {
@@ -56,8 +53,9 @@ const Chip = ({
   if (!onPress) return <View style={style}>{body}</View>;
   return (
     <TVFocusable
+      ref={ref}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel || label}
+      accessibilityLabel={accessibilityLabel || (count !== undefined ? `${label}, ${count}` : label)}
       accessibilityState={{selected}}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -65,6 +63,6 @@ const Chip = ({
       {body}
     </TVFocusable>
   );
-};
+});
 
 export default Chip;

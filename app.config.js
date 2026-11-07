@@ -244,6 +244,9 @@ module.exports = () => {
         },
         isPlayStore: IS_PLAYSTORE,
         isTV: IS_TV,
+        // Which edition this build is, so the in-app updater only installs the
+        // same edition: 'main', 'ext' (with extension support) or 'tv'.
+        appEdition: process.env.APP_EDITION || (IS_TV ? 'tv' : 'main'),
         tmdbApiKey,
         proxyApiUrl,
         traktClientId,

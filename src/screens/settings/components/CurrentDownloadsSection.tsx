@@ -17,6 +17,7 @@ import {useNavigation} from '@react-navigation/native';
 import {getDownloadPlayerParams} from '../../../lib/downloadPlayback';
 import {useM3Colors} from '../../../theme/M3PaletteContext';
 import CurrentDownloadRow from './CurrentDownloadRow';
+import DownloadEngineActions from './DownloadEngineActions';
 import {compareQueue, moveQueueItem} from '../../../lib/downloadEngine/planner';
 import {readQueueMeta, setQueueOrder} from '../../../lib/downloadEngine/queueStore';
 
@@ -89,6 +90,7 @@ const CurrentDownloadsSection = ({
             startQueuedDownloadNow(item.id).catch(console.error)
           }
         />
+        <DownloadEngineActions item={item} />
         {item.status === 'queued' && queued.length > 1 ? (
           <View style={{flexDirection: 'row', justifyContent: 'flex-end', marginTop: -4, marginBottom: 8}}>
             {([[-1, 'arrow-up', 'earlier'], [1, 'arrow-down', 'later']] as const).map(([direction, icon, word]) => {

@@ -466,6 +466,12 @@ const Downloads = () => {
                       onPress={() => (navigation.navigate as (screen: string, params?: object) => void)('YtdlDownload', {})}
                     />
                     <Chip
+                      icon="image-multiple-outline"
+                      label="Photos from a post"
+                      accessibilityLabel="Save photos from an Instagram, X, Reddit or other post"
+                      onPress={() => (navigation.navigate as (screen: string, params?: object) => void)('SocialDownload', {url: ''})}
+                    />
+                    <Chip
                       icon="cog-outline"
                       label="Video downloader"
                       onPress={() => (navigation.navigate as (screen: string, params?: object) => void)('TabStack', {screen: 'SettingsStack', params: {screen: 'YtdlSettings'}})}

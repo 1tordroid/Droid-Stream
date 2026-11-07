@@ -133,11 +133,6 @@ export const hostOfUrl = (url: string): string =>
 
 export const isYtdlSite = (pageUrl: string): boolean => onSite(hostOfUrl(pageUrl), YTDL_SITES);
 
-/** Social sites whose posts have photos the photo downloader can save. */
-const SOCIAL_SITES = ['instagram.com', 'facebook.com', 'x.com', 'twitter.com', 'tiktok.com', 'pinterest.com', 'reddit.com', 'threads.net', 'tumblr.com'];
-
-export const isSocialSite = (pageUrl: string): boolean => onSite(hostOfUrl(pageUrl), SOCIAL_SITES);
-
 export const KIND_LABEL: Record<MediaKind, string> = {
   video: 'Video',
   audio: 'Audio',

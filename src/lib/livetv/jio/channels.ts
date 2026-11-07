@@ -8,6 +8,7 @@
  * nothing here removes or works around the protection.
  */
 import type {Drm} from 'react-native-video';
+import {parseResolution} from '../filters';
 import type {LiveChannel} from '../m3u';
 import {
   APP_KEY,
@@ -63,6 +64,16 @@ export const toLiveChannel = (raw: RawChannel): LiveChannel | undefined => {
   if (!/^\w+$/.test(id) || !raw.channel_name) return undefined;
   const language = LANGUAGES[raw.channelLanguageId ?? -1];
   const logo = raw.logoUrl ? (/^https?:/i.test(raw.logoUrl) ? raw.logoUrl : URLS.logo + raw.logoUrl) : undefined;
+  const attrs: Record<string, string> = {
+    ...(language ? {language} : {}),
+    ...(raw.isHD ? {hd: 'true'} : {}),
+    // jiotv_go: business_type "premium" needs a separate subscription.
+    ...(String(raw.business_type || '').trim().toLowerCase() === 'premium' ? {premium: 'true'} : {}),
+    // jiotv_go: channels without isCatchupAvailable refuse every catch-up request.
+    ...(raw.isCatchupAvailable ? {catchup: 'jio', 'catchup-days': String(JIO_CATCHUP_DAYS)} : {}),
+  };
+  // Jio says which channels are HD; the rest are SD.
+  const resolution = parseResolution(raw.channel_name, attrs) || (raw.isHD === false ? 'SD' : undefined);
   return {
     id,
     name: raw.channel_name,
@@ -71,14 +82,8 @@ export const toLiveChannel = (raw: RawChannel): LiveChannel | undefined => {
     group: CATEGORIES[raw.channelCategoryId ?? -1] || 'Other',
     // Search matches tvgName too, so "tamil" finds Tamil channels.
     tvgName: language,
-    attrs: {
-      ...(language ? {language} : {}),
-      ...(raw.isHD ? {hd: 'true'} : {}),
-      // jiotv_go: business_type "premium" needs a separate subscription.
-      ...(String(raw.business_type || '').trim().toLowerCase() === 'premium' ? {premium: 'true'} : {}),
-      // jiotv_go: channels without isCatchupAvailable refuse every catch-up request.
-      ...(raw.isCatchupAvailable ? {catchup: 'jio', 'catchup-days': String(JIO_CATCHUP_DAYS)} : {}),
-    },
+    ...(resolution ? {resolution} : {}),
+    attrs,
   };
 };
 

@@ -362,6 +362,14 @@ const Settings = ({navigation}: Props) => {
                   icon="download-circle-outline"
                   onPress={() => navigation.navigate('DownloadsStack')}
                 />
+                {advanced ? (
+                  <SettingsRow
+                    title="Advanced downloads"
+                    description="FTP, mirrors, link renewal and recording"
+                    icon="download-network-outline"
+                    onPress={() => navigation.navigate('AdvancedDownloads')}
+                  />
+                ) : null}
                 <SettingsRow
                   title="Video downloader"
                   description="yt-dlp: save videos and audio from YouTube and other sites"

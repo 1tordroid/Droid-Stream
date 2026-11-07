@@ -71,12 +71,19 @@ class DohOkHttpFactory(private val cacheDir: File) : OkHttpClientFactory {
     private var cachedDoh: DnsOverHttps? = null
     private var lastConfigKey: String = ""
 
-    @Synchronized
+    /** The resolver for a direct connection: what the user chose in Settings. */
     private fun getActiveDns(): Dns {
-        // ByeDPI connects to the address resolved here, so it needs DoH even when the user turned
-        // DoH off: ISP DNS returns the block page address for blocked sites.
-        if (!enabled && byeDpiProxyPort == null) return Dns.SYSTEM
+        if (!enabled) return Dns.SYSTEM
+        return getDohDns()
+    }
 
+    /**
+     * DNS over HTTPS, even when the user turned it off: ByeDPI connects to the
+     * address resolved here, and ISP DNS returns the block page address for
+     * blocked sites.
+     */
+    @Synchronized
+    private fun getDohDns(): Dns {
         val configKey = "${currentProvider.name}_$customUrl"
         if (cachedDoh != null && lastConfigKey == configKey) {
             return FallbackDns(cachedDoh!!)
@@ -115,7 +122,37 @@ class DohOkHttpFactory(private val cacheDir: File) : OkHttpClientFactory {
 
     private inner class DynamicDns : Dns {
         override fun lookup(hostname: String): List<InetAddress> {
-            return getActiveDns().lookup(hostname)
+            val addresses = if (SmartUnblock.routeFor(hostname) == UnblockRoute.BYEDPI) {
+                getDohDns().lookup(hostname)
+            } else {
+                lookupDirect(hostname)
+            }
+            // Keep the name on each address: ByeDpiSocket picks the route by it.
+            return addresses.map { address ->
+                InetAddress.getByAddress(hostname, address.address)
+            }
+        }
+
+        /**
+         * Smart unblock: when the resolver fails or gives only block addresses
+         * while DNS over HTTPS resolves the name, the network is blocking it.
+         */
+        private fun lookupDirect(hostname: String): List<InetAddress> {
+            val dns = getActiveDns()
+            if (!SmartUnblock.watchesDns(hostname)) return dns.lookup(hostname)
+            val system = try {
+                dns.lookup(hostname)
+            } catch (e: UnknownHostException) {
+                null
+            }
+            if (!system.isNullOrEmpty() && system.none { SmartUnblock.isSinkhole(it) }) return system
+            val doh = try {
+                getDohDns().lookup(hostname)
+            } catch (e: Exception) {
+                null
+            }
+            if (SmartUnblock.looksDnsBlocked(system, doh)) throw DnsBlockedException(hostname)
+            return system ?: throw UnknownHostException(hostname)
         }
     }
 
@@ -126,23 +163,13 @@ class DohOkHttpFactory(private val cacheDir: File) : OkHttpClientFactory {
             .retryOnConnectionFailure(true)
             .cookieJar(ReactCookieJarContainer())
             .socketFactory(ByeDpiSocketFactory())
+            // Smart unblock: direct, ByeDPI or WARP per host, and a retry on the next
+            // route when a request looks blocked. Clients made from this one with
+            // newBuilder() (downloads, the video player) keep all of it.
+            .addInterceptor(SmartUnblock.RetryInterceptor)
+            .eventListener(UnblockPhase)
             .proxySelector(object : ProxySelector() {
-                override fun select(uri: URI?): List<Proxy> {
-                    val host = uri?.host?.lowercase()
-                    if (host != null && (host == "127.0.0.1" || host == "localhost")) {
-                        return listOf(Proxy.NO_PROXY)
-                    }
-                    val warpPort = warpProxyPort
-                    if (warpPort != null && warpPort > 0) {
-                        VegaLog.d(TAG, "Routing ${uri?.host} through WARP HTTP proxy on port $warpPort")
-                        // WARP only: a direct fallback would quietly send requests past WARP,
-                        // straight into the block.
-                        return listOf(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", warpPort)))
-                    }
-                    // For ByeDPI, return Proxy.NO_PROXY so OkHttp resolves DNS via DoH,
-                    // and ByeDpiSocketFactory routes the TCP connection to ByeDPI with the resolved IP!
-                    return listOf(Proxy.NO_PROXY)
-                }
+                override fun select(uri: URI?): List<Proxy> = SmartUnblock.proxyFor(uri?.host)
 
                 override fun connectFailed(uri: URI?, sa: SocketAddress?, ioe: IOException?) {
                     // One failed site is not a dead proxy; WarpModule clears the port when the
@@ -191,8 +218,21 @@ class ByeDpiSocketFactory : SocketFactory() {
 
 class ByeDpiSocket : Socket() {
 
+    // The proxy this socket goes through, so Smart unblock knows the proxy is in use.
+    @Volatile
+    private var countedRoute: UnblockRoute? = null
+
+    override fun close() {
+        val route = countedRoute
+        countedRoute = null
+        try {
+            super.close()
+        } finally {
+            if (route != null) SmartUnblock.socketClosed(route)
+        }
+    }
+
     override fun connect(endpoint: SocketAddress?, timeout: Int) {
-        val byeDpiPort = DohOkHttpFactory.instance?.byeDpiProxyPort
         val inetEndpoint = endpoint as? InetSocketAddress
 
         val hostAddress = inetEndpoint?.address
@@ -200,7 +240,22 @@ class ByeDpiSocket : Socket() {
         val isLocal = hostName == "127.0.0.1" || hostName == "localhost" ||
                 hostAddress?.isLoopbackAddress == true
 
-        if (byeDpiPort == null || byeDpiPort <= 0 || isLocal || inetEndpoint == null) {
+        if (isLocal || inetEndpoint == null || hostName == null) {
+            super.connect(endpoint, timeout)
+            val warpPort = DohOkHttpFactory.instance?.warpProxyPort
+            if (inetEndpoint != null && warpPort != null && inetEndpoint.port == warpPort) {
+                countedRoute = UnblockRoute.WARP
+                SmartUnblock.socketOpened(UnblockRoute.WARP)
+            }
+            return
+        }
+
+        val byeDpiPort = if (SmartUnblock.routeFor(hostName) == UnblockRoute.BYEDPI) {
+            SmartUnblock.byeDpiPort(start = true)
+        } else {
+            null
+        }
+        if (byeDpiPort == null || byeDpiPort <= 0) {
             super.connect(endpoint, timeout)
             return
         }
@@ -293,6 +348,8 @@ class ByeDpiSocket : Socket() {
                     throw IOException("Unsupported SOCKS5 ATYP: ${respHeader[3]}")
                 }
             }
+            countedRoute = UnblockRoute.BYEDPI
+            SmartUnblock.socketOpened(UnblockRoute.BYEDPI)
         } catch (e: Exception) {
             // Usually one unreachable address; OkHttp tries the next one, still through ByeDPI.
             VegaLog.w(TAG, "ByeDPI handshake failed on port $byeDpiPort: ${e.message}")

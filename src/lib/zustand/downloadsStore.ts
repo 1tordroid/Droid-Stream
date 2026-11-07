@@ -14,6 +14,7 @@ import {
 } from '../storage/DownloadsStorage';
 import type {SkipInterval} from '../providers/types';
 import type {YtdlJobSpec} from '../ytdl/types';
+import type {SocialVideoJob} from '../social/types';
 
 export const DOWNLOADS_STORAGE_KEY = 'vega-downloads-storage';
 export const DOWNLOADS_SCHEMA_VERSION = 1;
@@ -31,7 +32,7 @@ export type DownloadStatus =
   | 'missing'
   | 'canceling';
 
-export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'ytdlp';
+export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'ytdlp' | 'dash' | 'live' | 'ftp' | 'ed2k' | 'social';
 
 export interface DownloadSubtitle {
   url: string;
@@ -46,6 +47,8 @@ export interface DownloadItem {
   showName?: string;
   episodeName?: string;
   seasonTitle?: string;
+  /** A folder inside the season folder (social downloads: the author). */
+  subFolder?: string;
   episodeIndex?: number;
   type: 'movie' | 'series';
   imdbId?: string;
@@ -88,6 +91,8 @@ export interface DownloadItem {
   skip?: SkipInterval[];
   /** yt-dlp options and state, for downloads of web pages. */
   ytdl?: YtdlJobSpec;
+  /** Photos and song for a "photo with song" video. */
+  social?: SocialVideoJob;
 }
 
 export type DownloadMediaInput = Pick<
@@ -189,6 +194,9 @@ const getSourceType = (
   }
   if (item.isTorrent || item.url.startsWith('magnet:')) {
     return 'torrent';
+  }
+  if (/^ed2k:\/\//i.test(item.url)) {
+    return 'ed2k';
   }
   if (item.videoType === 'm3u8' || item.url.includes('.m3u8')) {
     return 'hls';
@@ -548,7 +556,7 @@ export const useDownloadsStore = create<DownloadState>()(
                 return [id, item];
               }
               // These continue their partial files, so a paused one stays paused.
-              if ((item.sourceType === 'hls' || item.sourceType === 'ytdlp') && (item.status === 'paused' || item.status === 'pausing')) {
+              if ((item.sourceType === 'hls' || item.sourceType === 'ytdlp' || item.sourceType === 'ed2k') && (item.status === 'paused' || item.status === 'pausing')) {
                 return [id, {...item, status: 'paused' as const, speed: 0, canPause: false, canResume: true, updatedAt: now}];
               }
               return [

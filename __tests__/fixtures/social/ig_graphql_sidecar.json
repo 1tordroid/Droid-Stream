@@ -1,0 +1,56 @@
+{
+  "data": {
+    "xdt_shortcode_media": {
+      "__typename": "XDTGraphSidecar",
+      "id": "3300000000000000002",
+      "shortcode": "C4pQrStUvWx",
+      "dimensions": {"height": 1350, "width": 1080},
+      "display_url": "https://scontent.cdninstagram.com/v/t51/side_main.jpg",
+      "is_video": false,
+      "owner": {"id": "777", "username": "public.page", "full_name": "Public Page"},
+      "edge_media_to_caption": {"edges": [{"node": {"text": "Two photos and a clip"}}]},
+      "edge_sidecar_to_children": {
+        "edges": [
+          {
+            "node": {
+              "__typename": "XDTGraphImage",
+              "id": "3300000000000000021",
+              "dimensions": {"height": 1350, "width": 1080},
+              "display_url": "https://scontent.cdninstagram.com/v/t51/child1_1080.jpg",
+              "display_resources": [
+                {"src": "https://scontent.cdninstagram.com/v/t51/child1_640.jpg", "config_width": 640, "config_height": 800},
+                {"src": "https://scontent.cdninstagram.com/v/t51/child1_1080.jpg", "config_width": 1080, "config_height": 1350}
+              ],
+              "is_video": false
+            }
+          },
+          {
+            "node": {
+              "__typename": "XDTGraphVideo",
+              "id": "3300000000000000022",
+              "dimensions": {"height": 1920, "width": 1080},
+              "display_url": "https://scontent.cdninstagram.com/v/t51/child2_cover.jpg",
+              "display_resources": [
+                {"src": "https://scontent.cdninstagram.com/v/t51/child2_cover.jpg", "config_width": 1080, "config_height": 1920}
+              ],
+              "is_video": true,
+              "video_url": "https://scontent.cdninstagram.com/o1/v/t16/child2.mp4"
+            }
+          },
+          {
+            "node": {
+              "__typename": "XDTGraphImage",
+              "id": "3300000000000000023",
+              "dimensions": {"height": 1080, "width": 1080},
+              "display_url": "https://scontent.cdninstagram.com/v/t51/child3.jpg",
+              "display_resources": [],
+              "is_video": false
+            }
+          }
+        ]
+      }
+    }
+  },
+  "extensions": {"is_final": true},
+  "status": "ok"
+}

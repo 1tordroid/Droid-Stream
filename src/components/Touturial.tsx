@@ -20,6 +20,15 @@ import {TVFocusable} from './tv';
 import {isTV} from '../lib/tv/constants';
 import {extensionManager} from '../lib/services/ExtensionManager';
 import {extensionStorage} from '../lib/storage/extensionStorage';
+import UnblockModeChoices from './unblock/UnblockModeChoices';
+import {
+  answerUnblockNotice,
+  getUnblockMode,
+  isUnblockNoticeSeen,
+  isUnblockSupported,
+  UNBLOCK_NOTICE_TEXT,
+} from '../lib/unblock/unblockService';
+import type {UnblockMode} from '../lib/unblock/routing';
 
 const STARTER_PROVIDERS = 3;
 
@@ -37,6 +46,18 @@ const Tutorial = () => {
     installedProviders.length === 0;
   const [showTutorial, setShowTutorial] = useState<boolean>(hasNoProvider);
   const installButtonRef = React.useRef<HostInstance>(null);
+  const [showUnblock] = useState(() => isUnblockSupported() && !isUnblockNoticeSeen());
+  const [unblockMode, setUnblockMode] = useState<UnblockMode>(() => getUnblockMode());
+
+  // Moving on from the welcome screen is agreeing to the unblocking choice shown on it.
+  const saveUnblockChoice = (mode: UnblockMode = unblockMode) => {
+    if (!showUnblock) return;
+    answerUnblockNotice(mode).catch(() => undefined);
+  };
+  const chooseUnblockMode = (mode: UnblockMode) => {
+    setUnblockMode(mode);
+    saveUnblockChoice(mode);
+  };
 
   // A fresh TV install can leave native focus on the full-screen React root.
   // Request focus after the tutorial button has mounted so the first D-pad
@@ -82,6 +103,7 @@ const Tutorial = () => {
   // One tap from a fresh install to a Home screen full of posters.
   const handleQuickStart = async () => {
     if (settingUp) return;
+    saveUnblockChoice();
     setSettingUp(true);
     try {
       const available = await extensionManager.fetchManifest(true);
@@ -99,6 +121,7 @@ const Tutorial = () => {
   };
 
   const handleGoToExtensions = () => {
+    saveUnblockChoice();
     // Add haptic feedback
     if (settingsStorage.isHapticFeedbackEnabled()) {
       ReactNativeHapticFeedback.trigger('effectClick', {
@@ -120,9 +143,13 @@ const Tutorial = () => {
   };
 
   // Live TV sits in the Home stack, next to this screen.
-  const handleWatchLiveTV = () => (navigation as any).navigate('LiveTV');
+  const handleWatchLiveTV = () => {
+    saveUnblockChoice();
+    (navigation as any).navigate('LiveTV');
+  };
 
   const handlePlayLocalFile = async () => {
+    saveUnblockChoice();
     const result = await DocumentPicker.getDocumentAsync({
       type: 'video/*',
       multiple: false,
@@ -268,6 +295,24 @@ const Tutorial = () => {
             </Text>
           </View>
         </TVFocusable>
+        {showUnblock ? (
+          <View
+            style={{
+              width: '100%',
+              marginTop: 20,
+              padding: 16,
+              borderRadius: 16,
+              backgroundColor: colors.surfaceContainer,
+            }}>
+            <Text style={{color: colors.onSurface, fontSize: 16, fontWeight: '700'}}>
+              Unblocking: Auto (recommended)
+            </Text>
+            <Text style={{color: colors.onSurfaceVariant, fontSize: 14, lineHeight: 20, marginTop: 6, marginBottom: 8}}>
+              {UNBLOCK_NOTICE_TEXT}
+            </Text>
+            <UnblockModeChoices value={unblockMode} onChange={chooseUnblockMode} />
+          </View>
+        ) : null}
       </Animated.View>
     </View>
   ) : null;

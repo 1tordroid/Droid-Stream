@@ -56,12 +56,33 @@ jank() { adb -s "$S" shell dumpsys gfxinfo "$(pkg)" | grep -E 'Total frames rend
 # The screen never sits on one static image (OLED burn-in) and never times out.
 # Does nothing while another app is in front or the screen is off.
 # Stop it with Ctrl+C, or: kill %1
+# Keeps the screen awake and moves what is on it, against OLED burn-in, without
+# changing any phone setting. Every 4-5 minutes, while the app is in front, it
+# swipes the content up or down (sometimes sideways) at a random spot, and every
+# few rounds opens a random tab. Any input also resets the screen timeout.
 keepalive() {
   local tabs=(Home Search Torrents Library Settings)
+  local round=0 size W H x y1 y2
   while true; do
     if front >/dev/null 2>&1; then
-      tap "content-desc=\"${tabs[RANDOM % ${#tabs[@]}]}\"" >/dev/null 2>&1
+      size=$(adb -s "$S" shell dumpsys window displays | grep -oE "cur=[0-9]+x[0-9]+" | head -1)
+      W=${size#cur=}; W=${W%x*}; H=${size#*x}
+      if [ -n "$W" ] && [ -n "$H" ]; then
+        x=$(( W * (30 + RANDOM % 41) / 100 ))
+        if (( RANDOM % 4 == 0 )); then
+          y1=$(( H * (40 + RANDOM % 21) / 100 ))
+          adb -s "$S" shell input swipe $(( W * 80 / 100 )) "$y1" $(( W * 20 / 100 )) "$y1" $(( 300 + RANDOM % 400 )) >/dev/null 2>&1
+        else
+          y1=$(( H * (60 + RANDOM % 16) / 100 )); y2=$(( H * (30 + RANDOM % 16) / 100 ))
+          if (( RANDOM % 2 )); then local t=$y1; y1=$y2; y2=$t; fi
+          adb -s "$S" shell input swipe "$x" "$y1" "$x" "$y2" $(( 300 + RANDOM % 500 )) >/dev/null 2>&1
+        fi
+      fi
+      round=$(( round + 1 ))
+      if (( round % 3 == 0 )); then
+        tap "content-desc=\"${tabs[RANDOM % ${#tabs[@]}]}\"" >/dev/null 2>&1
+      fi
     fi
-    w $(( 120 + RANDOM % 120 ))
+    w $(( 240 + RANDOM % 61 ))
   done
 }

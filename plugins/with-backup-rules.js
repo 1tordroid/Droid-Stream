@@ -20,6 +20,7 @@ const ENCRYPTED_INSTANCE_IDS = [
   'provider-source-tokens',
   'droid-stream-jiotv',
   'droid-stream-profiles',
+  'droid-stream-ftp',
   'droid-stream-passwords',
 ];
 

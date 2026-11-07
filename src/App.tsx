@@ -20,6 +20,7 @@ import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
+import AdvancedDownloads from './screens/settings/AdvancedDownloads';
 import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
 import Sources from './screens/Sources';
@@ -47,6 +48,7 @@ import YtdlCookies from './screens/ytdl/YtdlCookies';
 import Browser from './screens/browser/Browser';
 import BrowserSettings from './screens/browser/BrowserSettings';
 import BrowserPasswords from './screens/browser/BrowserPasswords';
+import SocialDownload from './screens/social/SocialDownload';
 import {startYtdlScheduler} from './lib/ytdl/queue';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
@@ -72,6 +74,7 @@ import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 import Preferences from './screens/settings/Preference';
+import Ed2k from './screens/settings/Ed2k';
 import PlayerSettings from './screens/settings/PlayerSettings';
 import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
@@ -102,8 +105,8 @@ import WafWebViewDialog from './components/WafWebViewDialog';
 import VerificationConsentDialog from './components/VerificationConsentDialog';
 import ProviderSandboxHost from './components/ProviderSandboxHost';
 import {syncDohSettings} from './lib/services/dohService';
-import {syncWarpSettings} from './lib/services/warpService';
-import {syncByeDpiSettings} from './lib/services/byeDpiService';
+import {startUnblockEvents, syncUnblock} from './lib/unblock/unblockService';
+import TorrentVpnTip from './components/unblock/TorrentVpnTip';
 import {
   getInitialSourceIntent,
   setPendingSourceToken,
@@ -189,6 +192,8 @@ export type RootStackParamList = {
   Browser: {url?: string; private?: boolean} | undefined;
   BrowserSettings: undefined;
   BrowserPasswords: undefined;
+  /** Photos, carousels, stories and songs from a social post. */
+  SocialDownload: {url: string};
 };
 
 export type SearchStackParamList = {
@@ -234,6 +239,7 @@ export type SettingsStackParamList = {
   DisableProviders: undefined;
   About: undefined;
   Preferences: undefined;
+  Ed2k: undefined;
   PlayerSettings: undefined;
   PlayerControlSettings: undefined;
   SubTitlesPreferences: undefined;
@@ -242,6 +248,7 @@ export type SettingsStackParamList = {
   DataManagement: undefined;
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
+  AdvancedDownloads: undefined;
   Credits: undefined;
   WatchSync: undefined;
   Languages: undefined;
@@ -309,6 +316,14 @@ export const openDownloadsScreen = (): void => {
   navigationRef.navigate('TabStack', {
     screen: 'SettingsStack',
     params: {screen: 'DownloadsStack'},
+  });
+};
+
+const openTorrentVpnSetting = (): void => {
+  if (!navigationRef.isReady()) return;
+  (navigationRef.navigate as (...args: unknown[]) => void)('TabStack', {
+    screen: 'TorrentsStack',
+    params: {screen: 'TorrentOptions', params: {highlight: 'torrent-vpn'}},
   });
 };
 
@@ -575,6 +590,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <SettingsStack.Screen name="Credits" component={Credits} options={subpageOptions} />
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
+      <SettingsStack.Screen name="AdvancedDownloads" component={AdvancedDownloads} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
       <SettingsStack.Screen name="Profiles" component={Profiles} options={subpageOptions} />
@@ -582,6 +598,7 @@ function SettingsStackScreen() {
       {/* These two place themselves below the status bar. */}
       <SettingsStack.Screen name="YtdlSettings" component={YtdlSettings} />
       <SettingsStack.Screen name="YtdlCookies" component={YtdlCookies} />
+      <SettingsStack.Screen name="Ed2k" component={Ed2k} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }
@@ -796,17 +813,15 @@ const App = () => {
     };
   }, []);
 
-  // Initialize DNS over HTTPS, Cloudflare WARP & ByeDPI
+  // Initialize DNS over HTTPS and Smart unblock (ByeDPI and Cloudflare WARP)
   useEffect(() => {
     syncDohSettings().catch(e =>
       console.warn('[DoH] Failed to sync settings:', e),
     );
-    syncWarpSettings().catch(e =>
-      console.warn('[WARP] Failed to sync settings:', e),
+    syncUnblock().catch(e =>
+      console.warn('[Unblock] Failed to sync settings:', e),
     );
-    syncByeDpiSettings().catch(e =>
-      console.warn('[ByeDPI] Failed to sync settings:', e),
-    );
+    return startUnblockEvents();
   }, []);
 
   useEffect(() => {
@@ -881,6 +896,11 @@ const App = () => {
                   <Stack.Screen name="Browser" component={Browser} />
                   <Stack.Screen name="BrowserSettings" component={BrowserSettings} />
                   <Stack.Screen name="BrowserPasswords" component={BrowserPasswords} />
+                  <Stack.Screen
+                    name="SocialDownload"
+                    component={SocialDownload}
+                    options={{animation: 'slide_from_bottom'}}
+                  />
                 </Stack.Navigator>
               </NavigationContainer>
               {/* Global WAF / captcha solving dialog, triggered by providers via
@@ -889,6 +909,7 @@ const App = () => {
               <WafWebViewDialog />
               <RemoteVolumeToast />
               <FirstRunTips />
+              <TorrentVpnTip onOpenSetting={openTorrentVpnSetting} />
               <ProfileGate onManage={openProfilesScreen} />
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched

@@ -18,6 +18,7 @@ import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
 import {useTVFocusBorderColor} from '../../lib/tv/useTVFocusBorderColor';
 import {downloadOutputExists} from '../../lib/downloadDestination';
+import {downloadImageType, openDownloadedImage} from '../../lib/social/open';
 import {settingsStorage} from '../../lib/storage';
 import {formatDownloadBytes} from '../../lib/downloadFormatting';
 import {
@@ -191,8 +192,13 @@ const DownloadedFileDetails = ({navigation, route}: DownloadedDetailsProps) => {
       markMissing(item.id);
       return;
     }
+    // Saved photos open in the phone's photo viewer.
+    if (downloadImageType(item)) {
+      openDownloadedImage(item).catch(error => showAppDialog({title: 'Could not open the photo', message: error instanceof Error ? error.message : String(error), actions: [{label: 'OK'}]}));
+      return;
+    }
     const playableItems = items.filter(
-      candidate => candidate.status === 'completed',
+      candidate => candidate.status === 'completed' && !downloadImageType(candidate),
     );
     navigation.navigate('Player', {
       episodeList: playableItems.map(candidate => ({

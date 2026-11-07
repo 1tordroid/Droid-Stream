@@ -11,6 +11,9 @@
  * - #KODIPROP and other unknown # lines are skipped.
  * - BOM, CRLF / CR line endings, blank lines, missing attributes.
  */
+import {parseResolution} from './filters';
+
+import {isDrmOption} from '../downloadEngine/recordable';
 
 export interface LiveChannel {
   /** Stable id: tvg-id when present, else the stream URL. */
@@ -21,10 +24,14 @@ export interface LiveChannel {
   group?: string;
   tvgId?: string;
   tvgName?: string;
+  /** Picture quality from the name or attributes ("1080p", "4K", "HD"); the name is kept as is. */
+  resolution?: string;
   /** Request headers the stream needs (User-Agent, Referer, Origin). */
   headers?: Record<string, string>;
   /** All attributes from the #EXTINF line, lower-cased keys. */
   attrs: Record<string, string>;
+  /** The entry has a DRM licence option (#KODIPROP or #EXTVLCOPT), so it cannot be recorded. */
+  drm?: boolean;
 }
 
 export interface ParsedPlaylist {
@@ -96,7 +103,7 @@ export const parseM3U = (input: string): ParsedPlaylist => {
   const lines = text.split(/\r\n|\r|\n/);
   const channels: LiveChannel[] = [];
   let epgUrl: string | undefined;
-  let pending: {name: string; attrs: Record<string, string>; group?: string; headers: Record<string, string>} | null = null;
+  let pending: {name: string; attrs: Record<string, string>; group?: string; headers: Record<string, string>; drm?: boolean} | null = null;
   const seen = new Set<string>();
 
   for (const rawLine of lines) {
@@ -135,7 +142,12 @@ export const parseM3U = (input: string): ParsedPlaylist => {
           pending.group = group;
         }
       }
-      // #KODIPROP, #EXT-X-*, comments: ignored.
+      // A licence option (Widevine, PlayReady, ClearKey) marks the entry as DRM.
+      if ((upper.startsWith('#KODIPROP:') || upper.startsWith('#EXTVLCOPT:')) && isDrmOption(line)) {
+        if (!pending) pending = {name: '', attrs: {}, headers: {}};
+        pending.drm = true;
+      }
+      // Other #KODIPROP, #EXT-X-*, comments: ignored.
       continue;
     }
     // A URL line closes the entry.
@@ -166,8 +178,10 @@ export const parseM3U = (input: string): ParsedPlaylist => {
       group: attrs['group-title'] || pending?.group || undefined,
       tvgId,
       tvgName,
+      resolution: parseResolution(name, attrs, tvgId),
       headers: Object.keys(headers).length ? headers : undefined,
       attrs,
+      ...(pending?.drm ? {drm: true} : {}),
     });
     pending = null;
   }

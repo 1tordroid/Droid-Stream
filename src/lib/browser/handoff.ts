@@ -8,7 +8,8 @@ import {ytdlSaveCookies, ytdlSupported} from '../ytdl/native';
 import {showAppDialog} from '../zustand/appDialogStore';
 import useDownloadsStore from '../zustand/downloadsStore';
 import {browserEngine} from './engine';
-import {classifyMedia, fileNameOf, isSocialSite, type MediaItem} from './media';
+import {isSocialPostUrl} from '../social/urls';
+import {classifyMedia, fileNameOf, type MediaItem} from './media';
 import {hostOf} from './url';
 
 /**
@@ -155,15 +156,11 @@ export const playMedia = async (item: MediaItem, context: PageContext, navigate:
   });
 };
 
-/**
- * The photo and post downloader (src/screens/social, built separately).
- * Opens it only when its route is part of this build, so the browser works
- * with and without it.
- */
+/** The photo and post downloader (src/screens/social), for posts it can read. */
 export const SOCIAL_ROUTE = 'SocialDownload';
 
 export const canOpenSocial = (pageUrl: string, routeNames: readonly string[]): boolean =>
-  routeNames.includes(SOCIAL_ROUTE) && isSocialSite(pageUrl);
+  routeNames.includes(SOCIAL_ROUTE) && isSocialPostUrl(pageUrl);
 
 export const openSocial = (pageUrl: string, routeNames: readonly string[], navigate: Navigate): boolean => {
   if (!routeNames.includes(SOCIAL_ROUTE)) return false;

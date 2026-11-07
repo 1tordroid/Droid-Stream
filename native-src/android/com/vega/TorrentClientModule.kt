@@ -478,10 +478,12 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
                 (data.scheme.equals("http", true) || data.scheme.equals("https", true)) &&
                 !mime.startsWith("video/") && mime !in STREAM_TYPES
             val value = when {
+                // eD2k links are often shared inside a line of text.
+                shared.contains("ed2k://", true) -> shared.substring(shared.indexOf("ed2k://", ignoreCase = true))
                 shared.startsWith("magnet:", true) || shared.startsWith("http", true) -> shared
                 // Apps often share "Some title https://link"; keep the link.
                 SHARED_LINK.containsMatchIn(shared) -> SHARED_LINK.find(shared)!!.value.trimEnd(')', '.', ',', ';', '!', '?')
-                data?.scheme.equals("magnet", true) -> data.toString()
+                data?.scheme.equals("magnet", true) || data?.scheme.equals("ed2k", true) -> data.toString()
                 data != null && (mime == "application/x-bittorrent" || data.lastPathSegment?.endsWith(".torrent") == true) -> data.toString()
                 fileLink -> data.toString()
                 else -> ""
@@ -495,6 +497,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
             intent.data = null
             intent.removeExtra(Intent.EXTRA_TEXT)
             val kind = when {
+                value.startsWith("ed2k:", true) -> "ed2k"
                 value.startsWith("magnet:", true) -> "magnet"
                 value.startsWith("content:", true) || value.endsWith(".torrent") || mime == "application/x-bittorrent" -> "torrent"
                 else -> "http"

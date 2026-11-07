@@ -10,6 +10,7 @@ import SettingsRow from '../../../components/ui/SettingsRow';
 import SettingsSection from '../../../components/ui/SettingsSection';
 import {isTV} from '../../../lib/tv';
 import {getTVDefaultDownloadLocation} from '../../../lib/downloadLocation';
+import Ed2kPreference from './Ed2kPreference';
 
 type DownloadLocationPreferenceProps = {
   primary: string;
@@ -81,7 +82,6 @@ const DownloadLocationPreference = ({
         <SettingsRow
           title="Reset download location"
           description={isTV ? 'Use Droid Stream storage' : 'Choose a folder again on the next download'}
-          divider={false}
           icon="restore"
           onPress={() => {
             settingsStorage.resetDownloadLocation();
@@ -94,6 +94,7 @@ const DownloadLocationPreference = ({
             );
           }}
         />
+        <Ed2kPreference />
       </SettingsSection>
     </View>
   );

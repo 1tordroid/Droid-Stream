@@ -104,6 +104,8 @@ const BACKUP_SETTINGS: Record<string, SettingType> = {
   [SettingsKeys.WARP_ENABLED]: 'bool',
   [SettingsKeys.BYEDPI_ENABLED]: 'bool',
   [SettingsKeys.BYEDPI_CMD_ARGS]: 'string',
+  [SettingsKeys.UNBLOCK_MODE]: 'string',
+  [SettingsKeys.UNBLOCK_WARP_CONSENT]: 'bool',
   [SettingsKeys.SKIP_IN_APP_WEBVIEW]: 'bool',
   [SettingsKeys.SYNC_ENABLED]: 'bool',
   // Saved by the Preferences screen without a SettingsKeys entry.
