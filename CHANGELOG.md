@@ -37,6 +37,19 @@ Built and being tested:
 - Both work on decoded audio. When sound goes encoded to a receiver,
   the menu says so. VLC has night mode (it restarts at the same time);
   dialogue boost is in the built-in player only.
+- Title pages show IMDb (with votes), Rotten Tomatoes and Metacritic
+  scores together as small badges. They come from OMDb; Cinemeta gives
+  the IMDb score and TMDB the user score when OMDb has none. Scores are
+  kept for 7 days. Settings > Ratings picks which to show and takes your
+  own free OMDb key, since the shared key can run out for the day.
+- Add-on rows on Home: Settings > Home rows lists the movie and show
+  catalogs of your Stremio add-ons, with their genre and other filters.
+  Add, reorder, rename, hide or remove rows; each profile has its own,
+  and you can set up a kids profile's rows from here too. They show
+  after the provider and Top 10 rows, load one at a time, keep up to 20
+  titles (12 on 2 GB devices) for 6 hours, and open Find streams.
+  Long-press a poster to edit the rows. Kids profiles skip adult add-ons
+  and titles, and open titles in Search.
 
 ## 5.6.1
 

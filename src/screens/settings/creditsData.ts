@@ -53,6 +53,9 @@ const docs = (url: string): CreditLink => ({label: 'Docs', url});
 /** The wording TMDB asks every app that uses its API to show, with its logo. */
 export const TMDB_NOTICE = 'This product uses the TMDB API but is not endorsed or certified by TMDB.';
 
+/** OMDb's data is licensed CC BY-NC 4.0, which asks for credit. */
+export const OMDB_NOTICE = 'Ratings data from the OMDb API (omdbapi.com), licensed CC BY-NC 4.0.';
+
 export const VEGA_REQUIRED_NOTICE =
   'Required Notice: Copyright (c) 2026 [LICENSOR NAME] (https://github.com/vega-org/vega-app)';
 
@@ -153,15 +156,24 @@ export const CREDIT_SECTIONS: CreditSection[] = [
     intro: 'Droid Stream talks to these. Each one is optional and belongs to its owner.',
     items: [
       {name: 'Stremio add-on protocol', note: 'Add-on support, written from the public protocol.', links: [gh('Stremio/stremio-addon-sdk'), docs('https://github.com/Stremio/stremio-addon-sdk/tree/master/docs')]},
-      {name: 'Cinemeta', note: 'Movie and show details.', links: [web('https://v3-cinemeta.strem.io')]},
+      {name: 'Cinemeta', note: 'Movie and show details, and the IMDb score when OMDb has none.', links: [web('https://v3-cinemeta.strem.io')]},
       {
         name: 'TMDB (The Movie Database)',
-        note: 'Posters, artwork and details for your library and title pages, with your own API key.',
+        note: 'Posters, artwork and details for your library and title pages, with your own API key. Its user score shows on title pages when there is no IMDb score.',
         notice: TMDB_NOTICE,
         logo: 'tmdb',
         links: [web('https://www.themoviedb.org'), {label: 'Terms', url: 'https://www.themoviedb.org/api-terms-of-use'}, docs('https://developer.themoviedb.org')],
       },
-      {name: 'OMDb API', note: 'Title search results.', links: [web('https://www.omdbapi.com')]},
+      {
+        name: 'OMDb API',
+        note: 'Title search results, and the IMDb, Rotten Tomatoes and Metacritic scores on title pages. You can use your own free key in Settings > Ratings.',
+        license: 'CC-BY-NC-4.0',
+        notice: OMDB_NOTICE,
+        links: [web('https://www.omdbapi.com'), {label: 'Licence', url: 'https://creativecommons.org/licenses/by-nc/4.0/'}],
+      },
+      {name: 'IMDb', note: 'Scores and vote counts on title pages, through OMDb and Cinemeta. Droid Stream does not read the IMDb website. IMDb is a trademark of its owner. Not affiliated.', links: [web('https://www.imdb.com')]},
+      {name: 'Rotten Tomatoes', note: 'Critics scores on title pages, through OMDb. Droid Stream does not read the Rotten Tomatoes website. Rotten Tomatoes is a trademark of its owner. Not affiliated.', links: [web('https://www.rottentomatoes.com')]},
+      {name: 'Metacritic', note: 'Metascores on title pages, through OMDb. Droid Stream does not read the Metacritic website. Metacritic is a trademark of its owner. Not affiliated.', links: [web('https://www.metacritic.com')]},
       {name: 'Jikan', note: 'Anime details from MyAnimeList.', links: [web('https://jikan.moe'), gh('jikan-me/jikan')]},
       {name: 'AniSkip', note: 'Anime intro and outro skip times.', links: [gh('aniskip/aniskip-api')]},
       {name: 'IntroDB', note: 'TV show intro, recap and outro skip times.', links: [web('https://introdb.app')]},
