@@ -944,10 +944,10 @@ index 96a7887..cb10d8a 100644
      @JvmStatic
 diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DelayRenderersFactory.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DelayRenderersFactory.java
 new file mode 100644
-index 0000000..8000c98
+index 0000000..89bb112
 --- /dev/null
 +++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DelayRenderersFactory.java
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,179 @@
 +package com.brentvatne.exoplayer;
 +
 +import android.content.Context;
@@ -955,10 +955,13 @@ index 0000000..8000c98
 +import android.os.Looper;
 +
 +import androidx.annotation.NonNull;
++import androidx.annotation.Nullable;
 +import androidx.media3.common.Format;
++import androidx.media3.common.MimeTypes;
 +import androidx.media3.common.audio.AudioProcessor;
 +import androidx.media3.exoplayer.audio.AudioSink;
 +import androidx.media3.exoplayer.audio.DefaultAudioSink;
++import androidx.media3.exoplayer.audio.ForwardingAudioSink;
 +import androidx.media3.common.util.UnstableApi;
 +import androidx.media3.exoplayer.DefaultRenderersFactory;
 +import androidx.media3.exoplayer.ExoPlaybackException;
@@ -993,6 +996,18 @@ index 0000000..8000c98
 +        public volatile float volumeGain = 1f;
 +        public volatile long subtitleDelayUs = 0;
 +        public volatile long audioDelayUs = 0;
++        /** Night mode preset, see NightModeCompressor (0 is Off). */
++        public volatile int nightMode = 0;
++        /** Dialogue boost level, see DialogueBoostMixer (0 is Off). */
++        public volatile int dialogueBoost = 0;
++        /**
++         * True while the sink sends encoded audio (AC3, E-AC3, DTS passthrough
++         * to a receiver). Encoded audio skips the PCM chain, so night mode,
++         * dialogue boost and volume boost cannot change it.
++         */
++        public volatile boolean encodedAudio = false;
++        /** Called on the playback thread when encodedAudio changes. */
++        @Nullable public volatile Runnable encodedAudioListener;
 +    }
 +
 +    private final Delays delays;
@@ -1005,12 +1020,30 @@ index 0000000..8000c98
 +    @Override
 +    protected AudioSink buildAudioSink(Context context, boolean enableFloatOutput,
 +            boolean enableAudioTrackPlaybackParams) {
-+        return new DefaultAudioSink.Builder(context)
-+                // Media3 converts other decoded PCM formats to 16-bit before this processor.
++        AudioSink sink = new DefaultAudioSink.Builder(context)
++                // Media3 converts other decoded PCM formats to 16-bit before these processors.
 +                .setEnableFloatOutput(false)
 +                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-+                .setAudioProcessors(new AudioProcessor[]{new VolumeBoostAudioProcessor(delays)})
++                // Dialogue boost shapes the mix, night mode then evens out the
++                // level, and volume boost amplifies the result.
++                .setAudioProcessors(new AudioProcessor[]{
++                        new DialogueBoostAudioProcessor(delays),
++                        new NightModeAudioProcessor(delays),
++                        new VolumeBoostAudioProcessor(delays)})
 +                .build();
++        return new ForwardingAudioSink(sink) {
++            @Override
++            public void configure(@NonNull Format inputFormat, int specifiedBufferSize,
++                    @Nullable int[] outputChannels) throws ConfigurationException {
++                super.configure(inputFormat, specifiedBufferSize, outputChannels);
++                boolean encoded = !MimeTypes.AUDIO_RAW.equals(inputFormat.sampleMimeType);
++                if (encoded != delays.encodedAudio) {
++                    delays.encodedAudio = encoded;
++                    Runnable listener = delays.encodedAudioListener;
++                    if (listener != null) listener.run();
++                }
++            }
++        };
 +    }
 +
 +    @Override
@@ -2183,7 +2216,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private DefaultTrackSelector trackSelector;
      private boolean playerNeedsSource;
      private ServiceConnection playbackServiceConnection;
-@@ -203,6 +218,61 @@
+@@ -203,6 +218,62 @@
  
      private int resumeWindow;
      private long resumePosition;
@@ -2206,6 +2239,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +                ? (softwareVideoDecoder ? "software" : "hardware")
 +                : (activeVideoDecoderSoftware ? "software" : "hardware"));
 +        status.putString("name", activeVideoDecoderName);
++        status.putBoolean("encodedAudio", playbackDelays.encodedAudio);
 +        return status;
 +    }
 +
@@ -2245,7 +2279,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private boolean loadVideoStarted;
      private boolean isFullscreen;
      private boolean isInBackground;
-@@ -213,6 +283,8 @@
+@@ -213,6 +284,8 @@
      private PictureInPictureParams.Builder pictureInPictureParamsBuilder;
      private boolean hasAudioFocus = false;
      private float rate = 1f;
@@ -2254,7 +2288,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private AudioOutput audioOutput = AudioOutput.SPEAKER;
      private float audioVolume = 1f;
      private int maxBitRate = 0;
-@@ -234,6 +306,7 @@
+@@ -234,6 +307,7 @@
      private boolean isSeeking = false;
      private long seekPosition = -1;
      private boolean hasVideoEnded = false;
@@ -2262,7 +2296,15 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
      // Props from React
      private Source source = new Source();
-@@ -562,8 +635,19 @@
+@@ -332,6 +406,7 @@
+             this.pictureInPictureParamsBuilder = new PictureInPictureParams.Builder();
+         }
+         mainHandler = new Handler();
++        playbackDelays.encodedAudioListener = () -> mainHandler.post(this::reportAudioOutput);
+ 
+         createViews();
+ 
+@@ -562,8 +637,19 @@
      }
  
      private class RNVLoadControl extends DefaultLoadControl {
@@ -2282,7 +2324,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          public RNVLoadControl(DefaultAllocator allocator, BufferConfig config) {
              super(allocator,
                      config.getMinBufferMs() != BufferConfig.Companion.getBufferConfigPropUnsetInt()
-@@ -583,17 +667,92 @@
+@@ -583,17 +669,92 @@
                      config.getBackBufferDurationMs() != BufferConfig.Companion.getBufferConfigPropUnsetInt()
                              ? config.getBackBufferDurationMs()
                              : DefaultLoadControl.DEFAULT_BACK_BUFFER_DURATION_MS,
@@ -2296,8 +2338,6 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      ? config.getMaxHeapAllocationPercent()
                      : DEFAULT_MAX_HEAP_ALLOCATION_PERCENT;
 -            availableHeapInBytes = (int) Math.floor(activityManager.getMemoryClass() * maxHeap * 1024 * 1024);
--        }
--
 +            long heapBytes = (long) activityManager.getMemoryClass() * 1024 * 1024;
 +            forwardBufferBytes = config.getForwardBufferMB() > 0 ? config.getForwardBufferMB() * 1024L * 1024L : 0;
 +            backBufferBytes = config.getBackBufferMB() > 0 ? config.getBackBufferMB() * 1024L * 1024L : 0;
@@ -2358,8 +2398,8 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +            long loadedBytes = getAllocator().getTotalBytesAllocated();
 +            long forwardBytes = loadedBytes * lastForwardUs / bufferedUs;
 +            return forwardBytes >= Math.min(forwardBufferBytes, availableHeapInBytes);
-+        }
-+
+         }
+ 
 +        // Media3 1.8 calls this overload; DefaultLoadControl's version never reaches the
 +        // deprecated three-argument overload RNV used to override, so without this the memory checks never ran.
          @Override
@@ -2380,7 +2420,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              if (bufferingStrategy == BufferingStrategy.BufferingStrategyEnum.DisableBuffering) {
                  return false;
              } else if (bufferingStrategy == BufferingStrategy.BufferingStrategyEnum.DependingOnMemory) {
-@@ -601,7 +760,9 @@
+@@ -601,7 +762,9 @@
                  // when available memory on device become low.
                  int loadedBytes = getAllocator().getTotalBytesAllocated();
                  boolean isHeapReached = availableHeapInBytes > 0 && loadedBytes >= availableHeapInBytes;
@@ -2391,7 +2431,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      return false;
                  }
                  long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-@@ -609,7 +770,7 @@
+@@ -609,7 +772,7 @@
                  double minBufferMemoryReservePercent = source.getBufferConfig().getMinBufferMemoryReservePercent() != BufferConfig.Companion.getBufferConfigPropUnsetDouble()
                          ? source.getBufferConfig().getMinBufferMemoryReservePercent()
                          : ReactExoplayerView.DEFAULT_MIN_BUFFER_MEMORY_RESERVE;
@@ -2400,7 +2440,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  long bufferedMs = bufferedDurationUs / (long) 1000;
                  if (reserveMemory > freeMemory && bufferedMs > 2000) {
                      // We don't have enough memory in reserve so we stop buffering to allow other components to use it instead
-@@ -622,7 +783,128 @@
+@@ -622,7 +785,128 @@
                  }
              }
              // "default" case or normal case for "DependingOnMemory"
@@ -2530,7 +2570,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
      }
  
-@@ -715,11 +997,12 @@
+@@ -715,11 +999,12 @@
      private void initializePlayerCore(ReactExoplayerView self) {
          ExoTrackSelection.Factory videoTrackSelectionFactory = new AdaptiveTrackSelection.Factory();
          self.trackSelector = new DefaultTrackSelector(getContext(), videoTrackSelectionFactory);
@@ -2544,7 +2584,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  allocator,
                  source.getBufferConfig()
          );
-@@ -731,10 +1014,31 @@
+@@ -731,10 +1016,31 @@
          }
  
          DefaultRenderersFactory renderersFactory =
@@ -2578,7 +2618,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          DefaultMediaSourceFactory mediaSourceFactory;
          
-@@ -759,7 +1063,20 @@
+@@ -759,7 +1065,20 @@
          ReactNativeVideoManager.Companion.getInstance().onInstanceCreated(instanceId, player);
          refreshDebugState();
          player.addListener(self);
@@ -2600,18 +2640,18 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          exoPlayerView.setPlayer(player);
  
          audioBecomingNoisyReceiver.setListener(self);
-@@ -875,6 +1192,10 @@
-                 Thread.currentThread().interrupt();
-                 DebugLog.e(TAG, ex.toString());
+@@ -877,6 +1196,10 @@
              }
-+        }
-+
-+        if (loadControl != null && loadControl.limitsBackBufferBySize()) {
-+            mediaSource = new SizeLimitedBackBufferSource(mediaSource, loadControl);
          }
  
++        if (loadControl != null && loadControl.limitsBackBufferBySize()) {
++            mediaSource = new SizeLimitedBackBufferSource(mediaSource, loadControl);
++        }
++
          boolean haveResumePosition = resumeWindow != C.INDEX_UNSET;
-@@ -969,10 +1290,19 @@
+         if (haveResumePosition) {
+             player.seekTo(resumeWindow, resumePosition);
+@@ -969,10 +1292,19 @@
          Intent intent = new Intent(themedReactContext, VideoPlaybackService.class);
          intent.setAction(MediaSessionService.SERVICE_INTERFACE);
  
@@ -2635,7 +2675,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
  
          int flags;
-@@ -1088,7 +1418,8 @@
+@@ -1088,7 +1420,8 @@
  
                  mediaSourceFactory = new HlsMediaSource.Factory(
                          dataSourceFactory
@@ -2645,7 +2685,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  break;
              case CONTENT_TYPE_OTHER:
                  if ("asset".equals(uri.getScheme())) {
-@@ -1100,12 +1431,18 @@
+@@ -1100,12 +1433,18 @@
                      }
                  } else if ("file".equals(uri.getScheme()) ||
                          !useCache) {
@@ -2666,7 +2706,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      );
  
                  }
-@@ -1144,12 +1479,63 @@
+@@ -1144,12 +1483,63 @@
                  ? overridenMediaItemBuilder.build()
                  : mediaItemBuilder.build();
  
@@ -2731,12 +2771,10 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          if (cropStartMs >= 0 && cropEndMs >= 0) {
              return new ClippingMediaSource(mediaSource, cropStartMs * 1000, cropEndMs * 1000);
-@@ -1160,6 +1546,109 @@
-         }
- 
+@@ -1162,6 +1552,109 @@
          return mediaSource;
-+    }
-+
+     }
+ 
 +    private class SafeSubtitleDataSource implements DataSource {
 +        private static final byte[] EMPTY_VTT = "WEBVTT\n\n".getBytes(StandardCharsets.UTF_8);
 +        private final DataSource upstream;
@@ -2838,10 +2876,12 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +            fallbackStream = null;
 +            isFallback = false;
 +        }
-     }
- 
++    }
++
      @Nullable
-@@ -1183,9 +1672,23 @@
+     private List<MediaItem.SubtitleConfiguration> buildSubtitleConfigurations() {
+         if (source.getSideLoadedTextTracks() == null || source.getSideLoadedTextTracks().getTracks().isEmpty()) {
+@@ -1183,9 +1676,23 @@
                      }
                  }
                  
@@ -2866,7 +2906,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          .setLabel(label)
                          .setRoleFlags(C.ROLE_FLAG_SUBTITLE);
                  
-@@ -1219,6 +1722,7 @@
+@@ -1219,6 +1726,7 @@
      }
  
      private void releasePlayer() {
@@ -2874,7 +2914,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (player != null) {
              if(playbackServiceBinder != null) {
                  playbackServiceBinder.getService().unregisterPlayer(player);
-@@ -1298,14 +1802,14 @@
+@@ -1298,14 +1806,14 @@
                      // Lower the volume
                      if (!view.muted) {
                          activity.runOnUiThread(() ->
@@ -2891,7 +2931,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          );
                      }
                  }
-@@ -1586,7 +2090,17 @@
+@@ -1586,7 +2094,17 @@
      }
  
      private ArrayList<VideoTrack> getVideoTrackInfo() {
@@ -2910,12 +2950,10 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (trackSelector == null) {
              // Likely player is unmounting so no video tracks are available anymore
              return videoTracks;
-@@ -1610,6 +2124,72 @@
-             }
-         }
+@@ -1612,6 +2130,72 @@
          return videoTracks;
-+    }
-+
+     }
+ 
 +    private ArrayList<VideoTrack> getVideoTrackInfoFromCurrentTracks() {
 +        ArrayList<VideoTrack> supportedTracks = new ArrayList<>();
 +        ArrayList<VideoTrack> allTracks = new ArrayList<>();
@@ -2980,10 +3018,12 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +            return true;
 +        }
 +        return format.height > 0 && format.height == activeFormat.height;
-     }
- 
++    }
++
      private ArrayList<VideoTrack> getVideoTrackInfoFromManifest() {
-@@ -1703,7 +2283,7 @@
+         return this.getVideoTrackInfoFromManifest(0);
+     }
+@@ -1703,7 +2287,7 @@
          }
          
          TrackSelectionArray selectionArray = player.getCurrentTrackSelections();
@@ -2992,7 +3032,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          TrackGroupArray groups = info.getTrackGroups(index);
  
          for (int groupIndex = 0; groupIndex < groups.length; ++groupIndex) {
-@@ -1861,6 +2441,9 @@
+@@ -1861,6 +2445,9 @@
  
      @Override
      public void onTracksChanged(@NonNull Tracks tracks) {
@@ -3002,21 +3042,21 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          DebugLog.d(TAG, "onTracksChanged called - updating track information, controls=" + controls);
          
          if (controls) {
-@@ -1889,6 +2472,13 @@
-         
+@@ -1890,6 +2477,13 @@
          updateSubtitleButtonVisibility();
      }
-+
+ 
 +    @Override
 +    public void onVideoSizeChanged(@NonNull androidx.media3.common.VideoSize videoSize) {
 +        DebugLog.d(TAG, "onVideoSizeChanged: " + videoSize.width + "x" + videoSize.height);
 +        ArrayList<VideoTrack> videoTracks = getVideoTrackInfo();
 +        eventEmitter.onVideoTracks.invoke(videoTracks);
 +    }
-     
++    
      
      private boolean hasBuiltInTextTracks() {
-@@ -1950,10 +2540,71 @@
+         if (player == null || trackSelector == null) return false;
+@@ -1950,10 +2544,71 @@
          }
      }
  
@@ -3088,7 +3128,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          switch(e.errorCode) {
              case PlaybackException.ERROR_CODE_DRM_DEVICE_REVOKED:
              case PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED:
-@@ -2031,6 +2682,9 @@
+@@ -2031,6 +2686,9 @@
      }
  
      public void onCues(CueGroup cueGroup) {
@@ -3098,7 +3138,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (!cueGroup.cues.isEmpty() && cueGroup.cues.get(0).text != null) {
              String subtitleText = cueGroup.cues.get(0).text.toString();
              eventEmitter.onTextTrackDataChanged.invoke(subtitleText);
-@@ -2061,6 +2715,9 @@
+@@ -2061,6 +2719,9 @@
              }
  
              if (!isSourceEqual) {
@@ -3108,7 +3148,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  hasVideoEnded = false;
                  playerNeedsSource = true;
                  initializePlayer();
-@@ -2147,6 +2804,12 @@
+@@ -2147,6 +2808,12 @@
                      TrackGroupArray groups = info.getTrackGroups(textRendererIndex);
                      boolean trackFound = false;
                      
@@ -3121,7 +3161,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      for (int groupIndex = 0; groupIndex < groups.length; groupIndex++) {
                          TrackGroup group = groups.get(groupIndex);
                          for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
-@@ -2159,18 +2822,21 @@
+@@ -2159,18 +2826,21 @@
                                  isMatch = true;
                              } else if ("index".equals(type)) {
                                  int targetIndex = ReactBridgeUtils.safeParseInt(value, -1);
@@ -3144,7 +3184,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          }
                          if (trackFound) break;
                      }
-@@ -2178,13 +2844,17 @@
+@@ -2178,13 +2848,17 @@
                      if (!trackFound) {
                          DebugLog.w(TAG, "Text track not found for type=" + type + ", value=" + value + 
                              ". Keeping current selection.");
@@ -3163,7 +3203,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              
              // Give PlayerView time to update its controls
              mainHandler.postDelayed(() -> {
-@@ -2197,18 +2867,121 @@
+@@ -2197,6 +2871,101 @@
          }
      }
  
@@ -3264,19 +3304,11 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +
      public void setSelectedTrack(int trackType, String type, String value) {
          if (player == null || trackSelector == null) return;
--        
-+
-         if (controls) {
+ 
+@@ -2209,6 +2978,14 @@
              return;
          }
--        
-+
-         int rendererIndex = getTrackRendererIndex(trackType);
-         if (rendererIndex == C.INDEX_UNSET) {
-             return;
-         }
--        
-+
+ 
 +        // Video is resolved from the player's current tracks because the mapped info below
 +        // reports no video groups once playback is running, which silently disables the
 +        // renderer instead of switching quality. "disabled" keeps the shared handling.
@@ -3288,7 +3320,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          MappingTrackSelector.MappedTrackInfo info = trackSelector.getCurrentMappedTrackInfo();
          if (info == null) {
              return;
-@@ -2317,6 +3090,15 @@
+@@ -2317,6 +3094,15 @@
              groupIndex = getGroupIndexForDefaultLocale(groups);
          }
  
@@ -3304,7 +3336,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (groupIndex == C.INDEX_UNSET && trackType == C.TRACK_TYPE_VIDEO && groups.length != 0) { // Video auto
              // Add all tracks as valid options for ABR to choose from
              TrackGroup group = groups.get(0);
-@@ -2359,7 +3141,7 @@
+@@ -2359,7 +3145,7 @@
              DefaultTrackSelector.Parameters.Builder selectionParameters = trackSelector.getParameters()
                      .buildUpon()
                      .setExceedAudioConstraintsIfNecessary(true)
@@ -3313,7 +3345,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      .setExceedVideoConstraintsIfNecessary(true)
                      .setRendererDisabled(rendererIndex, false);
  
-@@ -2429,10 +3211,225 @@
+@@ -2429,10 +3215,225 @@
          return groupIndex;
      }
  
@@ -3540,7 +3572,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      }
  
      public void setSelectedAudioTrack(String type, String value) {
-@@ -2546,9 +3543,7 @@
+@@ -2546,9 +3547,7 @@
  
      public void setMutedModifier(boolean muted) {
          this.muted = muted;
@@ -3551,7 +3583,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      }
  
      private void changeAudioOutput(AudioOutput output) {
-@@ -2577,9 +3572,14 @@
+@@ -2577,9 +3576,14 @@
      }
  
      public void setVolumeModifier(float volume) {
@@ -3568,12 +3600,10 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
      }
  
-@@ -2587,6 +3587,51 @@
-         if (player != null) {
-             player.seekTo(positionMs);
+@@ -2589,6 +3593,77 @@
          }
-+    }
-+
+     }
+ 
 +    private long pendingSubtitleDelayUs = 0;
 +    private long pendingAudioDelayUs = 0;
 +
@@ -3617,22 +3647,52 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +    public void setAudioDelayMs(int delayMs) {
 +        pendingAudioDelayUs = delayMs * 1000L;
 +        scheduleApplyDelays();
-     }
- 
++    }
++
++    /** 0 Off, 1 Light, 2 Medium, 3 Strong. Applied to the next audio buffer, no seek. */
++    public void setNightMode(int preset) {
++        playbackDelays.nightMode = NightModeCompressor.clampPreset(preset);
++    }
++
++    /** 0 Off, 1 On, 2 Strong. Applied to the next audio buffer, no seek. */
++    public void setDialogueBoost(int level) {
++        playbackDelays.dialogueBoost = DialogueBoostMixer.clampLevel(level);
++    }
++
++    /** Tells JS whether the audio is passed through encoded, so the sound effects cannot apply. */
++    private void reportAudioOutput() {
++        WritableMap event = Arguments.createMap();
++        com.facebook.react.bridge.WritableArray tags = Arguments.createArray();
++        View ancestor = this;
++        while (ancestor != null) {
++            tags.pushInt(ancestor.getId());
++            ancestor = ancestor.getParent() instanceof View ? (View) ancestor.getParent() : null;
++        }
++        event.putArray("viewTags", tags);
++        event.putBoolean("encoded", playbackDelays.encodedAudio);
++        if (!themedReactContext.hasActiveReactInstance()) return;
++        themedReactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
++                .emit("VegaAudioOutput", event);
++    }
++
      public void setRateModifier(float newRate) {
+         if (newRate <= 0) {
+             DebugLog.w(TAG, "cannot set rate <= 0");
 diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
 --- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
 +++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
-@@ -41,6 +41,8 @@
+@@ -41,6 +41,10 @@
          private const val PROP_PROGRESS_UPDATE_INTERVAL = "progressUpdateInterval"
          private const val PROP_REPORT_BANDWIDTH = "reportBandwidth"
          private const val PROP_RATE = "rate"
 +        private const val PROP_SUBTITLE_DELAY_MS = "subtitleDelayMs"
 +        private const val PROP_AUDIO_DELAY_MS = "audioDelayMs"
++        private const val PROP_NIGHT_MODE = "nightMode"
++        private const val PROP_DIALOGUE_BOOST = "dialogueBoost"
          private const val PROP_MAXIMUM_BIT_RATE = "maxBitRate"
          private const val PROP_PLAY_IN_BACKGROUND = "playInBackground"
          private const val PROP_DISABLE_FOCUS = "disableFocus"
-@@ -180,9 +182,24 @@
+@@ -180,11 +184,36 @@
          videoView.setReportBandwidth(reportBandwidth)
      }
  
@@ -3644,8 +3704,8 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      @ReactProp(name = PROP_RATE)
      fun setRate(videoView: ReactExoplayerView, rate: Float) {
          videoView.setRateModifier(rate)
-+    }
-+
+     }
+ 
 +    @ReactProp(name = PROP_SUBTITLE_DELAY_MS, defaultInt = 0)
 +    fun setSubtitleDelayMs(videoView: ReactExoplayerView, delayMs: Int) {
 +        videoView.setSubtitleDelayMs(delayMs)
@@ -3654,9 +3714,21 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +    @ReactProp(name = PROP_AUDIO_DELAY_MS, defaultInt = 0)
 +    fun setAudioDelayMs(videoView: ReactExoplayerView, delayMs: Int) {
 +        videoView.setAudioDelayMs(delayMs)
-     }
- 
++    }
++
++    @ReactProp(name = PROP_NIGHT_MODE, defaultInt = 0)
++    fun setNightMode(videoView: ReactExoplayerView, preset: Int) {
++        videoView.setNightMode(preset)
++    }
++
++    @ReactProp(name = PROP_DIALOGUE_BOOST, defaultInt = 0)
++    fun setDialogueBoost(videoView: ReactExoplayerView, level: Int) {
++        videoView.setDialogueBoost(level)
++    }
++
      @ReactProp(name = PROP_MAXIMUM_BIT_RATE)
+     fun setMaxBitRate(videoView: ReactExoplayerView, maxBitRate: Float) {
+         videoView.setMaxBitRateModifier(maxBitRate.toInt())
 diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/VolumeBoostAudioProcessor.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/VolumeBoostAudioProcessor.java
 new file mode 100644
 index 0000000..14bff12
@@ -3713,16 +3785,18 @@ diff --git a/node_modules/react-native-video/lib/specs/VideoNativeComponent.d.ts
      minBackBufferMemoryReservePercent?: Float;
      minBufferMemoryReservePercent?: Float;
      cacheSizeMB?: Float;
-@@ -306,6 +308,8 @@
+@@ -306,6 +308,10 @@
      ignoreSilentSwitch?: WithDefault<string, 'inherit'>;
      mixWithOthers?: WithDefault<string, 'inherit'>;
      rate?: Float;
 +    subtitleDelayMs?: Int32;
 +    audioDelayMs?: Int32;
++    nightMode?: Int32;
++    dialogueBoost?: Int32;
      fullscreen?: boolean;
      fullscreenAutorotate?: boolean;
      fullscreenOrientation?: WithDefault<string, 'all'>;
-@@ -319,6 +323,7 @@
+@@ -319,6 +325,7 @@
      hideShutterView?: boolean;
      reportBandwidth?: boolean;
      subtitleStyle?: SubtitleStyle;
@@ -3742,16 +3816,18 @@ diff --git a/node_modules/react-native-video/lib/types/video.d.ts b/node_modules
      maxHeapAllocationPercent?: number;
      minBackBufferMemoryReservePercent?: number;
      minBufferMemoryReservePercent?: number;
-@@ -284,6 +286,8 @@
+@@ -284,6 +286,10 @@
      preventsDisplaySleepDuringVideoPlayback?: boolean;
      progressUpdateInterval?: number;
      rate?: number;
 +    subtitleDelayMs?: number;
 +    audioDelayMs?: number;
++    nightMode?: number;
++    dialogueBoost?: number;
      renderLoader?: ReactNode | ((arg0: ReactVideoRenderLoaderProps) => ReactNode);
      repeat?: boolean;
      reportBandwidth?: boolean;
-@@ -293,6 +297,7 @@
+@@ -293,6 +299,7 @@
      selectedTextTrack?: SelectedTrack;
      selectedVideoTrack?: SelectedVideoTrack;
      subtitleStyle?: SubtitleStyle;
@@ -3771,16 +3847,18 @@ diff --git a/node_modules/react-native-video/src/specs/VideoNativeComponent.ts b
    minBackBufferMemoryReservePercent?: Float;
    minBufferMemoryReservePercent?: Float;
    cacheSizeMB?: Float;
-@@ -362,6 +364,8 @@
+@@ -362,6 +364,10 @@
    ignoreSilentSwitch?: WithDefault<string, 'inherit'>; // ios, 'inherit'
    mixWithOthers?: WithDefault<string, 'inherit'>; // ios, 'inherit'
    rate?: Float;
 +  subtitleDelayMs?: Int32; // Android: positive shows subtitles later
 +  audioDelayMs?: Int32; // Android: positive plays audio later
++  nightMode?: Int32; // Android: 0 off, 1 light, 2 medium, 3 strong
++  dialogueBoost?: Int32; // Android: 0 off, 1 on, 2 strong
    fullscreen?: boolean; // ios, false
    fullscreenAutorotate?: boolean;
    fullscreenOrientation?: WithDefault<string, 'all'>;
-@@ -375,6 +379,7 @@
+@@ -375,6 +381,7 @@
    hideShutterView?: boolean; //	Android
    reportBandwidth?: boolean; //Android
    subtitleStyle?: SubtitleStyle; // android
@@ -3800,16 +3878,18 @@ diff --git a/node_modules/react-native-video/src/types/video.ts b/node_modules/r
    maxHeapAllocationPercent?: number;
    minBackBufferMemoryReservePercent?: number;
    minBufferMemoryReservePercent?: number;
-@@ -360,6 +362,8 @@
+@@ -360,6 +362,10 @@
    preventsDisplaySleepDuringVideoPlayback?: boolean;
    progressUpdateInterval?: number;
    rate?: number;
 +  subtitleDelayMs?: number; // Android: positive shows subtitles later
 +  audioDelayMs?: number; // Android: positive plays audio later
++  nightMode?: number; // Android: 0 off, 1 light, 2 medium, 3 strong
++  dialogueBoost?: number; // Android: 0 off, 1 on, 2 strong
    renderLoader?: ReactNode | ((arg0: ReactVideoRenderLoaderProps) => ReactNode);
    repeat?: boolean;
    reportBandwidth?: boolean; //Android
-@@ -369,6 +373,7 @@
+@@ -369,6 +375,7 @@
    selectedTextTrack?: SelectedTrack;
    selectedVideoTrack?: SelectedVideoTrack; // android
    subtitleStyle?: SubtitleStyle; // android
@@ -4070,5 +4150,623 @@ new file mode 100644
 +            }
 +            return extractors;
 +        }
++    }
++}
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DialogueBoostAudioProcessor.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DialogueBoostAudioProcessor.java
+new file mode 100644
+index 0000000..fcc401e
+--- /dev/null
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DialogueBoostAudioProcessor.java
+@@ -0,0 +1,38 @@
++package com.brentvatne.exoplayer;
++
++/** Dialogue boost in the PCM chain, ahead of night mode. The level is read live. */
++public final class DialogueBoostAudioProcessor extends FrameAudioProcessor {
++    private final DelayRenderersFactory.Delays state;
++    private final DialogueBoostMixer mixer = new DialogueBoostMixer();
++
++    public DialogueBoostAudioProcessor(DelayRenderersFactory.Delays state) {
++        this.state = state;
++    }
++
++    @Override
++    protected boolean updateAndCheckEnabled() {
++        int level = state.dialogueBoost;
++        if (level != mixer.getLevel()) {
++            mixer.setLevel(level);
++            android.util.Log.i("VegaDialogueBoost", "level=" + mixer.getLevel()
++                    + " channels=" + inputAudioFormat.channelCount
++                    + " rate=" + inputAudioFormat.sampleRate);
++        }
++        return mixer.isActive();
++    }
++
++    @Override
++    protected void onFormat(int sampleRate, int channelCount) {
++        mixer.setSampleRate(sampleRate);
++    }
++
++    @Override
++    protected void resetState() {
++        mixer.reset();
++    }
++
++    @Override
++    protected void processBlock(float[] samples, int frames, int channelCount) {
++        mixer.process(samples, frames, channelCount);
++    }
++}
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DialogueBoostMixer.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DialogueBoostMixer.java
+new file mode 100644
+index 0000000..2635bfd
+--- /dev/null
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/DialogueBoostMixer.java
+@@ -0,0 +1,205 @@
++package com.brentvatne.exoplayer;
++
++/**
++ * Dialogue boost: makes speech stand out from music and effects.
++ *
++ * - Surround (a layout with a centre channel: 3.0, 5.0, 5.1, 6.1, 7.1): films
++ *   put dialogue in the centre, so the centre is raised and every other
++ *   channel is lowered a little.
++ * - Stereo (and the front pair of quad): voices are usually panned to the
++ *   middle. The signal is split into mid (L+R) and side (L-R); the voice band
++ *   of the mid (300 Hz to 4 kHz, a high-pass then a low-pass filter) is added
++ *   back on top, and the side is lowered a little.
++ * - Mono: the voice band is lifted the same way.
++ *
++ * A soft limiter keeps the louder result inside full scale. Plain Java with
++ * no allocation after construction, so it can be tested on a desktop JVM.
++ *
++ * PCM channel order is the WAVE order Android uses: FL, FR, FC, LFE, BL, BR,
++ * SL, SR, so the centre is the third channel whenever there is one.
++ */
++public final class DialogueBoostMixer {
++    public static final int OFF = 0;
++    public static final int ON = 1;
++    public static final int STRONG = 2;
++
++    // Indexed by level.              Off   On     Strong
++    private static final float[] CENTRE_DB = {0f, 3f, 6f};
++    private static final float[] OTHERS_DB = {0f, -1.5f, -3f};
++    private static final float[] VOICE_DB = {0f, 4f, 7f};
++    private static final float[] SIDE_DB = {0f, -1.5f, -3f};
++
++    static final float VOICE_LOW_HZ = 300f;
++    static final float VOICE_HIGH_HZ = 4000f;
++    private static final double BUTTERWORTH_Q = 0.7071067811865476;
++
++    private int level = OFF;
++    private int sampleRate = 48000;
++
++    private float centreGain = 1f;
++    private float othersGain = 1f;
++    private float voiceExtra = 0f; // band gain minus one: added on top of the dry mid
++    private float sideGain = 1f;
++
++    private final Biquad highPass = new Biquad();
++    private final Biquad lowPass = new Biquad();
++
++    public DialogueBoostMixer() {
++        updateCoefficients();
++    }
++
++    public static int clampLevel(int level) {
++        return level < OFF ? OFF : Math.min(level, STRONG);
++    }
++
++    /** True when the layout has a centre channel at index 2. */
++    public static boolean hasCentre(int channels) {
++        return channels == 3 || channels >= 5;
++    }
++
++    public int getLevel() {
++        return level;
++    }
++
++    public boolean isActive() {
++        return level != OFF;
++    }
++
++    public void setSampleRate(int sampleRate) {
++        int rate = sampleRate > 0 ? sampleRate : 48000;
++        if (rate == this.sampleRate) return;
++        this.sampleRate = rate;
++        updateCoefficients();
++    }
++
++    public void setLevel(int level) {
++        int next = clampLevel(level);
++        if (next == this.level) return;
++        if (this.level == OFF) reset();
++        this.level = next;
++        updateCoefficients();
++    }
++
++    public void reset() {
++        highPass.reset();
++        lowPass.reset();
++    }
++
++    private void updateCoefficients() {
++        centreGain = PcmMath.dbToGain(CENTRE_DB[level]);
++        othersGain = PcmMath.dbToGain(OTHERS_DB[level]);
++        voiceExtra = PcmMath.dbToGain(VOICE_DB[level]) - 1f;
++        sideGain = PcmMath.dbToGain(SIDE_DB[level]);
++        // Low sample rates (8 or 16 kHz) cannot hold a 4 kHz corner; stay below Nyquist.
++        float high = Math.min(VOICE_HIGH_HZ, 0.45f * sampleRate);
++        highPass.setHighPass(VOICE_LOW_HZ, BUTTERWORTH_Q, sampleRate);
++        lowPass.setLowPass(high, BUTTERWORTH_Q, sampleRate);
++    }
++
++    /**
++     * Processes [frames] interleaved frames of [channels] samples in place.
++     * Does nothing while the level is Off.
++     */
++    public void process(float[] samples, int frames, int channels) {
++        if (level == OFF || channels <= 0) return;
++        if (hasCentre(channels)) {
++            processSurround(samples, frames, channels);
++        } else if (channels == 1) {
++            processMono(samples, frames);
++        } else {
++            processStereoPair(samples, frames, channels);
++        }
++    }
++
++    private void processSurround(float[] samples, int frames, int channels) {
++        final float centre = centreGain;
++        final float others = othersGain;
++        int index = 0;
++        for (int frame = 0; frame < frames; frame++) {
++            for (int channel = 0; channel < channels; channel++) {
++                float gain = channel == 2 ? centre : others;
++                samples[index + channel] = PcmMath.limit(samples[index + channel] * gain);
++            }
++            index += channels;
++        }
++    }
++
++    private void processMono(float[] samples, int frames) {
++        final float extra = voiceExtra;
++        for (int frame = 0; frame < frames; frame++) {
++            float dry = samples[frame];
++            float voice = lowPass.process(highPass.process(dry));
++            samples[frame] = PcmMath.limit(dry + extra * voice);
++        }
++    }
++
++    /** Stereo, or the front left/right pair of a layout without a centre (quad). */
++    private void processStereoPair(float[] samples, int frames, int channels) {
++        final float extra = voiceExtra;
++        final float side = sideGain;
++        final float rest = othersGain;
++        int index = 0;
++        for (int frame = 0; frame < frames; frame++) {
++            float left = samples[index];
++            float right = samples[index + 1];
++            float mid = 0.5f * (left + right);
++            float sides = 0.5f * (left - right) * side;
++            float voice = lowPass.process(highPass.process(mid));
++            float boostedMid = mid + extra * voice;
++            samples[index] = PcmMath.limit(boostedMid + sides);
++            samples[index + 1] = PcmMath.limit(boostedMid - sides);
++            for (int channel = 2; channel < channels; channel++) {
++                samples[index + channel] = PcmMath.limit(samples[index + channel] * rest);
++            }
++            index += channels;
++        }
++    }
++
++    /**
++     * Second-order filter in transposed direct form II, coefficients from the
++     * standard bilinear-transform formulas for 2nd-order low and high pass.
++     */
++    static final class Biquad {
++        private double b0 = 1, b1, b2, a1, a2;
++        private double z1, z2;
++
++        void setHighPass(double frequency, double q, int sampleRate) {
++            double w0 = 2 * Math.PI * frequency / sampleRate;
++            double cos = Math.cos(w0);
++            double alpha = Math.sin(w0) / (2 * q);
++            double a0 = 1 + alpha;
++            b0 = (1 + cos) / 2 / a0;
++            b1 = -(1 + cos) / a0;
++            b2 = b0;
++            a1 = -2 * cos / a0;
++            a2 = (1 - alpha) / a0;
++        }
++
++        void setLowPass(double frequency, double q, int sampleRate) {
++            double w0 = 2 * Math.PI * frequency / sampleRate;
++            double cos = Math.cos(w0);
++            double alpha = Math.sin(w0) / (2 * q);
++            double a0 = 1 + alpha;
++            b0 = (1 - cos) / 2 / a0;
++            b1 = (1 - cos) / a0;
++            b2 = b0;
++            a1 = -2 * cos / a0;
++            a2 = (1 - alpha) / a0;
++        }
++
++        void reset() {
++            z1 = 0;
++            z2 = 0;
++        }
++
++        float process(float input) {
++            double output = b0 * input + z1;
++            z1 = b1 * input - a1 * output + z2;
++            z2 = b2 * input - a2 * output;
++            // Long silence would otherwise decay into slow denormals.
++            if (Math.abs(z1) < 1e-25) z1 = 0;
++            if (Math.abs(z2) < 1e-25) z2 = 0;
++            return (float) output;
++        }
++    }
++}
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/FrameAudioProcessor.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/FrameAudioProcessor.java
+new file mode 100644
+index 0000000..2ee74b6
+--- /dev/null
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/FrameAudioProcessor.java
+@@ -0,0 +1,97 @@
++package com.brentvatne.exoplayer;
++
++import androidx.media3.common.C;
++import androidx.media3.common.audio.BaseAudioProcessor;
++import java.nio.ByteBuffer;
++import java.nio.ByteOrder;
++
++/**
++ * Base for the sound effects in the PCM chain. It stays active for every
++ * 16-bit or float PCM format, so switching an effect on or off never needs a
++ * seek or a sink rebuild. While the effect is off the bytes are copied
++ * through untouched.
++ *
++ * Samples are converted to floats in a block buffer that is only allocated
++ * when the format needs a bigger one, never per buffer.
++ */
++abstract class FrameAudioProcessor extends BaseAudioProcessor {
++    private static final int BLOCK_FRAMES = 512;
++
++    private float[] block = new float[BLOCK_FRAMES * 2];
++    private int channelCount;
++    private boolean floatSamples;
++
++    /** Reads the wanted setting; called once per buffer on the playback thread. */
++    protected abstract boolean updateAndCheckEnabled();
++
++    /** The format in use changed (after a flush). */
++    protected abstract void onFormat(int sampleRate, int channelCount);
++
++    /** Clears filter and detector state (seek, new format). */
++    protected abstract void resetState();
++
++    protected abstract void processBlock(float[] samples, int frames, int channelCount);
++
++    @Override
++    protected AudioFormat onConfigure(AudioFormat input) {
++        boolean supported = (input.encoding == C.ENCODING_PCM_16BIT || input.encoding == C.ENCODING_PCM_FLOAT)
++                && input.channelCount > 0;
++        // NOT_SET leaves this processor out of the chain for other encodings.
++        return supported ? input : AudioFormat.NOT_SET;
++    }
++
++    @Override
++    protected void onFlush() {
++        // The pending format becomes the one in use only here.
++        channelCount = inputAudioFormat.channelCount;
++        floatSamples = inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT;
++        if (channelCount > 0 && block.length < BLOCK_FRAMES * channelCount) {
++            block = new float[BLOCK_FRAMES * channelCount];
++        }
++        onFormat(inputAudioFormat.sampleRate, channelCount);
++        resetState();
++    }
++
++    @Override
++    protected void onReset() {
++        resetState();
++    }
++
++    @Override
++    public void queueInput(ByteBuffer input) {
++        // The pipeline can pass our drained output back as empty input. Check before
++        // replaceOutputBuffer clears the reusable buffer (which may be that input).
++        if (!input.hasRemaining()) return;
++        ByteBuffer output = replaceOutputBuffer(input.remaining());
++        if (channelCount <= 0 || !updateAndCheckEnabled()) {
++            output.put(input);
++            output.flip();
++            return;
++        }
++        input.order(ByteOrder.LITTLE_ENDIAN);
++        output.order(ByteOrder.LITTLE_ENDIAN);
++        final float[] samples = block;
++        final int channels = channelCount;
++        final int frameBytes = channels * (floatSamples ? 4 : 2);
++        int frames = input.remaining() / frameBytes;
++        while (frames > 0) {
++            int count = Math.min(frames, BLOCK_FRAMES);
++            int sampleCount = count * channels;
++            if (floatSamples) {
++                for (int i = 0; i < sampleCount; i++) samples[i] = input.getFloat();
++            } else {
++                for (int i = 0; i < sampleCount; i++) samples[i] = input.getShort() * PcmMath.PCM16_TO_FLOAT;
++            }
++            processBlock(samples, count, channels);
++            if (floatSamples) {
++                for (int i = 0; i < sampleCount; i++) output.putFloat(samples[i]);
++            } else {
++                for (int i = 0; i < sampleCount; i++) output.putShort(PcmMath.toPcm16(samples[i]));
++            }
++            frames -= count;
++        }
++        // A partial frame should never arrive; pass it on rather than drop it.
++        if (input.hasRemaining()) output.put(input);
++        output.flip();
++    }
++}
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/NightModeAudioProcessor.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/NightModeAudioProcessor.java
+new file mode 100644
+index 0000000..c556d99
+--- /dev/null
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/NightModeAudioProcessor.java
+@@ -0,0 +1,38 @@
++package com.brentvatne.exoplayer;
++
++/** Night mode in the PCM chain, ahead of volume boost. The preset is read live. */
++public final class NightModeAudioProcessor extends FrameAudioProcessor {
++    private final DelayRenderersFactory.Delays state;
++    private final NightModeCompressor compressor = new NightModeCompressor();
++
++    public NightModeAudioProcessor(DelayRenderersFactory.Delays state) {
++        this.state = state;
++    }
++
++    @Override
++    protected boolean updateAndCheckEnabled() {
++        int preset = state.nightMode;
++        if (preset != compressor.getPreset()) {
++            compressor.setPreset(preset);
++            android.util.Log.i("VegaNightMode", "preset=" + compressor.getPreset()
++                    + " channels=" + inputAudioFormat.channelCount
++                    + " rate=" + inputAudioFormat.sampleRate);
++        }
++        return compressor.isActive();
++    }
++
++    @Override
++    protected void onFormat(int sampleRate, int channelCount) {
++        compressor.setSampleRate(sampleRate);
++    }
++
++    @Override
++    protected void resetState() {
++        compressor.reset();
++    }
++
++    @Override
++    protected void processBlock(float[] samples, int frames, int channelCount) {
++        compressor.process(samples, frames, channelCount);
++    }
++}
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/NightModeCompressor.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/NightModeCompressor.java
+new file mode 100644
+index 0000000..a4e7366
+--- /dev/null
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/NightModeCompressor.java
+@@ -0,0 +1,153 @@
++package com.brentvatne.exoplayer;
++
++/**
++ * Night mode: a feed-forward compressor that turns loud peaks down and,
++ * through make-up gain, brings quiet parts up.
++ *
++ * For every frame of interleaved float samples:
++ * 1. Detector: the power of the loudest channel, averaged over a short RMS
++ *    window. One level drives every channel, so the sound stage stays put.
++ * 2. Gain curve: above the threshold the level rises only 1/ratio as fast,
++ *    with a soft knee around the threshold.
++ * 3. The gain reduction follows the curve quickly when it must go down
++ *    (attack) and slowly when it may come back up (release).
++ * 4. Make-up gain lifts the whole result, then a soft limiter keeps every
++ *    sample inside full scale.
++ *
++ * Plain Java with no allocation after construction, so it runs on the
++ * playback thread and can be tested on a desktop JVM.
++ */
++public final class NightModeCompressor {
++    public static final int OFF = 0;
++    public static final int LIGHT = 1;
++    public static final int MEDIUM = 2;
++    public static final int STRONG = 3;
++
++    // Indexed by preset.            Off    Light   Medium  Strong
++    private static final float[] THRESHOLD_DB = {0f, -20f, -26f, -32f};
++    private static final float[] RATIO = {1f, 2f, 3f, 5f};
++    private static final float[] KNEE_DB = {1f, 8f, 8f, 8f};
++    private static final float[] MAKEUP_DB = {0f, 4f, 7f, 10f};
++    private static final float[] ATTACK_MS = {1f, 8f, 6f, 5f};
++    private static final float[] RELEASE_MS = {1f, 250f, 200f, 150f};
++    private static final float RMS_WINDOW_MS = 5f;
++    // 10 / ln(10): power to decibels with the natural log.
++    private static final double POWER_TO_DB = 4.342944819032518;
++    private static final float SILENCE = 1e-10f;
++
++    private int preset = OFF;
++    private int sampleRate = 48000;
++
++    private float thresholdDb;
++    private float slope; // 1/ratio - 1, so reduction = slope * overshoot
++    private float kneeDb;
++    private float makeupDb;
++    private float attackCoefficient;
++    private float releaseCoefficient;
++    private float rmsCoefficient;
++
++    private float power;
++    private float reductionDb;
++    private float lastGain = 1f;
++
++    public NightModeCompressor() {
++        updateCoefficients();
++    }
++
++    public static int clampPreset(int preset) {
++        return preset < OFF ? OFF : Math.min(preset, STRONG);
++    }
++
++    public int getPreset() {
++        return preset;
++    }
++
++    public boolean isActive() {
++        return preset != OFF;
++    }
++
++    public void setSampleRate(int sampleRate) {
++        int rate = sampleRate > 0 ? sampleRate : 48000;
++        if (rate == this.sampleRate) return;
++        this.sampleRate = rate;
++        updateCoefficients();
++    }
++
++    /** Switching on starts from a clean detector; switching between presets keeps it. */
++    public void setPreset(int preset) {
++        int next = clampPreset(preset);
++        if (next == this.preset) return;
++        if (this.preset == OFF) reset();
++        this.preset = next;
++        updateCoefficients();
++    }
++
++    public void reset() {
++        power = 0f;
++        reductionDb = 0f;
++        lastGain = 1f;
++    }
++
++    /** Gain applied to the last processed frame, make-up included. For tests and logs. */
++    public float getLastGain() {
++        return lastGain;
++    }
++
++    private void updateCoefficients() {
++        thresholdDb = THRESHOLD_DB[preset];
++        slope = 1f / RATIO[preset] - 1f;
++        kneeDb = KNEE_DB[preset];
++        makeupDb = MAKEUP_DB[preset];
++        attackCoefficient = PcmMath.timeCoefficient(ATTACK_MS[preset], sampleRate);
++        releaseCoefficient = PcmMath.timeCoefficient(RELEASE_MS[preset], sampleRate);
++        rmsCoefficient = PcmMath.timeCoefficient(RMS_WINDOW_MS, sampleRate);
++    }
++
++    /** Static curve: wanted gain change in dB (zero or negative) for a level in dB. */
++    float targetReductionDb(float levelDb) {
++        float overshoot = levelDb - thresholdDb;
++        float twice = 2f * overshoot;
++        if (twice <= -kneeDb) return 0f;
++        if (twice >= kneeDb) return slope * overshoot;
++        float intoKnee = overshoot + kneeDb * 0.5f;
++        return slope * intoKnee * intoKnee / (2f * kneeDb);
++    }
++
++    /**
++     * Processes [frames] interleaved frames of [channels] samples in place.
++     * Does nothing while the preset is Off.
++     */
++    public void process(float[] samples, int frames, int channels) {
++        if (preset == OFF || channels <= 0) return;
++        final float rmsKeep = rmsCoefficient;
++        final float attack = attackCoefficient;
++        final float release = releaseCoefficient;
++        float smoothedPower = power;
++        float reduction = reductionDb;
++        float gain = lastGain;
++        int index = 0;
++        for (int frame = 0; frame < frames; frame++) {
++            float peak = 0f;
++            for (int channel = 0; channel < channels; channel++) {
++                float sample = samples[index + channel];
++                float squared = sample * sample;
++                if (squared > peak) peak = squared;
++            }
++            smoothedPower = peak + rmsKeep * (smoothedPower - peak);
++            // Long digital silence would otherwise decay into slow denormals.
++            if (smoothedPower < 1e-20f) smoothedPower = 0f;
++            float levelDb = (float) (POWER_TO_DB * Math.log(smoothedPower + SILENCE));
++            float target = targetReductionDb(levelDb);
++            float keep = target < reduction ? attack : release;
++            reduction = target + keep * (reduction - target);
++            gain = PcmMath.dbToGain(reduction + makeupDb);
++            for (int channel = 0; channel < channels; channel++) {
++                samples[index + channel] = PcmMath.limit(samples[index + channel] * gain);
++            }
++            index += channels;
++        }
++        power = smoothedPower;
++        reductionDb = reduction;
++        lastGain = gain;
++    }
++}
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/PcmMath.java b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/PcmMath.java
+new file mode 100644
+index 0000000..fc761fe
+--- /dev/null
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/PcmMath.java
+@@ -0,0 +1,51 @@
++package com.brentvatne.exoplayer;
++
++/**
++ * Sample helpers shared by the night mode and dialogue boost processors.
++ * Plain Java, so the maths can be checked on a desktop JVM.
++ */
++public final class PcmMath {
++    private PcmMath() { }
++
++    /** Scale from 16-bit PCM to floats in [-1, 1). */
++    public static final float PCM16_TO_FLOAT = 1f / 32768f;
++
++    /** Level where the soft limiter starts to bend the signal (about -1 dBFS). */
++    public static final float LIMIT_KNEE = 0.89f;
++    /** The limiter never goes above this (about -0.04 dBFS), even with float rounding. */
++    public static final float LIMIT_CEILING = 0.995f;
++    private static final float LIMIT_RANGE = LIMIT_CEILING - LIMIT_KNEE;
++
++    /**
++     * Soft limiter: samples up to the knee pass unchanged, louder ones are
++     * bent smoothly towards the ceiling with a tanh curve. The slope is 1 at
++     * the knee, so there is no audible corner, and the result never passes
++     * the ceiling, so nothing clips however hard the input is driven.
++     */
++    public static float limit(float sample) {
++        float magnitude = sample < 0 ? -sample : sample;
++        if (magnitude <= LIMIT_KNEE) return sample;
++        if (magnitude != magnitude) return 0f; // NaN
++        float bent = LIMIT_KNEE + LIMIT_RANGE * (float) Math.tanh((magnitude - LIMIT_KNEE) / LIMIT_RANGE);
++        return sample < 0 ? -bent : bent;
++    }
++
++    /** Float sample to 16-bit PCM, rounded and kept in range. */
++    public static short toPcm16(float sample) {
++        int value = Math.round(sample * 32768f);
++        if (value > Short.MAX_VALUE) return Short.MAX_VALUE;
++        if (value < Short.MIN_VALUE) return Short.MIN_VALUE;
++        return (short) value;
++    }
++
++    /** Linear gain for a level in decibels. */
++    public static float dbToGain(float db) {
++        return (float) Math.exp(db * 0.11512925464970229); // ln(10) / 20
++    }
++
++    /** One-pole smoothing coefficient for a time constant in milliseconds. */
++    public static float timeCoefficient(float milliseconds, int sampleRate) {
++        if (milliseconds <= 0f || sampleRate <= 0) return 0f;
++        return (float) Math.exp(-1.0 / (milliseconds * 0.001 * sampleRate));
 +    }
 +}
