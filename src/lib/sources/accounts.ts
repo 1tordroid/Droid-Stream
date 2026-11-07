@@ -5,7 +5,7 @@
 import {SOURCE_SERVICE_NAMES} from './authErrors';
 import {ToastAndroid} from 'react-native';
 import {listEmby, listJellyfin, listPlex, resolvePlexPlayUrl, signInEmby, signInJellyfin, signInPlex, type LibraryItem} from './mediaServers';
-import {listSmbShare} from './smb';
+import {canStreamSmb, listSmbShare, openSmbStream, smbFileLink} from './smb';
 import {getInstallId, type SavedSource, type SourceKind} from './vault';
 import {listWebDav, webDavDownloadHeaders, type RemoteFile} from './webdav';
 
@@ -122,6 +122,9 @@ export const completeSourceForm = async (form: SourceForm, existing?: SavedSourc
  */
 export const PLEX_PART_PREFIX = 'plex-part:';
 
+/** Row playUrl of an SMB file: the path is opened as a loopback stream when played. */
+export const SMB_PATH_PREFIX = 'smb-path:';
+
 /** Lists one folder of a source. Throws SourceAuthError when the server rejects the saved sign-in. */
 export const listSourceRows = async (source: SavedSource, folder = ''): Promise<SourceRow[]> => {
   if (source.kind === 'webdav') {
@@ -130,7 +133,11 @@ export const listSourceRows = async (source: SavedSource, folder = ''): Promise<
   }
   if (source.kind === 'smb') {
     const files = await listSmbShare(source.server, source.share || '', folder, source.username, source.secret);
-    return files.map(file => ({id: `${folder}/${file.name}`, title: file.name, directory: file.directory}));
+    const streams = canStreamSmb();
+    return files.map(file => {
+      const id = `${folder}/${file.name}`;
+      return {id, title: file.name, directory: file.directory, playUrl: !file.directory && streams ? `${SMB_PATH_PREFIX}${id}` : undefined};
+    });
   }
   const toRow = (item: LibraryItem): SourceRow => ({id: item.id, title: item.title, directory: item.kind === 'folder', playUrl: item.playUrl});
   if (source.kind === 'plex') {
@@ -182,6 +189,16 @@ export const playSource = (
   url?: string,
 ): void | Promise<void> => {
   if (!url) return;
+  if (url.startsWith(SMB_PATH_PREFIX)) {
+    if (source.kind !== 'smb') return;
+    const path = url.slice(SMB_PATH_PREFIX.length);
+    return openSmbStream(source.server, source.share || '', path, source.username, source.secret).then(
+      streamUrl => openSourcePlayer(navigation, source, title, streamUrl, smbFileLink(source.server, source.share || '', path)),
+      (error: unknown) => {
+        ToastAndroid.show(error instanceof Error ? error.message : 'Could not open this SMB file.', ToastAndroid.SHORT);
+      },
+    );
+  }
   if (url.startsWith(PLEX_PART_PREFIX)) {
     if (source.kind !== 'plex') return;
     return resolvePlexPlayUrl(source.server, source.secret, url.slice(PLEX_PART_PREFIX.length)).then(
@@ -194,11 +211,12 @@ export const playSource = (
   openSourcePlayer(navigation, source, title, url);
 };
 
-const openSourcePlayer = (navigation: PlayerNavigation, source: SavedSource, title: string, url: string): void => {
+const openSourcePlayer = (navigation: PlayerNavigation, source: SavedSource, title: string, url: string, stableLink?: string): void => {
   const headers = playbackHeaders(source);
   // The player keys watch progress by the episode link, hands it to providers
-  // and logs it, so that link leaves the token out. The stream keeps it.
-  const link = source.kind === 'webdav' || source.kind === 'smb' ? url : withoutToken(url);
+  // and logs it, so that link leaves the token out. The stream keeps it. An
+  // SMB stream address changes on every open, so SMB passes the smb:// name.
+  const link = stableLink || (source.kind === 'webdav' ? url : withoutToken(url));
   navigation.navigate('Player', {
     linkIndex: 0,
     episodeList: [{title, link}],

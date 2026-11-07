@@ -156,14 +156,18 @@ allprojects {
   config = withAppBuildGradle(config, cfg => {
     let contents = cfg.modResults.contents;
 
-    // Add okhttp-dnsoverhttps if not present
+    // smbj 0.15.0 reuses connections and has a full SmbFileChannel. A project
+    // generated with an older smbj is moved up to it.
     if (!contents.includes('com.hierynomus:smbj')) {
       contents = contents.replace(
         /dependencies\s*\{/,
-        match => `${match}\n    implementation 'com.hierynomus:smbj:0.13.0'\n`,
+        match => `${match}\n    implementation 'com.hierynomus:smbj:0.15.0'\n`,
       );
+    } else {
+      contents = contents.replace(/com\.hierynomus:smbj:[0-9.]+/g, 'com.hierynomus:smbj:0.15.0');
     }
 
+    // Add okhttp-dnsoverhttps if not present
     if (!contents.includes('okhttp-dnsoverhttps')) {
       // Find the dependencies block
       contents = contents.replace(
