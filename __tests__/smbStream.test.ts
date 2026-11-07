@@ -66,3 +66,36 @@ describe('SMB streams', () => {
     expect(native.closeStream).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('SMB playback testing switch', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    (NativeModules as any).SmbModule = {
+      list: jest.fn(async () => [{name: 'Big.mkv', directory: false, size: 4.2e9}]),
+      openStream: jest.fn(async () => `http://127.0.0.1:41234/${TOKEN}/Big.mkv`),
+      closeStream: jest.fn(async () => null),
+    };
+  });
+
+  const source = {id: 's1', kind: 'smb', name: 'NAS', server: '192.168.1.5', username: 'me', secret: 'pw', share: 'Media'};
+
+  it('stays off for everyone and by default', async () => {
+    const smb = require('../src/lib/sources/smb');
+    expect(smb.SMB_STREAMING.enabled).toBe(false);
+    expect(smb.isSmbPlaybackTesting()).toBe(false);
+    expect(smb.canStreamSmb()).toBe(false);
+  });
+
+  it('lets this device play SMB files while the switch is on', async () => {
+    const smb = require('../src/lib/sources/smb');
+    const accounts = require('../src/lib/sources/accounts');
+    smb.setSmbPlaybackTesting(true);
+    expect(smb.canStreamSmb()).toBe(true);
+    const rows = await accounts.listSourceRows(source);
+    expect(rows[0].playUrl).toBe('smb-path:/Big.mkv');
+    await expect(smb.openSmbStream('h', 's', '/Big.mkv', 'u', 'p')).resolves.toContain('127.0.0.1');
+    smb.setSmbPlaybackTesting(false);
+    expect(smb.canStreamSmb()).toBe(false);
+    await expect(smb.openSmbStream('h', 's', '/Big.mkv', 'u', 'p')).rejects.toThrow(/browse/);
+  });
+});
