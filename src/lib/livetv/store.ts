@@ -33,6 +33,7 @@ const KEYS = {
   favourites: 'favourites',
   recent: 'recent',
   cache: (sourceId: string) => `cache:${sourceId}`,
+  epg: (sourceId: string) => `epgUrl:${sourceId}`,
 };
 
 const readJson = <T>(key: string, fallback: T): T => {
@@ -44,6 +45,11 @@ const readJson = <T>(key: string, fallback: T): T => {
   }
 };
 const writeJson = (key: string, value: unknown) => storage.setString(key, JSON.stringify(value));
+
+/** Small JSON values for the guide (cache metadata, Jio guide days). */
+export const readLiveJson = <T>(key: string): T | undefined => readJson<T | undefined>(key, undefined);
+export const writeLiveJson = (key: string, value: unknown) => writeJson(key, value);
+export const removeLiveJson = (key: string) => storage.removeItem(key);
 
 // ---- JioTV Go server ----
 
@@ -90,6 +96,20 @@ export const jioPlaylistUrl = (settings: JioServerSettings): string =>
 /** jiotv_go serves a gzipped XMLTV guide here once EPG is turned on in its config. */
 export const jioEpgUrl = (settings: JioServerSettings): string => `${settings.address}/epg.xml.gz`;
 
+// ---- Guide address ----
+
+/** The EPG address typed in for a source; it wins over the playlist's own url-tvg. */
+export const getEpgOverride = (sourceId: string): string | undefined => storage.getString(KEYS.epg(sourceId)) || undefined;
+export const setEpgOverride = (sourceId: string, url: string) => {
+  const clean = url.trim();
+  if (!clean) {
+    storage.removeItem(KEYS.epg(sourceId));
+    return;
+  }
+  if (!isPlaylistUrl(clean)) throw new Error('Enter an http or https guide address.');
+  storage.setString(KEYS.epg(sourceId), clean);
+};
+
 // ---- User playlists ----
 
 export const listPlaylists = (): UserPlaylist[] => readJson<UserPlaylist[]>(KEYS.playlists, []);
@@ -110,6 +130,7 @@ export const addPlaylist = (name: string, url: string): UserPlaylist => {
 export const removePlaylist = (id: string) => {
   writeJson(KEYS.playlists, listPlaylists().filter(item => item.id !== id));
   storage.removeItem(KEYS.cache(id));
+  storage.removeItem(KEYS.epg(id));
 };
 
 const hostOf = (url: string) => /^https?:\/\/([^/:?#]+)/i.exec(url)?.[1] || 'Playlist';

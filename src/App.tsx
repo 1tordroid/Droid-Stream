@@ -26,6 +26,7 @@ import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
 import SourceLibrary from './screens/library/SourceLibrary';
 import LiveTV from './screens/livetv/LiveTV';
+import LiveGuide from './screens/livetv/LiveGuide';
 import Torrents from './screens/torrents/Torrents';
 import TorrentDetails from './screens/torrents/TorrentDetails';
 import TorrentOptions from './screens/torrents/TorrentOptions';
@@ -125,6 +126,7 @@ export type HomeStackParamList = {
   };
   Webview: {link: string};
   LiveTV: undefined;
+  LiveGuide: {sourceId: string; group?: string};
 };
 
 export type RootStackParamList = {
@@ -162,6 +164,8 @@ export type RootStackParamList = {
     meta?: import('./lib/watchMeta').WatchMeta;
     /** A live TV channel: no watch progress or resume point is saved. */
     live?: boolean;
+    /** A Live TV catch-up replay: a fixed programme, so no "Go live". */
+    catchup?: boolean;
     /** A network library file: episode links are version keys, history stays in the netlib store. */
     netlib?: boolean;
   };
@@ -184,6 +188,7 @@ export type WatchListStackParamList = {
   DebridSettings: undefined;
   CloudFiles: undefined;
   LiveTV: undefined;
+  LiveGuide: {sourceId: string; group?: string};
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
@@ -414,6 +419,7 @@ function HomeStackScreen() {
       <HomeStack.Screen name="ScrollList" component={ScrollList} />
       <HomeStack.Screen name="Webview" component={WebView} />
       <HomeStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
+      <HomeStack.Screen name="LiveGuide" component={LiveGuide} options={subpageOptions} />
     </HomeStack.Navigator>
   );
 }
@@ -443,6 +449,7 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
       <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
       <WatchListStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
+      <WatchListStack.Screen name="LiveGuide" component={LiveGuide} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
       <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <WatchListStack.Screen name="SourceLibrary" component={SourceLibrary} options={subpageOptions} />
