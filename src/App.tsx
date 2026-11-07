@@ -17,6 +17,7 @@ import Player from './screens/home/Player';
 import {getInitialVideoIntent, subscribeVideoIntent, setVideoIntentsEnabled, supportsVideoIntents, videoIntentPlayerParams, type VideoIntentPayload} from './lib/services/videoIntent';
 import Settings from './screens/settings/Settings';
 import Library from './screens/Library';
+import {startSeriesDownloads} from './lib/seriesDownloads/runner';
 import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
@@ -680,6 +681,9 @@ const App = () => {
   useEffect(() => {
     startYtdlScheduler();
   }, []);
+
+  // Series downloads that keep the next episodes ready.
+  useEffect(() => startSeriesDownloads(), []);
 
   // Magnets and links opened from other apps, and copied magnets.
   useEffect(

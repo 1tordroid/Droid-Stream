@@ -42,6 +42,7 @@ import DownloadLocationDialog from './DownloadLocationDialog';
 import { useM3Colors } from '../theme/M3PaletteContext';
 import { LEGACY_TERTIARY_BACKGROUND } from '../theme/seeds';
 import { showAppDialog } from '../lib/zustand/appDialogStore';
+import { choiceFromStream, rememberSourceChoice } from '../lib/seriesDownloads/sourceChoice';
 
 const DOWNLOAD_PROGRESS_SIZE = 42;
 const DOWNLOAD_PROGRESS_RADIUS = 18;
@@ -392,6 +393,10 @@ const DownloadComponent = ({
             ? skip
             : undefined;
 
+    // Season downloads start with the server picked here selected.
+    if (mediaType === 'series' && infoUrl) {
+      rememberSourceChoice(infoUrl, choiceFromStream(server, providerValue || provider.value));
+    }
     await startDownloadWithLocation({
       downloadId,
       title: title,

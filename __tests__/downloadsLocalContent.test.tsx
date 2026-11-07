@@ -69,6 +69,7 @@ jest.mock(
   '../src/screens/settings/components/MissingDownloadsSection',
   () => () => null,
 );
+jest.mock('../src/screens/downloads/components/SeriesDownloadsSection', () => () => null);
 jest.mock('../src/screens/downloads/utils/deleteDownloadGroups', () => ({
   deleteDownloadedMediaGroups: jest.fn(),
 }));
