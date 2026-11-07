@@ -20,6 +20,9 @@ const getSourceType = (url: string, fileType: string): DownloadSourceType => {
   if (fileType === 'm3u8') {
     return 'hls';
   }
+  if (/^ed2k:\/\//i.test(url)) {
+    return 'ed2k';
+  }
   return 'http';
 };
 
