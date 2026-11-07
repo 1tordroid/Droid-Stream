@@ -37,6 +37,13 @@ Built and being tested:
 - Both work on decoded audio. When sound goes encoded to a receiver,
   the menu says so. VLC has night mode (it restarts at the same time);
   dialogue boost is in the built-in player only.
+- DTS and TrueHD play again in the built-in player on phones and TVs
+  that can't decode them. The app decodes them (also E-AC3, AC3, FLAC
+  and others when the device has no decoder), with an LGPL build of
+  FFmpeg. The audio menu shows these tracks as "DTS · software", and
+  night mode, dialogue boost and volume boost work on them. Sound that
+  the device or a receiver can play still goes there. Turn it off in
+  Player settings > Extra audio formats (DTS, TrueHD).
 
 ## 5.6.1
 

@@ -127,6 +127,7 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'Chaquopy', note: 'Builds Python into the app.', license: 'MIT', links: [gh('chaquo/chaquopy'), web('https://chaquo.com/chaquopy/')]},
       {name: 'FFmpeg', note: 'Merges and converts downloaded video and audio.', license: 'LGPL-3.0', links: [web('https://ffmpeg.org')]},
       {name: 'FFmpegKit', note: 'Runs FFmpeg inside the app. The app uses the community-maintained build.', license: 'LGPL-3.0', links: [gh('ffmpegkit-maintained/ffmpeg'), {label: 'Repository', url: 'https://github.com/arthenica/ffmpeg-kit'}]},
+      {name: 'Media3 FFmpeg decoder (decoder_ffmpeg)', note: "Extra audio formats: plays DTS, TrueHD and other sound the device can't decode in the built-in player, with FFmpeg.", license: 'Apache-2.0', links: [gh('androidx/media')]},
       {name: 'Jetpack JavaScript Engine (androidx.javascriptengine)', note: 'Runs the YouTube challenge solver in an isolated process.', license: 'Apache-2.0', links: [docs('https://developer.android.com/jetpack/androidx/releases/javascriptengine')]},
       {name: 'AndroidX WebKit', note: 'Passkey support in the browser.', license: 'Apache-2.0', links: [docs('https://developer.android.com/jetpack/androidx/releases/webkit')]},
       {name: 'MMKV by Tencent', note: 'Fast on-device storage for settings and data.', license: 'BSD-3-Clause', links: [gh('Tencent/MMKV')]},
@@ -222,6 +223,16 @@ export const CREDIT_SECTIONS: CreditSection[] = [
 
 const npm = (name: string): CreditLink => ({label: 'Repository', url: `https://github.com/${name}`});
 
+/** How the app's own FFmpeg (32-bit ARM, extra audio formats) is configured. */
+export const FFMPEG_DECODER_CONFIGURE =
+  '--target-os=android --enable-cross-compile --nm=llvm-nm --ar=llvm-ar --ranlib=llvm-ranlib --strip=llvm-strip ' +
+  '--host-cc=x86_64-linux-android28-clang --enable-pic --enable-shared --disable-static ' +
+  '--extra-ldflags=-Wl,-z,max-page-size=16384 --disable-autodetect --disable-iconv --disable-debug --disable-doc ' +
+  '--disable-programs --disable-everything --disable-avdevice --disable-avformat --disable-swscale --disable-avfilter ' +
+  '--disable-network --disable-v4l2-m2m --disable-vulkan --enable-avcodec --enable-swresample --enable-avutil ' +
+  '--enable-decoder=aac,ac3,alac,dca,eac3,flac,mlp,mp3,opus,truehd,vorbis --arch=arm --cpu=armv7-a ' +
+  '--cross-prefix=armv7a-linux-androideabi28- --cc=armv7a-linux-androideabi28-clang --extra-cflags=-mfpu=neon';
+
 /** Every third-party component in the app, with its licence. */
 export const LICENSE_SECTION: CreditSection = {
   id: 'licences',
@@ -256,6 +267,13 @@ export const LICENSE_SECTION: CreditSection = {
     {name: 'AndroidX WebKit', license: 'Apache-2.0', note: 'Passkey support in the browser.', links: [docs('https://developer.android.com/jetpack/androidx/releases/webkit')]},
     {name: 'AndroidX DocumentFile', license: 'Apache-2.0', note: 'Reads and writes folders you pick.', links: [docs('https://developer.android.com/jetpack/androidx/releases/documentfile')]},
     {name: 'AndroidX Media3', license: 'Apache-2.0', note: 'ExoPlayer playback, the player UI and video thumbnails.', links: [gh('androidx/media')]},
+    {name: 'Media3 FFmpeg decoder', license: 'Apache-2.0', note: 'decoder_ffmpeg from Media3 1.8.0, unmodified: the Java classes and the JNI code in libffmpegJNI.so, which links FFmpeg dynamically.', links: [{label: 'Repository', url: 'https://github.com/androidx/media/tree/1.8.0/libraries/decoder_ffmpeg'}]},
+    {
+      name: 'FFmpeg audio decoders',
+      license: 'LGPL-2.1-or-later',
+      note: `Extra audio formats in the built-in player. On 64-bit devices they are the FFmpeg 8.1.3 libraries of FFmpegKit (above). On 32-bit ARM the app ships FFmpeg 8.1.3, unmodified, as shared libraries (libavcodec, libswresample, libavutil) with only audio decoders and no GPL or non-free parts, configured with: ${FFMPEG_DECODER_CONFIGURE}. Build script: scripts/build-ffmpeg-decoder.sh. For three years from each release we send this exact source on request; open an issue on github.com/1tordroid/Droid-Stream.`,
+      links: [web('https://ffmpeg.org'), {label: 'Releases', url: 'https://ffmpeg.org/releases/ffmpeg-8.1.3.tar.xz'}, {label: 'Licence', url: 'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html'}],
+    },
     {name: 'usque', license: 'MIT', note: 'Cloudflare WARP client, built from source and run as its own process.', links: [gh('Diniboy1123/usque')]},
     {name: 'ByeDPI', license: 'MIT', note: 'Built from source and run as its own process.', links: [gh('hufrea/byedpi')]},
     {name: 'MMKV', license: 'BSD-3-Clause', note: 'On-device storage by Tencent. Its license file lists the third-party parts it includes.', links: [gh('Tencent/MMKV')]},

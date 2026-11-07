@@ -28,7 +28,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Play best filters: largest file, lowest and highest quality, prefer or avoid HEVC and AV1.
 - 📋 Chapters in the player.
 - 📋 Night mode and dialogue boost for quiet speech and loud effects.
-- 📋 DTS and TrueHD audio in the built-in player.
+- 🧪 DTS and TrueHD audio in the built-in player.
 - 📋 Dolby Vision profile 7 to 8.1 conversion.
 
 ## Player
