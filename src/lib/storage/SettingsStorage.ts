@@ -114,6 +114,13 @@ export enum SettingsKeys {
   BYEDPI_ENABLED = 'byedpiEnabled',
   BYEDPI_CMD_ARGS = 'byedpiCmdArgs',
 
+  // Smart unblock
+  UNBLOCK_MODE = 'unblockMode',
+  UNBLOCK_WARP_CONSENT = 'unblockWarpConsent',
+  UNBLOCK_NOTICE_SEEN = 'unblockNoticeSeen',
+  UNBLOCK_ROUTES = 'unblockRoutes',
+  TORRENT_VPN_TIP_SEEN = 'torrentVpnTipSeen',
+
   // Webview
   SKIP_IN_APP_WEBVIEW = 'skipInAppWebview',
 

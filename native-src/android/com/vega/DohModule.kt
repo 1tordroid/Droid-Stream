@@ -9,10 +9,63 @@ import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.ReactPackage
 import com.facebook.react.uimanager.ViewManager
 import com.facebook.react.modules.network.OkHttpClientProvider
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class DohModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
+    init {
+        // Smart unblock tells JS which hosts it routed, for the toast and the saved list.
+        SmartUnblock.emitter = { event, host, route, learned ->
+            try {
+                val payload = com.facebook.react.bridge.Arguments.createMap().apply {
+                    putString("host", host)
+                    route?.let { putString("route", it.key) }
+                    putBoolean("learned", learned)
+                }
+                reactApplicationContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    .emit(if (event == "forget") "SmartUnblockForget" else "SmartUnblockRouted", payload)
+            } catch (_: Exception) {
+                // JS is not running; the route is still used for this session.
+            }
+        }
+    }
+
     override fun getName(): String = "DohModule"
+
+    /** Mode, host lists, block patterns and remembered routes for Smart unblock, as JSON. */
+    @ReactMethod
+    fun configureUnblock(json: String, promise: Promise) {
+        try {
+            SmartUnblock.configure(json)
+            promise.resolve(SmartUnblock.mode)
+        } catch (e: Exception) {
+            promise.reject("UNBLOCK_CONFIG", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun forgetUnblockHost(host: String, promise: Promise) {
+        SmartUnblock.forget(host)
+        promise.resolve(true)
+    }
+
+    @ReactMethod
+    fun getUnblockStatus(promise: Promise) {
+        val factory = getFactory()
+        promise.resolve(com.facebook.react.bridge.Arguments.createMap().apply {
+            putString("mode", SmartUnblock.mode)
+            putBoolean("byeDpiRunning", factory?.byeDpiProxyPort != null)
+            putBoolean("warpRunning", factory?.warpProxyPort != null)
+        })
+    }
+
+    // Required by NativeEventEmitter on the JS side.
+    @ReactMethod
+    fun addListener(eventName: String) {}
+
+    @ReactMethod
+    fun removeListeners(count: Int) {}
 
     private fun getFactory(): DohOkHttpFactory? {
         return DohOkHttpFactory.instance

@@ -101,8 +101,8 @@ import WafWebViewDialog from './components/WafWebViewDialog';
 import VerificationConsentDialog from './components/VerificationConsentDialog';
 import ProviderSandboxHost from './components/ProviderSandboxHost';
 import {syncDohSettings} from './lib/services/dohService';
-import {syncWarpSettings} from './lib/services/warpService';
-import {syncByeDpiSettings} from './lib/services/byeDpiService';
+import {startUnblockEvents, syncUnblock} from './lib/unblock/unblockService';
+import TorrentVpnTip from './components/unblock/TorrentVpnTip';
 import {
   getInitialSourceIntent,
   setPendingSourceToken,
@@ -306,6 +306,14 @@ export const openDownloadsScreen = (): void => {
   navigationRef.navigate('TabStack', {
     screen: 'SettingsStack',
     params: {screen: 'DownloadsStack'},
+  });
+};
+
+const openTorrentVpnSetting = (): void => {
+  if (!navigationRef.isReady()) return;
+  (navigationRef.navigate as (...args: unknown[]) => void)('TabStack', {
+    screen: 'TorrentsStack',
+    params: {screen: 'TorrentOptions', params: {highlight: 'torrent-vpn'}},
   });
 };
 
@@ -795,17 +803,15 @@ const App = () => {
     };
   }, []);
 
-  // Initialize DNS over HTTPS, Cloudflare WARP & ByeDPI
+  // Initialize DNS over HTTPS and Smart unblock (ByeDPI and Cloudflare WARP)
   useEffect(() => {
     syncDohSettings().catch(e =>
       console.warn('[DoH] Failed to sync settings:', e),
     );
-    syncWarpSettings().catch(e =>
-      console.warn('[WARP] Failed to sync settings:', e),
+    syncUnblock().catch(e =>
+      console.warn('[Unblock] Failed to sync settings:', e),
     );
-    syncByeDpiSettings().catch(e =>
-      console.warn('[ByeDPI] Failed to sync settings:', e),
-    );
+    return startUnblockEvents();
   }, []);
 
   useEffect(() => {
@@ -885,6 +891,7 @@ const App = () => {
               <WafWebViewDialog />
               <RemoteVolumeToast />
               <FirstRunTips />
+              <TorrentVpnTip onOpenSetting={openTorrentVpnSetting} />
               <ProfileGate onManage={openProfilesScreen} />
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched

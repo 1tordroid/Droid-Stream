@@ -37,6 +37,9 @@ Not released yet. Built and being tested:
   themselves.
 - Advanced downloads (off by default): eD2k links and search, and
   GitHub and HuggingFace mirrors you add yourself.
+- Smart unblock, on by default: sites your provider blocks open
+  through ByeDPI or Cloudflare WARP, only for those sites, and debrid
+  stays direct. Always ByeDPI, Always WARP and Off are still there.
 - Update download notifications no longer vibrate every second.
 
 Being built:
