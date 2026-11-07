@@ -2,6 +2,8 @@
 import React from 'react';
 import renderer, {act} from 'react-test-renderer';
 
+// The remote control sections pull in notifications; this test only covers the Testing section.
+jest.mock('../src/screens/settings/RemoteAccessSections', () => ({RemoteControlSection: () => null, CommandAccessSection: () => null, BrowserLikeSection: () => null}));
 jest.mock('../src/components/ui/Button', () => 'Button');
 jest.mock('../src/components/ui/IconButton', () => 'IconButton');
 jest.mock('../src/components/ui/SettingsPage', () => ({children}: any) => children);
