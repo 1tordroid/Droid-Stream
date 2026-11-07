@@ -108,3 +108,15 @@ export const DESKTOP_USER_AGENT =
  */
 export const MOBILE_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36';
+
+/**
+ * The title (and so the folder) a browser download is grouped under. A real
+ * page or video title is kept; an address such as "site.com/a/b.html" becomes
+ * the site name, so files from one site land in one tidy folder.
+ */
+export const downloadTitle = (title: string | undefined, pageUrl: string, fallback: string): string => {
+  const clean = title?.trim() || '';
+  const looksLikeAddress = /^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(clean);
+  if (clean && !looksLikeAddress) return clean;
+  return hostOf(pageUrl).replace(/^www\./, '') || clean || fallback;
+};

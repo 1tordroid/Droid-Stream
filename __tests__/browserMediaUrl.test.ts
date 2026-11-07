@@ -89,3 +89,15 @@ describe('address bar', () => {
     expect(isWebUrl('https://a.com')).toBe(true);
   });
 });
+
+describe('downloadTitle', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const {downloadTitle} = require('../src/lib/browser/url');
+  test('keeps a real title', () => {
+    expect(downloadTitle('Big Buck Bunny', 'https://www.w3schools.com/html/html5_video.asp', 'mov_bbb')).toBe('Big Buck Bunny');
+  });
+  test('turns an address into the site name', () => {
+    expect(downloadTitle('w3schools.com/html/html5_video.asp', 'https://www.w3schools.com/html/html5_video.asp', 'mov_bbb')).toBe('w3schools.com');
+    expect(downloadTitle(undefined, 'https://www.w3schools.com/x', 'mov_bbb')).toBe('w3schools.com');
+  });
+});

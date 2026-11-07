@@ -10,7 +10,7 @@ import useDownloadsStore from '../zustand/downloadsStore';
 import {browserEngine} from './engine';
 import {isSocialPostUrl} from '../social/urls';
 import {classifyMedia, fileNameOf, type MediaItem} from './media';
-import {hostOf} from './url';
+import {downloadTitle, hostOf} from './url';
 
 /**
  * Where the browser sends what it found: the download manager (with the
@@ -63,7 +63,7 @@ export const downloadFile = async (
   const base = name.replace(/\.[^.]+$/, '') || hostOf(context.pageUrl) || 'download';
   await downloadManager({
     downloadId: `browser-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    title: input.title?.trim() || base,
+    title: downloadTitle(input.title, context.pageUrl, base),
     mediaType: 'movie',
     url: input.url,
     fileName: base,
