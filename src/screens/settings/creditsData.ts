@@ -182,7 +182,7 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'PikPak', note: 'Cloud downloads with your own account. It also gave ideas for browser download detection.', links: [web('https://mypikpak.com')]},
       {name: 'Cloudflare WARP', note: "WARP mode connects to Cloudflare's WARP network through usque.", links: [web('https://one.one.one.one')]},
       {name: 'Google Cast', note: 'Casting to Chromecast and Google TV devices.', links: [docs('https://developers.google.com/cast')]},
-      {name: 'iptv-org', note: 'Public list of free-to-air channels behind the Free Indian channels source in Live TV.', links: [gh('iptv-org/iptv'), web('https://iptv-org.github.io')]},
+      {name: 'iptv-org', note: 'Public lists of free-to-air channels behind Free Indian channels and the World channels for other countries in Live TV.', links: [gh('iptv-org/iptv'), web('https://iptv-org.github.io')]},
       {name: 'EasyList', note: "Filter list by the EasyList authors, downloaded by the browser's ad blocker.", links: [web('https://easylist.to'), gh('easylist/easylist')]},
       {name: 'EasyPrivacy', note: "Filter list by the EasyList authors, downloaded by the browser's tracker blocker.", links: [web('https://easylist.to')]},
       {name: 'IndianList', note: "Filter list for Indian sites by its maintainers, downloaded by the browser's ad blocker.", links: [gh('mediumkreation/IndianList')]},

@@ -60,6 +60,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Programme reminders.
 - ✅ Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
 - ✅ Record live channels and programmes.
+- 🧪 World: free channels for any country from iptv-org. Starts on your country (from the SIM, network or language settings, never online), and you can change it.
 - 📋 Watch 2 to 4 channels at once.
 
 ## Torrents

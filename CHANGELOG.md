@@ -53,6 +53,10 @@ Built and being tested:
 - On a phone, Go live plays again even after you paused.
 - Try SMB playback (testing): a switch in Advanced downloads, off by
   default, to test playing files from SMB shares.
+- Live TV World: free channels for any country, listed by iptv-org.
+  Live TV starts on your country, found on the device from the SIM,
+  network or language settings, and Change country picks another.
+  Free Indian channels and JioTV stay as they were.
 
 ## 5.6.0
 

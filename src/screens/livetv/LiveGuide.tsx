@@ -63,6 +63,7 @@ import {
   setChannelFilters,
   setEpgOverride,
 } from '../../lib/livetv/store';
+import {findSource} from '../../lib/livetv/world';
 import {normalizeChannelName} from '../../lib/livetv/xmltv';
 import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
@@ -333,10 +334,10 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   // Favourites and Recent mix sources: each channel uses its own source's guide.
   const mixed = isMixedGuide(sourceId);
   const sources = useMemo(() => listSources(), []);
-  const source = useMemo(() => sources.find(item => item.id === sourceId), [sources, sourceId]);
+  const source = useMemo(() => findSource(sourceId), [sourceId]);
   const sourceName = mixed ? (sourceId === 'favourites' ? 'Favourites' : 'Recent') : isJio ? 'JioTV' : source?.name || 'Live TV';
   const nameOfSource = useCallback(
-    (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : sources.find(item => item.id === id)?.name || 'Live TV'),
+    (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : findSource(id)?.name || sources.find(item => item.id === id)?.name || 'Live TV'),
     [sources],
   );
   // A kids profile keeps only kids, animation and cartoon groups.
