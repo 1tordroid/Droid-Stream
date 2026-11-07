@@ -122,6 +122,7 @@ import {
   type SkipSegment,
 } from '../../lib/playback/skipSegmentModel';
 import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
+import {frameRateMatchingNativeValue, getFrameRateMatching} from '../../lib/player/frameRate';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
 import {useScrobble} from '../../lib/hooks/useScrobble';
@@ -803,6 +804,17 @@ const Player = ({route}: Props): React.JSX.Element => {
     return () => listener.remove();
   }, []);
   useEffect(() => { manualDecoderModeRef.current = null; }, [selectedStream?.link]);
+  // Read when the player opens, like the other playback settings.
+  const [frameRateMatching] = useState(() => frameRateMatchingNativeValue(getFrameRateMatching()));
+  useEffect(() => {
+    const listener = DeviceEventEmitter.addListener('VegaFrameRateMatch', (event: {viewTags?: number[]; refreshRate?: number}) => {
+      const tag = getNodeHandle(nativeVideoViewRef.current);
+      if (tag && event.viewTags?.includes(tag) && event.refreshRate) {
+        setToast(`Display set to ${Number(event.refreshRate.toFixed(3))} Hz`, 2000);
+      }
+    });
+    return () => listener.remove();
+  }, [setToast]);
   useEffect(() => {
     const listener = DeviceEventEmitter.addListener('VegaVideoDecoderFallback', (event: {viewTags?: number[]}) => {
       const tag = getNodeHandle(nativeVideoViewRef.current);
@@ -3088,6 +3100,7 @@ const Player = ({route}: Props): React.JSX.Element => {
             nightMode: nightModeNativeValue(nightMode),
             dialogueBoost: dialogueBoostNativeValue(dialogueBoost),
             extraAudioFormats,
+            frameRateMatching,
           }
         : {}),
       subtitleStyle,
@@ -3150,6 +3163,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       activeEpisode?.title,
       handleProgressWithTime,
       combinedSkips,
+      frameRateMatching,
       handleVideoLoadCallback,
       playbackRate,
       subtitleDelayMs,

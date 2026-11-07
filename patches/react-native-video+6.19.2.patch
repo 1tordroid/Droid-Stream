@@ -2313,7 +2313,23 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          createViews();
  
-@@ -562,8 +644,19 @@
+@@ -367,6 +449,7 @@
+     @Override
+     protected void onDetachedFromWindow() {
+         cleanupPlaybackService();
++        restoreDisplayMode();
+         super.onDetachedFromWindow();
+     }
+ 
+@@ -399,6 +482,7 @@
+     public void cleanUpResources() {
+         stopPlayback();
+         themedReactContext.removeLifecycleEventListener(this);
++        restoreDisplayMode();
+         releasePlayer();
+         viewHasDropped = true;
+     }
+@@ -562,8 +646,19 @@
      }
  
      private class RNVLoadControl extends DefaultLoadControl {
@@ -2333,7 +2349,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          public RNVLoadControl(DefaultAllocator allocator, BufferConfig config) {
              super(allocator,
                      config.getMinBufferMs() != BufferConfig.Companion.getBufferConfigPropUnsetInt()
-@@ -583,17 +676,92 @@
+@@ -583,17 +678,92 @@
                      config.getBackBufferDurationMs() != BufferConfig.Companion.getBufferConfigPropUnsetInt()
                              ? config.getBackBufferDurationMs()
                              : DefaultLoadControl.DEFAULT_BACK_BUFFER_DURATION_MS,
@@ -2370,13 +2386,13 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +            int loadedBytes = getAllocator().getTotalBytesAllocated();
 +            long bufferedUs = lastForwardUs + Math.min(lastBackUs, lastPositionUs);
 +            return loadedBytes > 0 && bufferedUs > 0 ? (double) loadedBytes / bufferedUs : 0;
-+        }
-+
+         }
+ 
 +        // Back buffer size the budget leaves room for (the heap cap can be below forward + back).
 +        private long backBudgetBytes() {
 +            return Math.max(0, Math.min(backBufferBytes, availableHeapInBytes - Math.min(forwardBufferBytes, availableHeapInBytes)));
-         }
- 
++        }
++
 +        // True when the back buffer has a size cap, enforced by SizeLimitedBackBufferSource.
 +        boolean limitsBackBufferBySize() {
 +            return forwardBufferBytes > 0 && backBufferBytes > 0 && getBackBufferDurationUs(null) > 0;
@@ -2429,7 +2445,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              if (bufferingStrategy == BufferingStrategy.BufferingStrategyEnum.DisableBuffering) {
                  return false;
              } else if (bufferingStrategy == BufferingStrategy.BufferingStrategyEnum.DependingOnMemory) {
-@@ -601,7 +769,9 @@
+@@ -601,7 +771,9 @@
                  // when available memory on device become low.
                  int loadedBytes = getAllocator().getTotalBytesAllocated();
                  boolean isHeapReached = availableHeapInBytes > 0 && loadedBytes >= availableHeapInBytes;
@@ -2440,7 +2456,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      return false;
                  }
                  long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-@@ -609,7 +779,7 @@
+@@ -609,7 +781,7 @@
                  double minBufferMemoryReservePercent = source.getBufferConfig().getMinBufferMemoryReservePercent() != BufferConfig.Companion.getBufferConfigPropUnsetDouble()
                          ? source.getBufferConfig().getMinBufferMemoryReservePercent()
                          : ReactExoplayerView.DEFAULT_MIN_BUFFER_MEMORY_RESERVE;
@@ -2449,7 +2465,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  long bufferedMs = bufferedDurationUs / (long) 1000;
                  if (reserveMemory > freeMemory && bufferedMs > 2000) {
                      // We don't have enough memory in reserve so we stop buffering to allow other components to use it instead
-@@ -622,7 +792,128 @@
+@@ -622,7 +794,128 @@
                  }
              }
              // "default" case or normal case for "DependingOnMemory"
@@ -2579,7 +2595,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
      }
  
-@@ -715,11 +1006,12 @@
+@@ -715,11 +1008,12 @@
      private void initializePlayerCore(ReactExoplayerView self) {
          ExoTrackSelection.Factory videoTrackSelectionFactory = new AdaptiveTrackSelection.Factory();
          self.trackSelector = new DefaultTrackSelector(getContext(), videoTrackSelectionFactory);
@@ -2593,7 +2609,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  allocator,
                  source.getBufferConfig()
          );
-@@ -730,11 +1022,37 @@
+@@ -730,11 +1024,37 @@
              this.bandwidthMeter = config.getBandwidthMeter();
          }
  
@@ -2633,7 +2649,11 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          DefaultMediaSourceFactory mediaSourceFactory;
          
-@@ -759,7 +1077,20 @@
+@@ -756,10 +1076,29 @@
+                 .setLoadControl(loadControl)
+                 .setMediaSourceFactory(mediaSourceFactory)
+                 .build();
++        applyFrameRateStrategy();
          ReactNativeVideoManager.Companion.getInstance().onInstanceCreated(instanceId, player);
          refreshDebugState();
          player.addListener(self);
@@ -2650,12 +2670,17 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +                }
 +                android.util.Log.d("VegaDecoder", (activeVideoDecoderSoftware ? "SW " : "HW ") + decoderName);
 +            }
++
++            @Override
++            public void onVideoInputFormatChanged(EventTime eventTime, Format format, @Nullable androidx.media3.exoplayer.DecoderReuseEvaluation decoderReuseEvaluation) {
++                matchDisplayToFrameRate(format.frameRate);
++            }
 +        });
 +        applyAudioVolume();
          exoPlayerView.setPlayer(player);
  
          audioBecomingNoisyReceiver.setListener(self);
-@@ -877,6 +1208,10 @@
+@@ -877,6 +1216,10 @@
              }
          }
  
@@ -2666,7 +2691,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          boolean haveResumePosition = resumeWindow != C.INDEX_UNSET;
          if (haveResumePosition) {
              player.seekTo(resumeWindow, resumePosition);
-@@ -969,10 +1304,19 @@
+@@ -969,10 +1312,19 @@
          Intent intent = new Intent(themedReactContext, VideoPlaybackService.class);
          intent.setAction(MediaSessionService.SERVICE_INTERFACE);
  
@@ -2690,7 +2715,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
  
          int flags;
-@@ -1088,7 +1432,8 @@
+@@ -1088,7 +1440,8 @@
  
                  mediaSourceFactory = new HlsMediaSource.Factory(
                          dataSourceFactory
@@ -2700,7 +2725,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  break;
              case CONTENT_TYPE_OTHER:
                  if ("asset".equals(uri.getScheme())) {
-@@ -1100,12 +1445,18 @@
+@@ -1100,12 +1453,18 @@
                      }
                  } else if ("file".equals(uri.getScheme()) ||
                          !useCache) {
@@ -2721,7 +2746,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      );
  
                  }
-@@ -1144,12 +1495,63 @@
+@@ -1144,12 +1503,63 @@
                  ? overridenMediaItemBuilder.build()
                  : mediaItemBuilder.build();
  
@@ -2786,7 +2811,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
          if (cropStartMs >= 0 && cropEndMs >= 0) {
              return new ClippingMediaSource(mediaSource, cropStartMs * 1000, cropEndMs * 1000);
-@@ -1162,6 +1564,109 @@
+@@ -1162,6 +1572,109 @@
          return mediaSource;
      }
  
@@ -2896,7 +2921,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      @Nullable
      private List<MediaItem.SubtitleConfiguration> buildSubtitleConfigurations() {
          if (source.getSideLoadedTextTracks() == null || source.getSideLoadedTextTracks().getTracks().isEmpty()) {
-@@ -1183,9 +1688,23 @@
+@@ -1183,9 +1696,23 @@
                      }
                  }
                  
@@ -2921,7 +2946,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          .setLabel(label)
                          .setRoleFlags(C.ROLE_FLAG_SUBTITLE);
                  
-@@ -1219,6 +1738,7 @@
+@@ -1219,6 +1746,7 @@
      }
  
      private void releasePlayer() {
@@ -2929,7 +2954,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (player != null) {
              if(playbackServiceBinder != null) {
                  playbackServiceBinder.getService().unregisterPlayer(player);
-@@ -1298,14 +1818,14 @@
+@@ -1298,14 +1826,14 @@
                      // Lower the volume
                      if (!view.muted) {
                          activity.runOnUiThread(() ->
@@ -2946,7 +2971,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          );
                      }
                  }
-@@ -1545,18 +2065,18 @@
+@@ -1545,18 +2073,18 @@
          }
  
          MappingTrackSelector.MappedTrackInfo info = trackSelector.getCurrentMappedTrackInfo();
@@ -2969,7 +2994,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              
              // Check if this specific group is the currently selected one
              boolean isSelected = false;
-@@ -1567,6 +2087,7 @@
+@@ -1567,6 +2095,7 @@
              Track audioTrack = exoplayerTrackToGenericTrack(format, groupIndex, selection, group);
              audioTrack.setBitrate(format.bitrate == Format.NO_VALUE ? 0 : format.bitrate);
              audioTrack.setSelected(isSelected);
@@ -2977,7 +3002,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              audioTracks.add(audioTrack);
          }
          
-@@ -1586,7 +2107,17 @@
+@@ -1586,7 +2115,17 @@
      }
  
      private ArrayList<VideoTrack> getVideoTrackInfo() {
@@ -2996,7 +3021,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (trackSelector == null) {
              // Likely player is unmounting so no video tracks are available anymore
              return videoTracks;
-@@ -1612,6 +2143,72 @@
+@@ -1612,6 +2151,72 @@
          return videoTracks;
      }
  
@@ -3069,7 +3094,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      private ArrayList<VideoTrack> getVideoTrackInfoFromManifest() {
          return this.getVideoTrackInfoFromManifest(0);
      }
-@@ -1703,7 +2300,7 @@
+@@ -1703,7 +2308,7 @@
          }
          
          TrackSelectionArray selectionArray = player.getCurrentTrackSelections();
@@ -3078,7 +3103,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          TrackGroupArray groups = info.getTrackGroups(index);
  
          for (int groupIndex = 0; groupIndex < groups.length; ++groupIndex) {
-@@ -1738,12 +2335,12 @@
+@@ -1738,12 +2343,12 @@
          }
  
          MappingTrackSelector.MappedTrackInfo info = trackSelector.getCurrentMappedTrackInfo();
@@ -3094,7 +3119,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          
          for (int groupIndex = 0; groupIndex < groups.length; ++groupIndex) {
              TrackGroup group = groups.get(groupIndex);
-@@ -1757,6 +2354,7 @@
+@@ -1757,6 +2362,7 @@
              track.setSelected(false); // Don't report selection status - let PlayerView handle it
              if (format.sampleMimeType != null) track.setMimeType(format.sampleMimeType);
              track.setBitrate(format.bitrate == Format.NO_VALUE ? 0 : format.bitrate);
@@ -3102,7 +3127,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              
              tracks.add(track);
          }
-@@ -1861,6 +2459,9 @@
+@@ -1861,6 +2467,9 @@
  
      @Override
      public void onTracksChanged(@NonNull Tracks tracks) {
@@ -3112,7 +3137,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          DebugLog.d(TAG, "onTracksChanged called - updating track information, controls=" + controls);
          
          if (controls) {
-@@ -1890,6 +2491,13 @@
+@@ -1890,6 +2499,13 @@
          updateSubtitleButtonVisibility();
      }
  
@@ -3126,7 +3151,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      
      private boolean hasBuiltInTextTracks() {
          if (player == null || trackSelector == null) return false;
-@@ -1950,10 +2558,71 @@
+@@ -1950,10 +2566,71 @@
          }
      }
  
@@ -3198,7 +3223,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          switch(e.errorCode) {
              case PlaybackException.ERROR_CODE_DRM_DEVICE_REVOKED:
              case PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED:
-@@ -2031,6 +2700,9 @@
+@@ -2031,6 +2708,9 @@
      }
  
      public void onCues(CueGroup cueGroup) {
@@ -3208,7 +3233,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (!cueGroup.cues.isEmpty() && cueGroup.cues.get(0).text != null) {
              String subtitleText = cueGroup.cues.get(0).text.toString();
              eventEmitter.onTextTrackDataChanged.invoke(subtitleText);
-@@ -2061,6 +2733,9 @@
+@@ -2061,6 +2741,9 @@
              }
  
              if (!isSourceEqual) {
@@ -3218,7 +3243,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                  hasVideoEnded = false;
                  playerNeedsSource = true;
                  initializePlayer();
-@@ -2147,6 +2822,12 @@
+@@ -2147,6 +2830,12 @@
                      TrackGroupArray groups = info.getTrackGroups(textRendererIndex);
                      boolean trackFound = false;
                      
@@ -3231,7 +3256,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                      for (int groupIndex = 0; groupIndex < groups.length; groupIndex++) {
                          TrackGroup group = groups.get(groupIndex);
                          for (int trackIndex = 0; trackIndex < group.length; trackIndex++) {
-@@ -2159,18 +2840,21 @@
+@@ -2159,18 +2848,21 @@
                                  isMatch = true;
                              } else if ("index".equals(type)) {
                                  int targetIndex = ReactBridgeUtils.safeParseInt(value, -1);
@@ -3254,7 +3279,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
                          }
                          if (trackFound) break;
                      }
-@@ -2178,13 +2862,17 @@
+@@ -2178,13 +2870,17 @@
                      if (!trackFound) {
                          DebugLog.w(TAG, "Text track not found for type=" + type + ", value=" + value + 
                              ". Keeping current selection.");
@@ -3273,7 +3298,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              
              // Give PlayerView time to update its controls
              mainHandler.postDelayed(() -> {
-@@ -2197,6 +2885,101 @@
+@@ -2197,6 +2893,101 @@
          }
      }
  
@@ -3375,7 +3400,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      public void setSelectedTrack(int trackType, String type, String value) {
          if (player == null || trackSelector == null) return;
  
-@@ -2209,12 +2992,22 @@
+@@ -2209,12 +3000,22 @@
              return;
          }
  
@@ -3399,7 +3424,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          int groupIndex = C.INDEX_UNSET;
          List<Integer> tracks = new ArrayList<>();
          tracks.add(0);
-@@ -2224,7 +3017,7 @@
+@@ -2224,7 +3025,7 @@
          }
  
          if ("disabled".equals(type)) {
@@ -3408,7 +3433,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              return;
          } else if ("language".equals(type)) {
              for (int i = 0; i < groups.length; ++i) {
-@@ -2317,6 +3110,14 @@
+@@ -2317,6 +3118,14 @@
              groupIndex = getGroupIndexForDefaultLocale(groups);
          }
  
@@ -3423,7 +3448,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          if (groupIndex == C.INDEX_UNSET && trackType == C.TRACK_TYPE_VIDEO && groups.length != 0) { // Video auto
              // Add all tracks as valid options for ABR to choose from
              TrackGroup group = groups.get(0);
-@@ -2349,7 +3150,7 @@
+@@ -2349,7 +3158,7 @@
          }
  
          if (groupIndex == C.INDEX_UNSET) {
@@ -3432,7 +3457,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
              return;
          }
  
-@@ -2359,9 +3160,11 @@
+@@ -2359,9 +3168,11 @@
              DefaultTrackSelector.Parameters.Builder selectionParameters = trackSelector.getParameters()
                      .buildUpon()
                      .setExceedAudioConstraintsIfNecessary(true)
@@ -3447,7 +3472,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
  
              // Clear existing overrides for this track type to avoid conflicts  
              // But be careful with audio tracks - don't clear unless explicitly selecting a different track
-@@ -2429,10 +3232,296 @@
+@@ -2429,10 +3240,296 @@
          return groupIndex;
      }
  
@@ -3745,7 +3770,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      }
  
      public void setSelectedAudioTrack(String type, String value) {
-@@ -2546,9 +3635,7 @@
+@@ -2546,9 +3643,7 @@
  
      public void setMutedModifier(boolean muted) {
          this.muted = muted;
@@ -3756,7 +3781,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
      }
  
      private void changeAudioOutput(AudioOutput output) {
-@@ -2577,9 +3664,14 @@
+@@ -2577,9 +3672,14 @@
      }
  
      public void setVolumeModifier(float volume) {
@@ -3773,7 +3798,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
          }
      }
  
-@@ -2589,6 +3681,77 @@
+@@ -2589,6 +3689,193 @@
          }
      }
  
@@ -3832,6 +3857,122 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +        playbackDelays.dialogueBoost = DialogueBoostMixer.clampLevel(level);
 +    }
 +
++    // Frame-rate matching: 0 off, 1 only when the display can switch seamlessly
++    // (Media3 asks the surface for the video rate, Android 11 and later), 2 always:
++    // the window asks for a display mode with a matching refresh rate, which may
++    // blank the screen for a moment. The mode the window had is restored when
++    // the player goes away.
++    private int frameRateMatching = 1;
++    private float matchedFrameRate = Format.NO_VALUE;
++    private boolean displayModeRequested = false;
++    private int originalDisplayModeId = 0;
++
++    public void setFrameRateMatching(int mode) {
++        int next = Math.max(0, Math.min(2, mode));
++        if (next == frameRateMatching) return;
++        frameRateMatching = next;
++        applyFrameRateStrategy();
++        if (next == 2 && player != null) {
++            Format format = player.getVideoFormat();
++            if (format != null) matchDisplayToFrameRate(format.frameRate);
++        }
++    }
++
++    private void applyFrameRateStrategy() {
++        if (player != null) {
++            player.setVideoChangeFrameRateStrategy(frameRateMatching == 1
++                    ? C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS
++                    : C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF);
++        }
++        if (frameRateMatching != 2) restoreDisplayMode();
++    }
++
++    /**
++     * The display mode with the current resolution whose refresh rate is a
++     * whole multiple of the frame rate: an exact match first (23.976 fps on
++     * 23.976 Hz), then a near one (23.976 fps on 24 Hz), the lowest multiple first.
++     */
++    @Nullable
++    private static android.view.Display.Mode findMatchingMode(android.view.Display display, float fps) {
++        android.view.Display.Mode current = display.getMode();
++        android.view.Display.Mode best = null;
++        double bestScore = Double.MAX_VALUE;
++        for (android.view.Display.Mode mode : display.getSupportedModes()) {
++            if (mode.getPhysicalWidth() != current.getPhysicalWidth()
++                    || mode.getPhysicalHeight() != current.getPhysicalHeight()) continue;
++            double ratio = mode.getRefreshRate() / fps;
++            long multiple = Math.round(ratio);
++            if (multiple < 1 || multiple > 8) continue;
++            double error = Math.abs(ratio - multiple) / multiple;
++            if (error > 0.0015) continue;
++            double score = (error > 0.0004 ? 100 : 0) + multiple;
++            if (score < bestScore) {
++                bestScore = score;
++                best = mode;
++            }
++        }
++        return best;
++    }
++
++    private void matchDisplayToFrameRate(float fps) {
++        if (frameRateMatching != 2 || fps <= 1 || Build.VERSION.SDK_INT < 23) return;
++        mainHandler.post(() -> {
++            if (frameRateMatching != 2 || Math.abs(fps - matchedFrameRate) < 0.01f) return;
++            Activity activity = themedReactContext.getCurrentActivity();
++            if (activity == null || activity.getWindow() == null) return;
++            try {
++                android.view.Display display = activity.getWindowManager().getDefaultDisplay();
++                android.view.Display.Mode best = findMatchingMode(display, fps);
++                matchedFrameRate = fps;
++                if (best == null) {
++                    DebugLog.d(TAG, "No display mode fits " + fps + " fps");
++                    return;
++                }
++                android.view.WindowManager.LayoutParams params = activity.getWindow().getAttributes();
++                if (!displayModeRequested) originalDisplayModeId = params.preferredDisplayModeId;
++                if (display.getMode().getModeId() != best.getModeId() || params.preferredDisplayModeId != best.getModeId()) {
++                    params.preferredDisplayModeId = best.getModeId();
++                    activity.getWindow().setAttributes(params);
++                    displayModeRequested = true;
++                    reportFrameRateMatch(fps, best.getRefreshRate());
++                }
++            } catch (RuntimeException error) {
++                DebugLog.w(TAG, "Display mode switch failed: " + error.getMessage());
++            }
++        });
++    }
++
++    private void restoreDisplayMode() {
++        matchedFrameRate = Format.NO_VALUE;
++        if (!displayModeRequested) return;
++        displayModeRequested = false;
++        final int restoreId = originalDisplayModeId;
++        Activity activity = themedReactContext.getCurrentActivity();
++        if (activity == null) return;
++        activity.runOnUiThread(() -> {
++            if (activity.getWindow() == null) return;
++            android.view.WindowManager.LayoutParams params = activity.getWindow().getAttributes();
++            params.preferredDisplayModeId = restoreId;
++            activity.getWindow().setAttributes(params);
++        });
++    }
++
++    private void reportFrameRateMatch(float frameRate, float refreshRate) {
++        if (!themedReactContext.hasActiveReactInstance()) return;
++        WritableMap event = Arguments.createMap();
++        com.facebook.react.bridge.WritableArray tags = Arguments.createArray();
++        View ancestor = this;
++        while (ancestor != null) {
++            tags.pushInt(ancestor.getId());
++            ancestor = ancestor.getParent() instanceof View ? (View) ancestor.getParent() : null;
++        }
++        event.putArray("viewTags", tags);
++        event.putDouble("frameRate", frameRate);
++        event.putDouble("refreshRate", refreshRate);
++        themedReactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
++                .emit("VegaFrameRateMatch", event);
++    }
++
 +    /** Tells JS whether the audio is passed through encoded, so the sound effects cannot apply. */
 +    private void reportAudioOutput() {
 +        WritableMap event = Arguments.createMap();
@@ -3854,7 +3995,7 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
 --- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
 +++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ReactExoplayerViewManager.kt
-@@ -41,6 +41,11 @@
+@@ -41,6 +41,12 @@
          private const val PROP_PROGRESS_UPDATE_INTERVAL = "progressUpdateInterval"
          private const val PROP_REPORT_BANDWIDTH = "reportBandwidth"
          private const val PROP_RATE = "rate"
@@ -3863,10 +4004,11 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +        private const val PROP_NIGHT_MODE = "nightMode"
 +        private const val PROP_DIALOGUE_BOOST = "dialogueBoost"
 +        private const val PROP_EXTRA_AUDIO_FORMATS = "extraAudioFormats"
++        private const val PROP_FRAME_RATE_MATCHING = "frameRateMatching"
          private const val PROP_MAXIMUM_BIT_RATE = "maxBitRate"
          private const val PROP_PLAY_IN_BACKGROUND = "playInBackground"
          private const val PROP_DISABLE_FOCUS = "disableFocus"
-@@ -180,11 +185,41 @@
+@@ -180,11 +186,46 @@
          videoView.setReportBandwidth(reportBandwidth)
      }
  
@@ -3903,6 +4045,11 @@ diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatn
 +    @ReactProp(name = PROP_EXTRA_AUDIO_FORMATS, defaultBoolean = true)
 +    fun setExtraAudioFormats(videoView: ReactExoplayerView, enabled: Boolean) {
 +        videoView.setExtraAudioFormats(enabled)
++    }
++
++    @ReactProp(name = PROP_FRAME_RATE_MATCHING, defaultInt = 1)
++    fun setFrameRateMatching(videoView: ReactExoplayerView, mode: Int) {
++        videoView.setFrameRateMatching(mode)
 +    }
 +
      @ReactProp(name = PROP_MAXIMUM_BIT_RATE)
@@ -3964,7 +4111,7 @@ diff --git a/node_modules/react-native-video/lib/specs/VideoNativeComponent.d.ts
      minBackBufferMemoryReservePercent?: Float;
      minBufferMemoryReservePercent?: Float;
      cacheSizeMB?: Float;
-@@ -306,6 +308,11 @@
+@@ -306,6 +308,12 @@
      ignoreSilentSwitch?: WithDefault<string, 'inherit'>;
      mixWithOthers?: WithDefault<string, 'inherit'>;
      rate?: Float;
@@ -3973,10 +4120,11 @@ diff --git a/node_modules/react-native-video/lib/specs/VideoNativeComponent.d.ts
 +    nightMode?: Int32;
 +    dialogueBoost?: Int32;
 +    extraAudioFormats?: WithDefault<boolean, true>;
++    frameRateMatching?: WithDefault<Int32, 1>;
      fullscreen?: boolean;
      fullscreenAutorotate?: boolean;
      fullscreenOrientation?: WithDefault<string, 'all'>;
-@@ -319,6 +326,7 @@
+@@ -319,6 +327,7 @@
      hideShutterView?: boolean;
      reportBandwidth?: boolean;
      subtitleStyle?: SubtitleStyle;
@@ -3996,7 +4144,7 @@ diff --git a/node_modules/react-native-video/lib/types/video.d.ts b/node_modules
      maxHeapAllocationPercent?: number;
      minBackBufferMemoryReservePercent?: number;
      minBufferMemoryReservePercent?: number;
-@@ -284,6 +286,11 @@
+@@ -284,6 +286,12 @@
      preventsDisplaySleepDuringVideoPlayback?: boolean;
      progressUpdateInterval?: number;
      rate?: number;
@@ -4005,10 +4153,11 @@ diff --git a/node_modules/react-native-video/lib/types/video.d.ts b/node_modules
 +    nightMode?: number;
 +    dialogueBoost?: number;
 +    extraAudioFormats?: boolean;
++    frameRateMatching?: number;
      renderLoader?: ReactNode | ((arg0: ReactVideoRenderLoaderProps) => ReactNode);
      repeat?: boolean;
      reportBandwidth?: boolean;
-@@ -293,6 +300,7 @@
+@@ -293,6 +301,7 @@
      selectedTextTrack?: SelectedTrack;
      selectedVideoTrack?: SelectedVideoTrack;
      subtitleStyle?: SubtitleStyle;
@@ -4028,7 +4177,7 @@ diff --git a/node_modules/react-native-video/src/specs/VideoNativeComponent.ts b
    minBackBufferMemoryReservePercent?: Float;
    minBufferMemoryReservePercent?: Float;
    cacheSizeMB?: Float;
-@@ -362,6 +364,11 @@
+@@ -362,6 +364,12 @@
    ignoreSilentSwitch?: WithDefault<string, 'inherit'>; // ios, 'inherit'
    mixWithOthers?: WithDefault<string, 'inherit'>; // ios, 'inherit'
    rate?: Float;
@@ -4037,10 +4186,11 @@ diff --git a/node_modules/react-native-video/src/specs/VideoNativeComponent.ts b
 +  nightMode?: Int32; // Android: 0 off, 1 light, 2 medium, 3 strong
 +  dialogueBoost?: Int32; // Android: 0 off, 1 on, 2 strong
 +  extraAudioFormats?: WithDefault<boolean, true>; // Android: FFmpeg audio decoder for DTS, TrueHD and more
++  frameRateMatching?: WithDefault<Int32, 1>; // Android: 0 off, 1 seamless only, 2 always (display mode switch)
    fullscreen?: boolean; // ios, false
    fullscreenAutorotate?: boolean;
    fullscreenOrientation?: WithDefault<string, 'all'>;
-@@ -375,6 +382,7 @@
+@@ -375,6 +383,7 @@
    hideShutterView?: boolean; //	Android
    reportBandwidth?: boolean; //Android
    subtitleStyle?: SubtitleStyle; // android
@@ -4060,7 +4210,7 @@ diff --git a/node_modules/react-native-video/src/types/video.ts b/node_modules/r
    maxHeapAllocationPercent?: number;
    minBackBufferMemoryReservePercent?: number;
    minBufferMemoryReservePercent?: number;
-@@ -360,6 +362,11 @@
+@@ -360,6 +362,12 @@
    preventsDisplaySleepDuringVideoPlayback?: boolean;
    progressUpdateInterval?: number;
    rate?: number;
@@ -4069,10 +4219,11 @@ diff --git a/node_modules/react-native-video/src/types/video.ts b/node_modules/r
 +  nightMode?: number; // Android: 0 off, 1 light, 2 medium, 3 strong
 +  dialogueBoost?: number; // Android: 0 off, 1 on, 2 strong
 +  extraAudioFormats?: boolean; // Android: FFmpeg audio decoder for DTS, TrueHD and more
++  frameRateMatching?: number; // Android: 0 off, 1 seamless only, 2 always (display mode switch)
    renderLoader?: ReactNode | ((arg0: ReactVideoRenderLoaderProps) => ReactNode);
    repeat?: boolean;
    reportBandwidth?: boolean; //Android
-@@ -369,6 +376,7 @@
+@@ -369,6 +377,7 @@
    selectedTextTrack?: SelectedTrack;
    selectedVideoTrack?: SelectedVideoTrack; // android
    subtitleStyle?: SubtitleStyle; // android
