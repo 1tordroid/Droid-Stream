@@ -57,6 +57,17 @@ Local builds are much faster than waiting for CI, so use them for phone testing.
 | `main.yml` | Every night, 00:00 India time | Nightly build of `main`, published as a pre-release. The in-app updater ignores pre-releases. |
 | `release.yml` | A `vX.Y.Z` tag | Signed universal APK (about 28 minutes), published as a normal release that the in-app updater offers to everyone |
 
+Optional build secrets, read by `app.config.js` into `extra` and passed by all four workflows. Set them at repository level and in the `nightly` environment. Locally, export them before `build-local.sh`. A build without them still works: the app asks for the user's own keys instead.
+
+| Secret | Purpose |
+| --- | --- |
+| `TMDB_API_KEY` | Bundled TMDB key. Users can set their own in Settings. |
+| `PROXY_API_URL` | Metadata proxy URL. |
+| `TRAKT_CLIENT_ID`, `TRAKT_CLIENT_SECRET` | Built-in Trakt app, so Watch sync signs in with a code or QR code alone. Create it at https://trakt.tv/oauth/applications/new with redirect URI `urn:ietf:wg:oauth:2.0:oob`. Both must be set, or neither is used. The secret ships inside the APK, as with any device-flow client. |
+| `SIMKL_CLIENT_ID` | Built-in Simkl app for the PIN sign-in (https://simkl.com/settings/developer/new/). |
+
+Users can still pick "Use my own app" in Watch sync. A sign-in keeps the app that issued it (`authApp`), so token renewal always uses the matching Client ID.
+
 ## Releasing
 
 1. Run `npm version X.Y.Z --no-git-tag-version`, which updates `package.json` and `package-lock.json`. Then raise `version` and `versionCode` in `app.config.js`.
@@ -104,7 +115,7 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 ### Streams, add-ons and watch sync
 
 - `src/lib/stremio` is the Stremio add-on client, with Cinemeta. `src/lib/streams/finder.ts` ranks add-on streams, site torrents and debrid caches. `play.ts` plays one (debrid first, then on the phone), picks the episode out of a season pack, and prepares the next episode.
-- `src/lib/releaseName.ts` parses release names. `src/lib/aniskip.ts` maps MAL ids from Jikan to AniSkip times. `src/lib/watchSync` (Trakt device code, Simkl PIN, AniList token) marks titles watched from the player. `src/lib/subtitles/hashMatch.ts` matches OpenSubtitles by file hash over HTTP ranges.
+- `src/lib/releaseName.ts` parses release names. `src/lib/aniskip.ts` maps MAL ids from Jikan to AniSkip times. `src/lib/watchSync` (Trakt device code, Simkl PIN, AniList token) marks titles watched from the player. `devicePoll.ts` polls a device code (400 pending, 429 adds 5 s, 404/409/410/418 stop, three network failures in a row tolerated) and Settings shows the code with a QR code (`lib/qr/encode.ts`, byte mode, level M, versions 1 to 10, drawn by `components/QrCode.tsx`). `scrobble.ts` sends Trakt `/scrobble/start`, `pause` and `stop` through `hooks/useScrobble.ts` in the player; a stop at 80% or more records the watch, so the history POST is skipped while a scrobble session owns the title. Failed stops queue in MMKV (`scrobble:queue` in the watch-sync store, newest per title, 50 at most, 30 days) and are sent on app start, resume and the next playback; 420 and 429 back off (Retry-After, else 1 min or 1 h doubling to 6 h). `src/lib/subtitles/hashMatch.ts` matches OpenSubtitles by file hash over HTTP ranges.
 - The player takes an optional `meta` parameter (`lib/watchMeta.ts`) and guesses it otherwise. Player helpers and components live in `screens/home/player/`.
 
 ### Network sources, links and downloads

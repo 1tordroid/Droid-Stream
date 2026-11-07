@@ -1,5 +1,10 @@
 const tmdbApiKey =
   process.env.TMDB_API_KEY || process.env.EXPO_PUBLIC_TMDB_API_KEY || '';
+// Optional built-in watch-sync apps, so users can sign in with a code alone.
+// Without them, Settings > Watch sync asks for the user's own app keys.
+const traktClientId = (process.env.TRAKT_CLIENT_ID || '').trim();
+const traktClientSecret = (process.env.TRAKT_CLIENT_SECRET || '').trim();
+const simklClientId = (process.env.SIMKL_CLIENT_ID || '').trim();
 const proxyApiUrl =
   process.env.PROXY_API_URL ||
   process.env.EXPO_PUBLIC_PROXY_API_URL ||
@@ -237,6 +242,9 @@ module.exports = () => {
         isTV: IS_TV,
         tmdbApiKey,
         proxyApiUrl,
+        traktClientId,
+        traktClientSecret,
+        simklClientId,
       },
     },
   };

@@ -89,6 +89,7 @@ import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
 import {findAnimeSkips} from '../../lib/aniskip';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
+import {useScrobble} from '../../lib/hooks/useScrobble';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
 import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
@@ -970,6 +971,8 @@ const Player = ({route}: Props): React.JSX.Element => {
   }, [route.params.meta, route.params.primaryTitle, route.params.secondaryTitle, route.params.type, route.params.episodeList.length, activeEpisode?.title]);
   const watchMetaRef = useRef(watchMeta);
   watchMetaRef.current = watchMeta;
+  // Trakt scrobbling (start, pause, stop), when connected with scrobbling on.
+  useScrobble(watchMeta, isPaused, videoPositionRef);
 
   // Crowd-sourced anime intro and credits times, used when nothing else has skips.
   const [aniSkips, setAniSkips] = useState<SkipInterval[]>([]);
