@@ -55,7 +55,7 @@ It runs on Android phones, tablets and Android TV.
 - 🧪 Catch-up: replay past programmes where the channel allows it.
 - 🧪 Pause and rewind live channels that keep a buffer, with a "Go live" button.
 - 🧪 Programme reminders.
-- 🔨 Record live channels and programmes.
+- 🧪 Record live channels and programmes.
 - 📋 Watch 2 to 4 channels at once.
 
 ## Torrents
@@ -108,15 +108,15 @@ It runs on Android phones, tablets and Android TV.
 - 🔨 Photos from social apps: single photos, carousels, stories and profile pictures, with a "photo only" option.
 - 🔨 Instagram photo with its song, saved as a video (or photo only, or song only).
 - 🔨 Batch downloads of a carousel, playlist or profile.
-- 🔨 MPEG-DASH downloads (separate video and audio).
-- 🔨 Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
-- 🔨 FTP and FTPS downloads.
+- 🧪 MPEG-DASH downloads (separate video and audio).
+- 🧪 Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
+- 🧪 FTP and FTPS downloads.
 - 📋 Season and rolling downloads (keep the next episodes ready).
 
 ### Advanced downloads (off by default, for rare needs)
 
-- 🔨 eD2k links, server list and search.
-- 🔨 GitHub and HuggingFace mirrors that you add yourself.
+- 🧪 eD2k links, server list and search.
+- 🧪 GitHub and HuggingFace mirrors that you add yourself.
 - 🔨 aria2-style remote control: send downloads to your phone from AriaNg or a browser extension on your Wi-Fi.
 - 🔨 Command access from Termux, ADB or Tasker.
 - 🔨 Browser-like connection for sites that turn away download apps.
