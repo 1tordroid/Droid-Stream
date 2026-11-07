@@ -23,6 +23,7 @@ import {buildBootstrap, buildUserscriptInjection, callPage} from '../../lib/brow
 import {classifyMedia, isYtdlSite, mergeMedia, qualityOf, type MediaItem} from '../../lib/browser/media';
 import {browserEngine, type BrowserTabHandle, type TabCallbacks, type TabState} from '../../lib/browser/engine';
 import {addNeverSite, decideSave, isNeverSite, loginOrigin, loginsForUrl, markLoginUsed, readLogins, saveLogin, type SavedLogin} from '../../lib/browser/passwords';
+import {markPasskeyTipShown, openInChrome, PASSKEY_TIP, passkeyFailureFrom, shouldShowPasskeyTip} from '../../lib/browser/passkeys';
 import {clearPrivateData, rememberPrivateHost} from '../../lib/browser/privacy';
 import {
   addHistory,
@@ -63,6 +64,17 @@ const KEEP_LOADED = 3;
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const randomToken = () => Array.from({length: 4}, () => Math.random().toString(36).slice(2)).join('');
 const toast = (message: string) => ToastAndroid.show(message, ToastAndroid.SHORT);
+
+/** Opens the page in a Chrome Custom Tab, for passkeys that do not work here. */
+const signInWithChrome = (url: string): void => {
+  openInChrome(url)
+    .then(result => {
+      if (result === 'chrome') toast('Sign in there. The sign-in stays in Chrome.');
+      else if (result === 'failed') toast('Could not open Chrome');
+      else toast('Opened in your default browser. The sign-in stays there.');
+    })
+    .catch(() => toast('Could not open Chrome'));
+};
 
 const makeTab = (url: string, isPrivate: boolean, desktop: boolean): TabState => ({
   id: newId(),
@@ -434,6 +446,21 @@ const Browser = () => {
         case 'gm':
           if (message.__ds === token) handleGm(tab, message).catch(() => undefined);
           return;
+        case 'passkeyFailed': {
+          const failure = message.__ds === token ? passkeyFailureFrom(message) : null;
+          if (!failure || isTV || !shouldShowPasskeyTip(failure.url)) return;
+          // Private tabs leave no record of the site, so the tip may come back there.
+          if (!tab.private) markPasskeyTipShown(failure.url);
+          showAppDialog({
+            title: PASSKEY_TIP.title,
+            message: PASSKEY_TIP.message,
+            actions: [
+              {label: 'Not now'},
+              {label: 'Sign in with Chrome', variant: 'primary', onPress: () => signInWithChrome(failure.url)},
+            ],
+          });
+          return;
+        }
         default:
       }
     },
@@ -666,6 +693,7 @@ const Browser = () => {
       ) : null}
       {logins.length || loginForms[active.id] ? <SheetRow icon="key-variant" label="Saved passwords" onPress={() => setSheet('logins')} /> : null}
       {active.url ? <SheetRow icon="open-in-new" label="Open in another browser" onPress={() => { closeSheet(); openExternally(active.url); }} /> : null}
+      {secure && !isTV ? <SheetRow icon="key-chain-variant" label="Sign in with Chrome" detail="For passkeys. The sign-in stays in Chrome." onPress={() => { closeSheet(); signInWithChrome(active.url); }} /> : null}
       {active.url ? <SheetRow icon="content-copy" label="Copy link" onPress={() => { closeSheet(); copyText(active.url); toast('Link copied'); }} /> : null}
       <SheetRow icon="cog-outline" label="Browser settings" onPress={() => { closeSheet(); navigate('BrowserSettings'); }} />
       <SheetRow icon="close" label="Close browser" onPress={() => { closeSheet(); navigation.goBack(); }} />

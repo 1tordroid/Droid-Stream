@@ -8,11 +8,13 @@ import ScreenSafeArea from '../../components/ui/ScreenSafeArea';
 import AppText from '../../components/ui/Text';
 import {addList, ensureFilters, LIST_CREDITS, readLists, rebuildFilters, removeList, setListEnabled, type FilterList} from '../../lib/browser/filters/lists';
 import {browserEngine} from '../../lib/browser/engine';
+import {openPasskeyProviderSettings, providerSettingsHint} from '../../lib/browser/passkeys';
 import {readNeverSites, removeNeverSite} from '../../lib/browser/passwords';
 import {clearHistory, forgetLayout, readLayouts, readSettings, updateSettings, type BrowserSettings as Settings} from '../../lib/browser/store';
 import {SEARCH_ENGINES} from '../../lib/browser/url';
 import {installUserscript, installUserscriptFromUrl, onUserscriptsChange, readUserscripts, removeUserscript, setUserscriptEnabled} from '../../lib/browser/userscripts/store';
 import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
+import {isTV} from '../../lib/tv';
 import {showAppDialog} from '../../lib/zustand/appDialogStore';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {ChipRow, Choice, Field, Section, ToggleRow} from '../ytdl/components';
@@ -210,8 +212,26 @@ const BrowserSettings = () => {
           <AppText role="bodySmall" style={{color: colors.onSurfaceVariant}}>
             {passkeys === false
               ? 'This phone\'s Android System WebView does not support passkeys yet. Update it from the Play Store.'
-              : 'Passkeys work only where your passkey provider allows this app. Google Password Manager allows only the browsers on its own list, so sites may say passkeys are not available. Bitwarden, 1Password and others may ask you to trust the app first.'}
+              : 'Google Password Manager only serves the browsers on its own list, so its passkeys often fail here. Two ways around it: choose a passkey manager that lets you trust any browser, or use Sign in with Chrome in the browser menu (that sign-in stays in Chrome).'}
           </AppText>
+          {!isTV ? (
+            <>
+              <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 8}}>{providerSettingsHint()}</AppText>
+              <View style={{flexDirection: 'row', marginTop: 8}}>
+                <Button
+                  variant="tonal"
+                  compact
+                  onPress={() =>
+                    openPasskeyProviderSettings().then(screen => {
+                      if (screen === 'accounts' || screen === 'settings') toast('Open Passwords and accounts, then choose your passkey manager');
+                      else if (screen === 'failed') toast('Could not open Settings');
+                    })
+                  }>
+                  Choose a passkey manager
+                </Button>
+              </View>
+            </>
+          ) : null}
         </Section>
 
         <Section title="Privacy">
