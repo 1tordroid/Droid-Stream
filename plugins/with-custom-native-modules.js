@@ -112,6 +112,7 @@ allprojects {
       'DlnaPackage()',
       'VideoIntentPackage()',
       'SmbPackage()',
+      'Ed2kPackage()',
     ];
 
     for (const pkg of packagesToAdd) {
@@ -349,6 +350,29 @@ configurations.configureEach {
         }
       }
       if (!app['activity-alias']) app['activity-alias'] = [];
+      // ed2k:// links from the browser. The app asks before using them and
+      // offers to turn eD2k on, which is off by default.
+      if (!app['activity-alias'].some(alias => alias.$?.['android:name'] === '.Ed2kOpener')) {
+        app['activity-alias'].push({
+          $: {
+            'android:name': '.Ed2kOpener',
+            'android:targetActivity': '.MainActivity',
+            'android:exported': 'true',
+            'android:enabled': 'true',
+            'android:label': '@string/app_name',
+          },
+          'intent-filter': [
+            {
+              action: [{$: {'android:name': 'android.intent.action.VIEW'}}],
+              category: [
+                {$: {'android:name': 'android.intent.category.DEFAULT'}},
+                {$: {'android:name': 'android.intent.category.BROWSABLE'}},
+              ],
+              data: [{$: {'android:scheme': 'ed2k'}}],
+            },
+          ],
+        });
+      }
       if (!app['activity-alias'].some(alias => alias.$?.['android:name'] === '.TorrentOpener')) {
         app['activity-alias'].push({
           $: {
