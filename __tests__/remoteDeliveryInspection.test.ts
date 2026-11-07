@@ -7,6 +7,11 @@ jest.mock('react-native', () => ({
     inspectMediaTracks: jest.fn(), stopServer: jest.fn(async () => {}),
     startServer: jest.fn(async () => ({baseUrl: 'http://phone:1234', port: 1234, lanIp: 'phone'})),
     prepareSubtitle: jest.fn(async () => true),
+    unregisterSession: jest.fn(async () => true),
+    registerSession: jest.fn(async (sessionId: string) => ({
+      sessionId, sessionKey: `${sessionId}.abc123`, streamUrl: `http://phone:1234/proxy/${sessionId}.abc123/stream`,
+      baseUrl: 'http://phone:1234', mimeType: 'video/mp4', timelineOffsetSeconds: 0, durationSeconds: 0,
+    })),
   }},
 }));
 jest.mock('../src/lib/remote/mkvParser', () => ({fetchAndParseMkvHeader: jest.fn()}));
@@ -91,4 +96,13 @@ it('reports native extraction failures without silently retrying over HTTP', asy
       .rejects.toThrow('Source read failed');
     expect(global.fetch).not.toHaveBeenCalled();
   } finally {global.fetch = original;}
+});
+it('keeps each session token for building more URLs and forgets it on cleanup or stop', async () => {
+  await service.prepareStream({sessionId: 's1', sourceUrl: 'https://video/a.mp4', mode: 'proxy'});
+  expect(service.sessionPathKey('s1')).toBe('s1.abc123');
+  await service.cleanupSession('s1');
+  expect(service.sessionPathKey('s1')).toBeUndefined();
+  await service.prepareStream({sessionId: 's2', sourceUrl: 'https://video/a.mp4', mode: 'proxy'});
+  await service.stopServer();
+  expect(service.sessionPathKey('s2')).toBeUndefined();
 });

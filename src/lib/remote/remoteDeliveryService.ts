@@ -21,6 +21,8 @@ export interface DeliveryServerInfo {
 
 export interface PreparedStreamResult {
   sessionId: string;
+  /** "<sessionId>.<token>": the path segment every delivery URL of the session uses. */
+  sessionKey?: string;
   streamUrl: string;
   baseUrl: string;
   mimeType: string;
@@ -52,6 +54,12 @@ class RemoteDeliveryService {
   private serverInfo: DeliveryServerInfo | null = null;
   private inspectionGeneration = 0;
   private inspections = new Map<string, {until: number; result: Promise<InspectedMediaResult>}>();
+  private sessionKeys = new Map<string, string>();
+
+  /** Path segment for building more URLs of a registered session (token included). */
+  sessionPathKey(sessionId: string): string | undefined {
+    return this.sessionKeys.get(sessionId);
+  }
 
   async ensureServerStarted(): Promise<DeliveryServerInfo> {
     if (Platform.OS !== 'android' || !VegaRemoteDelivery) {
@@ -76,6 +84,7 @@ class RemoteDeliveryService {
       await VegaRemoteDelivery.stopServer();
       this.serverInfo = null;
       this.activeSessionId = null;
+      this.sessionKeys.clear();
     } catch (e) {
       console.warn('Failed to stop remote delivery server:', e);
     }
@@ -378,7 +387,8 @@ class RemoteDeliveryService {
     );
 
     this.activeSessionId = sessionId;
-    console.info('[RemoteDelivery] Stream ready:', result.streamUrl);
+    if (result.sessionKey) this.sessionKeys.set(sessionId, result.sessionKey);
+    console.info('[RemoteDelivery] Stream ready:', mode, sessionId);
     return result;
   }
 
@@ -386,6 +396,7 @@ class RemoteDeliveryService {
     if (!VegaRemoteDelivery) return;
     try {
       await VegaRemoteDelivery.unregisterSession(sessionId);
+      this.sessionKeys.delete(sessionId);
       if (this.activeSessionId === sessionId) {
         this.activeSessionId = null;
       }
@@ -459,6 +470,7 @@ class RemoteDeliveryService {
       // cast must start a new server rather than reuse the cached dead port.
       this.serverInfo = null;
       this.activeSessionId = null;
+      this.sessionKeys.clear();
     } catch (e) {
       console.warn('Failed to stop foreground playback service:', e);
     }
