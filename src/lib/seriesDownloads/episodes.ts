@@ -35,7 +35,7 @@ export const parseSeasonNumber = (title?: string): number | undefined => {
   return undefined;
 };
 
-const EPISODE_PATTERNS = [/\bS\d{1,3}\s*E(\d{1,4})\b/i, /\bep(?:isode)?\.?\s*[-:#]?\s*(\d{1,4})\b/i, /\bE(\d{1,4})\b/, /^\s*(\d{1,4})\s*[.):-]\s+/];
+const EPISODE_PATTERNS = [/\bS\d{1,3}\s*E(\d{1,4})\b/i, /\bep(?:isode)?\.?\s*(?:-|:|#)?\s*(\d{1,4})\b/i, /\bE(\d{1,4})\b/, /^\s*(\d{1,4})\s*[.):-]\s+/];
 
 /** Episode number in an episode title, else its 1-based position. */
 export const parseEpisodeNumber = (title: string | undefined, position: number): number => {
@@ -106,7 +106,7 @@ export const cleanEpisodeTitle = (title: string | undefined): string => {
   const cleaned = title
     .replace(/\bS\d{1,3}\s*E\d{1,4}\b/gi, ' ')
     .replace(/\bseason\s*\d{1,3}\b/gi, ' ')
-    .replace(/\bep(?:isode)?\.?\s*[-:#]?\s*\d{1,4}\b/gi, ' ')
+    .replace(/\bep(?:isode)?\.?\s*(?:-|:|#)?\s*\d{1,4}\b/gi, ' ')
     .replace(/^\s*\d{1,4}\s*[.):-]\s+/, ' ')
     .replace(/^[\s\-:|.·–—]+|[\s\-:|.·–—]+$/g, '')
     .replace(/\s+/g, ' ')
