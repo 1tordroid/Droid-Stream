@@ -21,12 +21,22 @@ Not released yet. Built and being tested:
   scrobbling that keeps working offline.
 - Live TV guide grid, catch-up, programme reminders, and pause and
   rewind on live channels.
+- Live TV and guide filters for quality and language, with channel
+  counts, quality badges and Reset filters. Kept per source and profile.
 - Profiles with their own history and library, a kids mode and PIN
   locks. Your current data becomes the first profile.
 - A yt-dlp video and audio downloader: share a link from any app, pick
   quality or audio format, subtitles, cover, SponsorBlock, clips,
   playlists, a queue with start times, site sign-in for cookies, and
   yt-dlp updates inside the app.
+- Record Live TV channels that have no DRM, or a programme from the
+  guide (it starts and stops by itself). Protected channels show no
+  Record option.
+- MPEG-DASH and FTP/FTPS downloads, "Edit link" to continue a download
+  from a new address, and expired provider or debrid links renewed by
+  themselves.
+- Advanced downloads (off by default): eD2k links and search, and
+  GitHub and HuggingFace mirrors you add yourself.
 - Update download notifications no longer vibrate every second.
 - Save photos from Instagram, Facebook, X, Threads, Pinterest, Reddit
   and Tumblr posts: carousels, stories, highlights, profile pictures and
@@ -38,10 +48,8 @@ Being built:
 - Social media downloads with a built-in browser (download detection,
   ad blocker, userscripts), photos and Instagram photos with their song
   saved as a video.
-- Live channel recording, MPEG-DASH and FTP downloads, and fixing a
-  download's link mid-way.
-- Advanced downloads (off by default): eD2k, mirrors, aria2-style remote
-  control, command access and a browser-like connection.
+- Advanced downloads (off by default): aria2-style remote control,
+  command access and a browser-like connection.
 
 ## 5.5.0
 

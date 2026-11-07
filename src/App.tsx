@@ -20,6 +20,7 @@ import Library from './screens/Library';
 import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
+import AdvancedDownloads from './screens/settings/AdvancedDownloads';
 import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
 import Sources from './screens/Sources';
@@ -70,6 +71,7 @@ import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 import Preferences from './screens/settings/Preference';
+import Ed2k from './screens/settings/Ed2k';
 import PlayerSettings from './screens/settings/PlayerSettings';
 import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
@@ -230,6 +232,7 @@ export type SettingsStackParamList = {
   DisableProviders: undefined;
   About: undefined;
   Preferences: undefined;
+  Ed2k: undefined;
   PlayerSettings: undefined;
   PlayerControlSettings: undefined;
   SubTitlesPreferences: undefined;
@@ -238,6 +241,7 @@ export type SettingsStackParamList = {
   DataManagement: undefined;
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
+  AdvancedDownloads: undefined;
   Credits: undefined;
   WatchSync: undefined;
   Languages: undefined;
@@ -571,6 +575,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
       <SettingsStack.Screen name="Credits" component={Credits} options={subpageOptions} />
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
+      <SettingsStack.Screen name="AdvancedDownloads" component={AdvancedDownloads} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
       <SettingsStack.Screen name="Profiles" component={Profiles} options={subpageOptions} />
@@ -578,6 +583,7 @@ function SettingsStackScreen() {
       {/* These two place themselves below the status bar. */}
       <SettingsStack.Screen name="YtdlSettings" component={YtdlSettings} />
       <SettingsStack.Screen name="YtdlCookies" component={YtdlCookies} />
+      <SettingsStack.Screen name="Ed2k" component={Ed2k} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }

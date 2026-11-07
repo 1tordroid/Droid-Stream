@@ -14,22 +14,27 @@ import {showAppDialog} from './zustand/appDialogStore';
 import {isPageLink} from './ytdl/formats';
 import {ytdlSupported} from './ytdl/native';
 import {readYtdlSettings} from './ytdl/settings';
+import {offerDashDownload} from './downloadEngine/dashIntake';
+import {ed2kLinksIn, isEd2kLink} from './ed2k/link';
+import {offerEd2kLink} from './ed2k/intake';
 import {socialLinkInText} from './social/urls';
 
 const storage = openStore('droid-stream-intake');
 
-export type IncomingKind = 'magnet' | 'torrent' | 'http';
+export type IncomingKind = 'magnet' | 'torrent' | 'http' | 'ed2k';
 
 export const classifyLink = (value: string): IncomingKind | null => {
   const text = value.trim();
+  if (isEd2kLink(text)) return 'ed2k';
   if (/^magnet:\?/i.test(text)) return 'magnet';
   if (/^content:\/\//i.test(text) || /\.torrent(\?|$)/i.test(text)) return 'torrent';
-  if (/^https?:\/\/\S+$/i.test(text)) return 'http';
+  if (/^(https?|ftps?|ftpes):\/\/\S+$/i.test(text)) return 'http';
   return null;
 };
 
 /** First magnet, file link or social post link in copied text, if any. */
 export const linkInText = (text: string): string | undefined =>
+  ed2kLinksIn(text)[0] ||
   text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] ||
   text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0] ||
   socialLinkInText(text);
@@ -51,7 +56,13 @@ const queueWithToast = (url: string, name?: string) =>
 
 /** Asks which quality to save when a stream offers more than one. */
 const downloadLink = async (url: string): Promise<void> => {
-  if (!/\.(m3u8|mpd)(\?|$)/i.test(url)) {
+  if (/\.mpd(\?|$)/i.test(url)) {
+    await offerDashDownload(url, undefined, (link, name, dash) =>
+      queueLink(link, name, {dash}).then(state => toast(state === 'queued' ? 'Added to Downloads' : 'Already in Downloads')),
+    );
+    return;
+  }
+  if (!/\.m3u8(\?|$)/i.test(url)) {
     await queueWithToast(url);
     return;
   }
@@ -91,6 +102,10 @@ export const offerLink = (value: string, navigate: (screen: string, params?: obj
   }
   const kind = classifyLink(value);
   if (!kind) return;
+  if (kind === 'ed2k') {
+    offerEd2kLink(value, origin);
+    return;
+  }
   const title = nameOf(value);
   // A shared web page (a YouTube, Instagram or X post) opens the yt-dlp sheet.
   if (kind === 'http' && origin === 'shared' && isPageLink(value) && ytdlSupported() && readYtdlSettings().offerForAllLinks) {

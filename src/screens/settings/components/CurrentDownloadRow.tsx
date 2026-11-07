@@ -19,6 +19,7 @@ import DownloadProgressBar from './DownloadProgressBar';
 import DownloadConnectionsPanel from './DownloadConnectionsPanel';
 import useDownloadConnectionsStore from '../../../lib/zustand/downloadConnectionsStore';
 import {deferralReason, lastKnownWifi} from '../../../lib/ytdl/schedule';
+import {useEd2kStatusStore} from '../../../lib/ed2k/status';
 
 const statusLabels: Record<DownloadStatus, string> = {
   queued: 'Queued',
@@ -93,6 +94,7 @@ const CurrentDownloadRow = ({
     state => state.details[item.id],
   );
   const [expanded, setExpanded] = useState(false);
+  const ed2kStatus = useEd2kStatusStore(state => state.status[item.id]);
   const showDetails = expanded && details && item.totalBytes > 0;
 
   return (
@@ -150,7 +152,7 @@ const CurrentDownloadRow = ({
                 className="mt-1 text-xs"
                 style={{color: colors.onSurfaceVariant}}
                 numberOfLines={1}>
-                {getSubtitle(item)}
+                {item.sourceType === 'ed2k' ? ed2kStatus || 'eD2k' : getSubtitle(item)}
               </Text>
             </View>
             <View className="flex-row items-center">

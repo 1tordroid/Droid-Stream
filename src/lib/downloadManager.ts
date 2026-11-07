@@ -32,7 +32,6 @@ import {
   canRefreshDownloadSource,
   fetchDownloadSourceStreams,
   isExpiredLinkError,
-  refreshDownloadSource,
 } from './downloadSourceRefresh';
 import {DownloadPausedError} from './downloadBackends/types';
 import {canTryNextDownloadServer, downloadServerKey, getNextDownloadServer} from './downloadServerFallback';
@@ -40,8 +39,13 @@ import {compareQueue} from './downloadEngine/planner';
 import {readQueueMeta, transfersOpen} from './downloadEngine/queueStore';
 import type {Stream} from './providers/types';
 import {deferralReason, lastKnownWifi} from './ytdl/schedule';
+import {pruneEngineOptions} from './downloadEngine/engineStore';
+import {hasDebridSource, refreshLink} from './downloadEngine/linkRefresh';
+import {renewPartialLink, shouldRenewPartial, withoutScheduledLater} from './downloadEngine/managerHelpers';
 
 const activeDownloads = new Set<string>();
+// Downloads whose live job is being stopped to change their link.
+const relinkingDownloads = new Set<string>();
 const sourceRefreshControllers = new Map<string, AbortController>();
 const occupiedDownloadSlots = new Set<string>();
 const cancelledDownloads = new Set<string>();
@@ -234,16 +238,19 @@ const getOutputDirectoryNames = (record: DownloadItem): string[] =>
   getDownloadDirectoryNames(record);
 
 const getQueuedDownloads = (now = Date.now()): DownloadItem[] =>
-  Object.values(useDownloadsStore.getState().downloads)
-    .filter(item => item.status === 'queued' && item.downloadLocation &&
-      !(activeDownloads.has(item.id) && getDownloadBackend(item.sourceType).restartOnResume) &&
-      // A yt-dlp download can wait for a start time or for Wi-Fi.
-      !deferralReason(item.ytdl, now, lastKnownWifi()))
-    .sort((left, right) => compareQueue(left, right, readQueueMeta()));
+  withoutScheduledLater(
+    Object.values(useDownloadsStore.getState().downloads)
+      .filter(item => item.status === 'queued' && item.downloadLocation &&
+        !(activeDownloads.has(item.id) && getDownloadBackend(item.sourceType).restartOnResume) &&
+        // A yt-dlp download can wait for a start time or for Wi-Fi.
+        !deferralReason(item.ytdl, now, lastKnownWifi())),
+    () => scheduleQueuedDownloads().catch(() => undefined),
+  ).sort((left, right) => compareQueue(left, right, readQueueMeta()));
 
 // A link that expired before any data arrived (a queued download that waited
 // too long) is fetched again once from the same server. Partial data stays
-// with its original link, as a new link cannot resume it safely.
+// with its original link, unless the backend can check that the new link
+// serves the same file (renewPartialLink).
 const startBackendWithFreshLink = async (
   backend: DownloadBackend,
   context: DownloadBackendContext,
@@ -254,10 +261,30 @@ const startBackendWithFreshLink = async (
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const resumableHls = context.record.sourceType === 'hls' && backend.preserveStagingOnFailure;
+    const refreshable = canRefreshDownloadSource(context.record) || hasDebridSource(context.record);
+    const stillRunning = () => {
+      const current = useDownloadsStore.getState().getDownload(context.record.id);
+      return Boolean(current && current.url === context.record.url && current.createdAt === context.record.createdAt &&
+        (current.status === 'starting' || current.status === 'downloading') &&
+        !cancelledDownloads.has(context.record.id) && !pauseFailedDownloads.has(context.record.id));
+    };
+    if (!resumableHls && stillRunning() && shouldRenewPartial(backend, getRecord(context.record.id), message)) {
+      const controller = new AbortController();
+      sourceRefreshControllers.set(context.record.id, controller);
+      let renewed = false;
+      try {
+        renewed = await renewPartialLink(backend, context.record, controller.signal, stillRunning);
+      } finally {
+        if (sourceRefreshControllers.get(context.record.id) === controller) sourceRefreshControllers.delete(context.record.id);
+      }
+      if (!renewed) throw error;
+      await startBackendWithRetry(backend, {...context, record: getRecord(context.record.id)});
+      return;
+    }
     if (
       cancelledDownloads.has(context.record.id) ||
       pauseFailedDownloads.has(context.record.id) ||
-      !canRefreshDownloadSource(context.record) ||
+      !refreshable ||
       (!resumableHls && getRecord(context.record.id).downloadedBytes > 0) ||
       !isExpiredLinkError(message)
     ) {
@@ -279,9 +306,9 @@ const startBackendWithFreshLink = async (
     if (!canContinue()) throw error;
     const controller = new AbortController();
     sourceRefreshControllers.set(id, controller);
-    let fresh: Awaited<ReturnType<typeof refreshDownloadSource>>;
+    let fresh: Awaited<ReturnType<typeof refreshLink>>;
     try {
-      fresh = await refreshDownloadSource(context.record, controller.signal, onStreams);
+      fresh = await refreshLink(context.record, controller.signal, onStreams);
     } finally {
       if (sourceRefreshControllers.get(id) === controller) {
         sourceRefreshControllers.delete(id);
@@ -305,6 +332,11 @@ export const scheduleQueuedDownloads = async (): Promise<void> => {
   }
   schedulerRunning = true;
   try {
+    try {
+      pruneEngineOptions(Object.keys(useDownloadsStore.getState().downloads));
+    } catch {
+      // Leftover options are harmless.
+    }
     const concurrency = settingsStorage.getDownloadConcurrency();
     const availableSlots = Math.max(
       concurrency - occupiedDownloadSlots.size,
@@ -533,6 +565,8 @@ export const startDownload = async (
       await getDownloadNotificationColor(record),
     );
   } catch (error) {
+    // Stopped on purpose to continue with another link (replaceDownloadLink).
+    if (relinkingDownloads.has(downloadId) && !cancelledDownloads.has(downloadId)) return;
     if (error instanceof DownloadPausedError && !cancelledDownloads.has(downloadId)) return;
     const cancelled = cancelledDownloads.has(downloadId);
     const pauseFailed = pauseFailedDownloads.has(downloadId);
@@ -778,6 +812,62 @@ export const retryDownload = async (downloadId: string): Promise<void> => {
     retryable: undefined,
     status: 'queued',
   });
+  await scheduleQueuedDownloads();
+};
+
+/**
+ * Gives a paused or failed download a new link and queues it again. A live
+ * (paused) job is stopped first, keeping its data. [beforeRestart] runs once
+ * nothing is writing, for checks that need the job gone; when it throws, the
+ * download keeps its old link and stays paused. With [discardData] the saved
+ * part is deleted and the download starts over.
+ */
+export const replaceDownloadLink = async (
+  downloadId: string,
+  update: Pick<DownloadItem, 'url'> & Partial<Pick<DownloadItem, 'headers'>>,
+  options: {discardData?: boolean; beforeRestart?: () => Promise<void>} = {},
+): Promise<void> => {
+  const record = getRecord(downloadId);
+  const backend = getDownloadBackend(record.sourceType);
+  if (activeDownloads.has(downloadId)) {
+    relinkingDownloads.add(downloadId);
+    try {
+      if (backend.stopKeepingData) await backend.stopKeepingData(downloadId);
+      else if (backend.pause && record.status !== 'paused') await backend.pause(downloadId);
+      const deadline = Date.now() + 15_000;
+      while (activeDownloads.has(downloadId) && Date.now() < deadline) await wait(100);
+    } finally {
+      relinkingDownloads.delete(downloadId);
+    }
+    if (activeDownloads.has(downloadId)) throw new Error('The download is still stopping. Try again in a moment.');
+    occupiedDownloadSlots.delete(downloadId);
+  }
+  const store = useDownloadsStore.getState();
+  if (options.discardData) {
+    await backend.cleanup(downloadId, getRecord(downloadId)).catch(() => undefined);
+  } else if (options.beforeRestart) {
+    try {
+      await options.beforeRestart();
+    } catch (error) {
+      if (getRecord(downloadId).status === 'paused') {
+        store.updateDownload(downloadId, {canPause: false, canResume: true, speed: 0});
+      }
+      throw error;
+    }
+  }
+  store.updateDownload(downloadId, {
+    ...update,
+    status: 'queued',
+    speed: 0,
+    canPause: false,
+    canResume: false,
+    errorCode: undefined,
+    errorMessage: undefined,
+    retryable: undefined,
+    backendJobId: undefined,
+    ...(options.discardData ? {downloadedBytes: 0, totalBytes: 0, finalDocumentUri: undefined} : {}),
+  });
+  useDownloadsStore.setState({storageFullHold: false});
   await scheduleQueuedDownloads();
 };
 

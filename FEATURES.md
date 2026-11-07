@@ -55,7 +55,8 @@ It runs on Android phones, tablets and Android TV.
 - 🧪 Catch-up: replay past programmes where the channel allows it.
 - 🧪 Pause and rewind live channels that keep a buffer, with a "Go live" button.
 - 🧪 Programme reminders.
-- 🔨 Record live channels and programmes.
+- 🧪 Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
+- 🧪 Record live channels and programmes.
 - 📋 Watch 2 to 4 channels at once.
 
 ## Torrents
@@ -108,15 +109,15 @@ It runs on Android phones, tablets and Android TV.
 - 🧪 Photos from social apps: Instagram (photos, carousels, reel covers, stories and highlights when signed in, full-size profile pictures), Facebook, X, Threads, Pinterest, Reddit and Tumblr. Pick items, "Photos only" and original quality; saved in Social/<site>/<author>.
 - 🧪 Instagram photo with its song: save the photo, the song, or a video of the photo (or a carousel slideshow) with the song, made on the phone.
 - 🧪 Batch downloads of a whole carousel or the latest posts of a profile (playlists go through the yt-dlp downloader).
-- 🔨 MPEG-DASH downloads (separate video and audio).
-- 🔨 Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
-- 🔨 FTP and FTPS downloads.
+- 🧪 MPEG-DASH downloads (separate video and audio).
+- 🧪 Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
+- 🧪 FTP and FTPS downloads.
 - 📋 Season and rolling downloads (keep the next episodes ready).
 
 ### Advanced downloads (off by default, for rare needs)
 
-- 🔨 eD2k links, server list and search.
-- 🔨 GitHub and HuggingFace mirrors that you add yourself.
+- 🧪 eD2k links, server list and search.
+- 🧪 GitHub and HuggingFace mirrors that you add yourself.
 - 🔨 aria2-style remote control: send downloads to your phone from AriaNg or a browser extension on your Wi-Fi.
 - 🔨 Command access from Termux, ADB or Tasker.
 - 🔨 Browser-like connection for sites that turn away download apps.
@@ -127,7 +128,7 @@ It runs on Android phones, tablets and Android TV.
 - 🔨 Download detection: a download button on videos and a list of every video, audio, image and stream on the page.
 - 🔨 Ad and tracker blocker with common filter lists, and userscripts.
 - 🔨 Send pages, links and media to the downloader, Torrents, the player or cast.
-- 📋 Droid Stream Browser: a separate, optional app built on Firefox's engine (GeckoView) with Firefox add-on support (for example uBlock Origin, Dark Reader and Tampermonkey). It sends downloads, magnets and videos to Droid Stream. A separate app so Droid Stream stays small.
+- 📋 Droid Stream (with extension support): a second edition of the whole app. It has every Droid Stream feature, and its Browser runs on Firefox's engine (GeckoView) with Firefox add-ons such as uBlock Origin, Dark Reader and Tampermonkey. Install one or the other: the regular Droid Stream stays smaller, this edition is about 60 MB bigger.
 
 ## Profiles and family
 

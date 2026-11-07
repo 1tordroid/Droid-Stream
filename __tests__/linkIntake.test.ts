@@ -11,6 +11,7 @@ it('classifies incoming links', () => {
   expect(classifyLink('content://downloads/1')).toBe('torrent');
   expect(classifyLink('https://x.test/video.mp4')).toBe('http');
   expect(classifyLink('hello')).toBeNull();
+  expect(classifyLink('ed2k://|file|a.iso|10|965c013e991ee246d63d45ea71954c4d|/')).toBe('ed2k');
 });
 
 it('finds a magnet or file link inside copied text', () => {
@@ -18,6 +19,7 @@ it('finds a magnet or file link inside copied text', () => {
   expect(linkInText(`look ${magnet} here`)).toBe(magnet);
   expect(linkInText('get https://cdn.test/file.mkv?token=1 now')).toBe('https://cdn.test/file.mkv?token=1');
   expect(linkInText('https://example.com/page')).toBeUndefined();
+  expect(linkInText('see ed2k://|server|1.2.3.4|4661|/ please')).toBe('ed2k://|server|1.2.3.4|4661|/');
 });
 
 it('guesses checksum algorithms and compares case-insensitively', () => {
