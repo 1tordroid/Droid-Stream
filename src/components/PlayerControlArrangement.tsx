@@ -31,6 +31,9 @@ const EDITOR_LABELS: Record<PlayerControlId, string> = {
   marks: 'Mark',
   settings: 'Settings',
   decoder: 'Decoder',
+  chapterPrev: 'Prev ch.',
+  chapters: 'Chapters',
+  chapterNext: 'Next ch.',
 };
 
 type TokenProps = {

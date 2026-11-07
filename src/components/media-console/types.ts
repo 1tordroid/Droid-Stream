@@ -312,4 +312,7 @@ export interface VideoPlayerProps extends ReactVideoProps {
 
   /** Skip intervals (intro/outro/recap) to display as gaps in the seekbar */
   skips?: SkipInterval[];
+
+  /** Chapter starts and titles, shown as ticks on the seekbar */
+  chapterMarks?: {start: number; title: string}[];
 }

@@ -26,6 +26,9 @@ interface UsePlayerTVControlsOptions {
   onSeekNotification?: (text: string) => void;
   /** Leave remote keys to native focus while an overlay owns the screen. */
   remoteSuspended?: boolean;
+  /** Next and previous chapter, for the remote's next/previous and channel keys. False when there is none. */
+  onNextChapter?: () => boolean;
+  onPreviousChapter?: () => boolean;
 }
 
 export const usePlayerTVControls = ({
@@ -40,6 +43,8 @@ export const usePlayerTVControls = ({
   onTogglePlayPause,
   onSeekNotification,
   remoteSuspended = false,
+  onNextChapter,
+  onPreviousChapter,
 }: UsePlayerTVControlsOptions) => {
   const [isTVControlsVisible, setIsTVControlsVisible] = useState(false);
   const [tvFocusedControl, setTVFocusedControl] = useState<string | null>(null);
@@ -233,6 +238,16 @@ export const usePlayerTVControls = ({
               showTVControls();
             }
             break;
+          case 'next':
+          case 'channelUp':
+            if (evt.eventKeyAction === 1 || showSettings || showEpisodeSidebar) break;
+            if (onNextChapter?.()) showTVControls();
+            break;
+          case 'previous':
+          case 'channelDown':
+            if (evt.eventKeyAction === 1 || showSettings || showEpisodeSidebar) break;
+            if (onPreviousChapter?.()) showTVControls();
+            break;
           case 'back':
             if (scrubPosition !== null) {
               cancelScrub();
@@ -265,6 +280,8 @@ export const usePlayerTVControls = ({
         setShowEpisodeSidebar,
         setShowControls,
         remoteSuspended,
+        onNextChapter,
+        onPreviousChapter,
       ],
     ),
     isTV,

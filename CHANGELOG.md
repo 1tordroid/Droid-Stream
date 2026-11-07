@@ -146,6 +146,33 @@ Built and being tested:
   (Play Next).
 - The licences page lists libtorrent4j as MIT, with the OpenSSL version
   inside it.
+- Chapters in the built-in player. Files with chapters (MKV, MP4) and
+  Jellyfin, Emby and Plex items show ticks on the seek bar and the
+  chapter name while seeking. New controls: Chapters (a list with times,
+  and images from your server), Previous chapter and Next chapter. On TV
+  the remote's next/previous and channel keys jump chapters too.
+- Chapters named Intro, Opening, Recap, Credits, Ending or Preview are
+  used as skip times, after the provider's and your server's.
+- Subtitle delay now moves in 0.1 s steps, with -1s and +1s buttons, up
+  to 2 minutes either way, and is kept for each title.
+- Subtitles > Sync tools: Sync to a line pauses the video and lists the
+  lines around now; pick the one you hear and the delay is set to match.
+  Auto sync (beta) listens to 3 minutes of audio and lines the subtitle
+  up with the speech. On streams it downloads that part of the video.
+- Subtitles > Second subtitle: show a second track (for example the
+  original and a translation) above the main one or at the top of the
+  screen, with its own delay. Size, colour and position are in Settings >
+  Subtitle style.
+- Subtitle translation with your own service: a LibreTranslate server
+  (with an optional key), or DeepL or Google Cloud Translation with your
+  API key. Off by default; nothing is sent until you press Translate.
+  The player says which service is used. The translation shows as the
+  second subtitle or instead of the main one, and is kept for the file.
+- Match frame rate in Player settings: Off, On (seamless only) or On
+  (always). Always switches the display to the video's frame rate (24p
+  films on 24 Hz, 25p on 50 Hz) when it starts and back when you leave;
+  the screen may go black for a moment. Seamless only is what the player
+  did before.
 
 ## 5.6.1
 

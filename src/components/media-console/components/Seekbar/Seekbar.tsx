@@ -34,9 +34,21 @@ interface SeekbarProps {
   thumbnailLoading: boolean;
   snapPosition: number | null;
   skips?: SkipInterval[];
+  /** Chapter starts and titles: ticks on the track, the title in the preview. */
+  chapters?: {start: number; title: string}[];
 }
 
 const PREVIEW_WIDTH = 160;
+
+/** The title of the chapter at [time], if any. */
+const chapterTitleAt = (chapters: {start: number; title: string}[] | undefined, time: number) => {
+  let title: string | undefined;
+  for (const chapter of chapters || []) {
+    if (chapter.start <= time + 0.25) title = chapter.title;
+    else break;
+  }
+  return title;
+};
 
 export const Seekbar = ({
   seekColor,
@@ -60,6 +72,7 @@ export const Seekbar = ({
   thumbnailLoading,
   snapPosition,
   skips,
+  chapters,
 }: SeekbarProps) => {
   // Keep the playback position from before the drag: `time` follows the thumb
   // while seeking and cannot serve as the offset baseline.
@@ -180,6 +193,11 @@ export const Seekbar = ({
                   return formattedPreview;
                 })()}
               </Text>
+              {chapters && chapters.length > 0 ? (
+                <Text style={styles.previewChapter} numberOfLines={1}>
+                  {chapterTitleAt(chapters, previewTime) || ''}
+                </Text>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -260,6 +278,26 @@ export const Seekbar = ({
                 }
                 return gaps;
               })
+            : null}
+          {duration > 0 && trackWidth > 0 && chapters && chapters.length > 1
+            ? chapters.map(chapter =>
+                chapter.start > 0 && chapter.start < duration ? (
+                  <View
+                    key={`chapter-${chapter.start}`}
+                    style={{
+                      position: 'absolute',
+                      left: Math.max(0, (chapter.start / duration) * trackWidth - size),
+                      top: -2 * size,
+                      width: 2 * size,
+                      height: 6 * size,
+                      borderRadius: size,
+                      backgroundColor: 'rgba(255,255,255,0.85)',
+                      zIndex: 4,
+                    }}
+                    pointerEvents="none"
+                  />
+                ) : null,
+              )
             : null}
         </View>
         {seeking && snapPosition !== null ? (

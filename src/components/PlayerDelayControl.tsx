@@ -30,14 +30,13 @@ const STEP_MS = 50;
 // Holding a button repeats the step, faster the longer it is held.
 const REPEAT_INTERVAL_MS = 110;
 
-const clampDelay = (value: number) =>
-  Math.max(-MAX_PLAYER_DELAY_MS, Math.min(MAX_PLAYER_DELAY_MS, value));
-
 export const formatDelay = (delayMs: number) =>
   `${delayMs > 0 ? '+' : ''}${(delayMs / 1000).toFixed(2)}s`;
 
 type RoundButtonProps = {
   icon: keyof typeof MaterialIcons.glyphMap;
+  /** Short text shown instead of the icon, e.g. "+1s". */
+  label?: string;
   accessibilityLabel: string;
   accentColor: string;
   palette: PlayerDelayPalette;
@@ -54,6 +53,7 @@ type RoundButtonProps = {
 // function form on Pressable.
 const RoundButton = ({
   icon,
+  label,
   accessibilityLabel,
   accentColor,
   palette,
@@ -106,9 +106,13 @@ const RoundButton = ({
         height: 38,
         justifyContent: 'center',
         opacity: hidden && !focused ? 0 : isDisabled ? 0.35 : 1,
-        width: 38,
+        width: label ? 46 : 38,
       }}>
-      <MaterialIcons name={icon} size={20} color={palette.text} />
+      {label ? (
+        <Text style={{color: palette.text, fontSize: 13, fontWeight: '700'}}>{label}</Text>
+      ) : (
+        <MaterialIcons name={icon} size={20} color={palette.text} />
+      )}
     </Pressable>
   );
 };
@@ -125,11 +129,18 @@ type PlayerDelayControlProps = {
   onChange: (delayMs: number) => void;
   onTVFocus?: () => void;
   palette?: PlayerDelayPalette;
+  /** One press of minus or plus. Default 0.05 s. */
+  stepMs?: number;
+  /** Adds bigger -/+ buttons with this step (e.g. 1000 for one second). */
+  coarseStepMs?: number;
+  /** Largest value either way. Default 10 s. */
+  maxMs?: number;
 };
 
 /**
  * One row like the track rows: the setting and its effect on the left, a
- * minus/plus stepper on the right. Each press moves 0.05s and holding repeats.
+ * minus/plus stepper on the right. Each press moves 0.05s (or stepMs) and
+ * holding repeats; coarseStepMs adds bigger steps on both sides.
  * The reset button shows while the value is not zero. It stays mounted at
  * zero so a focused reset keeps TV focus after it is pressed.
  */
@@ -143,7 +154,12 @@ const PlayerDelayControl = ({
   onChange,
   onTVFocus,
   palette = PLAYER_PALETTE,
+  stepMs = STEP_MS,
+  coarseStepMs,
+  maxMs = MAX_PLAYER_DELAY_MS,
 }: PlayerDelayControlProps) => {
+  const clamp = (value: number) => Math.max(-maxMs, Math.min(maxMs, value));
+  const seconds = (ms: number) => `${ms / 1000} seconds`;
   const valueRef = useRef(delayMs);
   valueRef.current = delayMs;
   const repeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -156,8 +172,8 @@ const PlayerDelayControl = ({
   };
   useEffect(() => stopRepeat, []);
 
-  const step = (direction: 1 | -1, amount = STEP_MS) => {
-    const next = clampDelay(valueRef.current + direction * amount);
+  const step = (direction: 1 | -1, amount = stepMs) => {
+    const next = clamp(valueRef.current + direction * amount);
     valueRef.current = next;
     onChange(next);
   };
@@ -167,7 +183,7 @@ const PlayerDelayControl = ({
     let count = 0;
     repeatRef.current = setInterval(() => {
       count++;
-      step(direction, count > 20 ? 250 : count > 8 ? 100 : STEP_MS);
+      step(direction, count > 20 ? Math.max(250, stepMs) : count > 8 ? Math.max(100, stepMs) : stepMs);
     }, REPEAT_INTERVAL_MS);
   };
 
@@ -214,12 +230,26 @@ const PlayerDelayControl = ({
             onTVFocus={onTVFocus}
           />
         </View>
+        {coarseStepMs ? (
+          <View style={{marginRight: 6}}>
+            <RoundButton
+              icon="remove"
+              label={`-${coarseStepMs / 1000}s`}
+              accessibilityLabel={`${title}: ${seconds(coarseStepMs)} earlier`}
+              accentColor={accentColor}
+              palette={palette}
+              disabled={delayMs <= -maxMs}
+              onPress={() => step(-1, coarseStepMs)}
+              onTVFocus={onTVFocus}
+            />
+          </View>
+        ) : null}
         <RoundButton
           icon="remove"
-          accessibilityLabel={`${title}: 0.05 seconds earlier`}
+          accessibilityLabel={`${title}: ${seconds(stepMs)} earlier`}
           accentColor={accentColor}
           palette={palette}
-          disabled={delayMs <= -MAX_PLAYER_DELAY_MS}
+          disabled={delayMs <= -maxMs}
           onPress={() => step(-1)}
           onLongPress={() => startRepeat(-1)}
           onPressOut={stopRepeat}
@@ -238,15 +268,29 @@ const PlayerDelayControl = ({
         </Text>
         <RoundButton
           icon="add"
-          accessibilityLabel={`${title}: 0.05 seconds later`}
+          accessibilityLabel={`${title}: ${seconds(stepMs)} later`}
           accentColor={accentColor}
           palette={palette}
-          disabled={delayMs >= MAX_PLAYER_DELAY_MS}
+          disabled={delayMs >= maxMs}
           onPress={() => step(1)}
           onLongPress={() => startRepeat(1)}
           onPressOut={stopRepeat}
           onTVFocus={onTVFocus}
         />
+        {coarseStepMs ? (
+          <View style={{marginLeft: 6}}>
+            <RoundButton
+              icon="add"
+              label={`+${coarseStepMs / 1000}s`}
+              accessibilityLabel={`${title}: ${seconds(coarseStepMs)} later`}
+              accentColor={accentColor}
+              palette={palette}
+              disabled={delayMs >= maxMs}
+              onPress={() => step(1, coarseStepMs)}
+              onTVFocus={onTVFocus}
+            />
+          </View>
+        ) : null}
       </View>
     </View>
   );

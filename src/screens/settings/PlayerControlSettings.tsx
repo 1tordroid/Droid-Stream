@@ -30,6 +30,9 @@ const descriptors: Record<typeof PLAYER_CONTROL_IDS[number], [string, string]> =
   marks: ['Mark intro and credits', 'bookmark-outline'],
   settings: ['Settings', 'cog-outline'],
   decoder: ['Video decoder', 'memory'],
+  chapterPrev: ['Previous chapter', 'skip-previous-circle-outline'],
+  chapters: ['Chapters', 'format-list-numbered'],
+  chapterNext: ['Next chapter', 'skip-next-circle-outline'],
 };
 const controls: PlayerControl[] = PLAYER_CONTROL_IDS.map(id => ({
   id,

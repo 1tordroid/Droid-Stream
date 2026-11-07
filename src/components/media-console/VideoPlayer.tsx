@@ -116,6 +116,7 @@ const AnimatedVideoPlayer = (
     hideAllControlls = false,
     onSeekSnap,
     skips,
+    chapterMarks,
   } = props;
 
   const localVideoView = useRef<HostInstance>(null);
@@ -1175,6 +1176,7 @@ const AnimatedVideoPlayer = (
                   toggleFullscreen={toggleFullscreen}
                   showControls={showControls}
                   skips={skips}
+                  chapters={chapterMarks}
                 />
               </>
             )}

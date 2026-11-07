@@ -26,7 +26,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Skip times from your Emby and Plex servers too, and the VLC player uses the same season marks and skip settings.
 - ✅ Play best falls back to the next source by itself when one fails or doesn't start, and remembers links that failed.
 - ✅ Play best filters: largest file, lowest and highest quality, prefer or avoid HEVC and AV1.
-- 📋 Chapters in the player.
+- 🧪 Chapters in the player: ticks on the seek bar, a Chapters list, next and previous chapter (also the remote's next/previous keys). From the file (MKV, MP4) or from Jellyfin, Emby and Plex. Chapters named Intro, Recap or Credits are skipped like other skip times.
 - 📋 Night mode and dialogue boost for quiet speech and loud effects.
 - 🧪 DTS and TrueHD audio in the built-in player.
 - 📋 Dolby Vision profile 7 to 8.1 conversion.
@@ -44,8 +44,8 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Subtitles: style, size and colour, matched by file hash, search and add your own.
 - ✅ Preferred audio and subtitle languages, with a second choice.
 - 🧪 Night mode (evens out loud and quiet sound) and dialogue boost (clearer voices), changed live from the audio menu. VLC has night mode only.
-- 📋 Subtitle sync tools and dual subtitles.
-- 📋 Subtitle translation, using your own service.
+- 🧪 Subtitle sync tools and dual subtitles: delay in 0.1 s and 1 s steps (kept per title), sync to the line you hear, auto sync from the audio (beta), and a second subtitle above the main one.
+- 🧪 Subtitle translation, using your own service (LibreTranslate, DeepL or Google). Off until you set it up.
 
 ## Live TV
 
@@ -173,7 +173,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Android TV layout with remote (D-pad) control.
 - ✅ Sync with the Vega desktop app.
 - 🧪 Android TV "Watch Next" row: Continue watching and next episodes in Play Next on the TV home screen, per profile (kids profiles show kids titles only). Opens the title in the app.
-- 📋 Automatic frame-rate matching on TV.
+- 🧪 Automatic frame-rate matching on TV (and phones that support it): Off, seamless only, or always.
 - 🧪 TV screensaver and pause screen: after a video is paused a few minutes, its artwork moves slowly with the clock; when the app is idle, artwork from your library. Any button closes it.
 - 🧪 Send your whole setup from your phone to your TV (or another phone): pick what to send, scan the QR code or type the code the TV shows, confirm on the TV. Encrypted, over your home network only.
 

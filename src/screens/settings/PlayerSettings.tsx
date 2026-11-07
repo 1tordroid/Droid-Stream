@@ -28,6 +28,7 @@ import {
   NIGHT_MODE_OPTIONS,
   type AudioEffectOption,
 } from '../../lib/player/audioEffects';
+import {FRAME_RATE_OPTIONS, getFrameRateMatching, setFrameRateMatching} from '../../lib/player/frameRate';
 
 /** A titled dropdown row, laid out like "Default video fit". */
 const ChoiceRow = <T extends string>({title, description, options, value, onChange}: {
@@ -114,6 +115,7 @@ export default function PlayerSettings({navigation}: Props) {
   );
   const [nightMode, setNightMode] = useState(() => settingsStorage.getNightMode());
   const [dialogueBoost, setDialogueBoost] = useState(() => settingsStorage.getDialogueBoost());
+  const [frameRateMatching, setFrameRateMatchingState] = useState(getFrameRateMatching);
   // The player menu changes these too, so read them again on return.
   useFocusEffect(useCallback(() => {
     setNightMode(settingsStorage.getNightMode());
@@ -437,6 +439,10 @@ export default function PlayerSettings({navigation}: Props) {
               <ChoiceRow title="Dialogue boost" description={`${DIALOGUE_BOOST_HINT}. Built-in player.`}
                 options={DIALOGUE_BOOST_OPTIONS} value={dialogueBoost}
                 onChange={next => {settingsStorage.setDialogueBoost(next); setDialogueBoost(next);}} />
+              <ChoiceRow title="Match frame rate"
+                description={`${FRAME_RATE_OPTIONS.find(option => option.value === frameRateMatching)?.description}. Sets the display to the video's frame rate (24p films on 24 Hz) and back when you leave. Built-in player, from the next video.`}
+                options={FRAME_RATE_OPTIONS} value={frameRateMatching}
+                onChange={next => {setFrameRateMatching(next); setFrameRateMatchingState(next);}} />
             </>}
             <SettingsSwitchRow
               title="Download full torrent"

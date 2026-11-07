@@ -13,6 +13,9 @@ export const PLAYER_CONTROL_IDS = [
   'marks',
   'settings',
   'decoder',
+  'chapterPrev',
+  'chapters',
+  'chapterNext',
 ] as const;
 export type PlayerControlId = (typeof PLAYER_CONTROL_IDS)[number];
 export type PlayerControlBar = 'top' | 'bottom' | 'more';
@@ -30,6 +33,9 @@ export const defaultPlayerControlLayout = (): PlayerControlLayout => ({
     'resize',
     'episodes',
     'next',
+    'chapterPrev',
+    'chapters',
+    'chapterNext',
     'marks',
     'settings',
   ],

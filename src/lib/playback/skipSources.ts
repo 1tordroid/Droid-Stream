@@ -1,7 +1,8 @@
 /**
  * Intro, recap and credits times for any show, gathered in this order:
- * the provider, the viewer's Jellyfin, Emby or Plex server, AniSkip (anime), IntroDB
- * (api.introdb.app, looked up by IMDb id), then the viewer's own marks.
+ * the provider, the viewer's Jellyfin, Emby or Plex server, chapters named
+ * Intro, Recap or Credits, AniSkip (anime), IntroDB (api.introdb.app, looked
+ * up by IMDb id), then the viewer's own marks.
  */
 import {findAnimeSkips} from '../aniskip';
 import type {SkipInterval} from '../providers/types';
@@ -256,6 +257,8 @@ export const clearSeasonMarks = (showKey: string, season?: number): void => {
 export const gatherSegments = (input: {
   provider: (SkipInterval | null | undefined)[];
   fetched: FetchedSegments;
+  /** Chapters named for what they hold (chaptersToSegments). */
+  chapters?: SkipSegment[];
   marks: SeasonMarks;
   /** Older per-show marks, below the season marks. */
   legacy?: (SkipInterval | null | undefined)[];
@@ -267,6 +270,7 @@ export const gatherSegments = (input: {
       input.fetched.jellyfin,
       input.fetched.emby || [],
       input.fetched.plex || [],
+      input.chapters || [],
       input.fetched.aniskip,
       input.fetched.introdb,
       marksToSegments(input.marks, input.durationSeconds || 0),
