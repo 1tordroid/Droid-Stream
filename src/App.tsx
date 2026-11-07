@@ -65,6 +65,7 @@ import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 import Preferences from './screens/settings/Preference';
+import Ed2k from './screens/settings/Ed2k';
 import PlayerSettings from './screens/settings/PlayerSettings';
 import PlayerControlSettings from './screens/settings/PlayerControlSettings';
 import Appearance from './screens/settings/Appearance';
@@ -221,6 +222,7 @@ export type SettingsStackParamList = {
   DisableProviders: undefined;
   About: undefined;
   Preferences: undefined;
+  Ed2k: undefined;
   PlayerSettings: undefined;
   PlayerControlSettings: undefined;
   SubTitlesPreferences: undefined;
@@ -564,6 +566,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
       <SettingsStack.Screen name="Profiles" component={Profiles} options={subpageOptions} />
       <SettingsStack.Screen name="ProfileEdit" component={ProfileEdit} options={subpageOptions} />
+      <SettingsStack.Screen name="Ed2k" component={Ed2k} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }
