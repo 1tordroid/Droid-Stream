@@ -79,7 +79,8 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       },
       {
         name: 'Tordroid Plus',
-        note: "Tordroid's private family portal for a shared PikPak account.",
+        note: "Tordroid's family portal for a shared PikPak account, built on PikPak Plus by Bharath Ganji. Droid Stream signs in to it as a library source and only talks to its web API; none of its code is in the app.",
+        license: 'GPL-3.0',
         links: [web('https://plus.tordroid.com'), gh('1tordroid/pikpak-plus')],
       },
     ],
@@ -193,7 +194,7 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'LibreTorrent', note: 'Torrent client ideas.', links: [{label: 'Repository', url: 'https://gitlab.com/proninyaroslav/libretorrent'}]},
       {name: 'Transmission', note: 'Torrent client ideas.', links: [web('https://transmissionbt.com'), gh('transmission/transmission')]},
       {name: 'aMule', note: 'eD2k download ideas.', links: [web('https://www.amule.org'), gh('amule-project/amule')]},
-      {name: 'pikpak-plus by Bharath Ganji', note: 'Cloud download ideas.', links: [gh('bharathganji/pikpak-plus')]},
+      {name: 'pikpak-plus by Bharath Ganji', note: 'Cloud download ideas, and the base of Tordroid Plus.', links: [gh('bharathganji/pikpak-plus')]},
       {name: 'Ghost Downloader 3', note: 'Download manager ideas.', links: [gh('XiaoYouChR/Ghost-Downloader-3')]},
       {name: 'VidHub', note: 'Library ideas.', links: [{label: 'App', url: 'https://okaapps.com/product/1659622164'}]},
       {name: '1DM', note: 'Download manager and browser download detection ideas.', links: [{label: 'Play Store', url: 'https://play.google.com/store/apps/details?id=idm.internet.download.manager'}]},

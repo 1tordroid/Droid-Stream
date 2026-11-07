@@ -26,6 +26,8 @@ export interface SourcesReturnTo {
 
 export interface SourcesParams {
   kind?: string;
+  /** Fills in a new source's form, e.g. PikPak's WebDAV address. */
+  prefill?: {name?: string; server?: string; username?: string; secret?: string};
   openId?: string;
   returnTo?: SourcesReturnTo;
 }
@@ -91,8 +93,8 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
   const hasPreviousRoute = () => (navigation.getState?.()?.index ?? 0) > 0;
   const clearLaunchParams = () => {
     const params = route?.params;
-    if (params?.kind || params?.openId || params?.returnTo) {
-      navigation.setParams?.({kind: undefined, openId: undefined, returnTo: undefined});
+    if (params?.kind || params?.openId || params?.returnTo || params?.prefill) {
+      navigation.setParams?.({kind: undefined, openId: undefined, returnTo: undefined, prefill: undefined});
     }
   };
   const leave = (fallback: () => void) => {
@@ -118,7 +120,7 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
       setShowMagnet(false);
       setAdding(true);
       // A saved source's details do not carry over to a new one.
-      setDraft(current => (current.id ? emptySourceForm(kind as SourceKind) : {...current, kind: kind as SourceKind}));
+      setDraft(current => ({...(current.id ? emptySourceForm(kind as SourceKind) : {...current, kind: kind as SourceKind}), ...route?.params?.prefill}));
     }
     const openId = route?.params?.openId;
     if (openId) {
@@ -126,7 +128,7 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
       if (source) browse(source);
     }
     // Only new params open something.
-  }, [route?.params?.kind, route?.params?.openId, route?.params?.returnTo]);
+  }, [route?.params?.kind, route?.params?.openId, route?.params?.returnTo, route?.params?.prefill]);
 
   // Android Back from a form opened from another tab returns to that tab.
   useEffect(() => {

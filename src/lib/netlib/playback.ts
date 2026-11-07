@@ -79,7 +79,7 @@ export const playNetlibVersion = async (navigation: Navigation, item: NetlibItem
       ...netlibPlayerParams(item, key),
       directUrl: stream.url,
       initialStream: {
-        server: stream.local ? 'This device' : 'Library',
+        server: stream.local ? 'This device' : stream.label || 'Library',
         link: stream.url,
         type: stream.type,
         ...(stream.headers ? {headers: stream.headers} : {}),

@@ -2,6 +2,7 @@ import {playbackHeaders} from '../sources/accounts';
 import {openSmbStream} from '../sources/smb';
 import {listSources, type SavedSource} from '../sources/vault';
 import {getSourceSettings, listDeviceSources} from './cache';
+import {hasQualityChoice, isCloudSourceId, listCloudSources, resolveCloudStreams} from './cloud';
 import {parseVersionKey} from './ids';
 import type {NetlibSource} from './types';
 
@@ -13,10 +14,11 @@ const fromSaved = (source: SavedSource): NetlibSource | undefined =>
     ? {id: source.id, kind: source.kind, name: source.name, root: source.kind === 'webdav' ? source.server : ''}
     : undefined;
 
-/** Every source that can have a library: WebDAV and SMB sources, then device folders. */
+/** Every source that can have a library: WebDAV and SMB sources, device folders, then signed-in cloud accounts. */
 export const listNetlibSources = (): NetlibSource[] => [
   ...listSources().map(fromSaved).filter((source): source is NetlibSource => Boolean(source)),
   ...listDeviceSources(),
+  ...listCloudSources(),
 ];
 
 export const findNetlibSource = (id: string): NetlibSource | undefined => listNetlibSources().find(source => source.id === id);
@@ -30,6 +32,8 @@ export interface NetlibStream {
   headers?: Record<string, string>;
   /** A file on this device. */
   local?: boolean;
+  /** Cloud copies: the name in the player's source list, e.g. "PikPak 720p". */
+  label?: string;
 }
 
 /**
@@ -40,6 +44,10 @@ export interface NetlibStream {
 export const resolveNetlibStream = async (key: string): Promise<NetlibStream> => {
   const parsed = parseVersionKey(key);
   if (!parsed) throw new Error('This library file link is not valid.');
+  if (isCloudSourceId(parsed.sourceId)) {
+    const [best] = await resolveCloudStreams(parsed.sourceId, parsed.path);
+    return {url: best.url, type: best.type, label: best.label};
+  }
   const device = listDeviceSources().find(source => source.id === parsed.sourceId);
   if (device) return {url: parsed.path, type: 'local', local: true};
   const saved = savedSourceOf(parsed.sourceId);
@@ -52,4 +60,19 @@ export const resolveNetlibStream = async (key: string): Promise<NetlibStream> =>
     return {url: await openSmbStream(saved.server, saved.share || '', parsed.path, saved.username, saved.secret), type: 'mkv'};
   }
   throw new Error('This source cannot play library files.');
+};
+
+/** True when the file has several copies to choose from in the player (PikPak and Tordroid Plus transcodes). */
+export const netlibHasQualities = (key: string): boolean => {
+  const parsed = parseVersionKey(key);
+  return Boolean(parsed && hasQualityChoice(parsed.sourceId));
+};
+
+/** Every copy of a library file, best first: one for most sources, each transcode for PikPak and Tordroid Plus. */
+export const resolveNetlibStreams = async (key: string): Promise<NetlibStream[]> => {
+  const parsed = parseVersionKey(key);
+  if (parsed && isCloudSourceId(parsed.sourceId)) {
+    return (await resolveCloudStreams(parsed.sourceId, parsed.path)).map(stream => ({url: stream.url, type: stream.type, label: stream.label}));
+  }
+  return [await resolveNetlibStream(key)];
 };
