@@ -194,6 +194,21 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 
 const BOTTOM_CONTROL_ICON_COLOR = 'rgba(255,255,255,0.6)';
 const EditControlsButton = isTV ? TVFocusPressable : TouchableOpacity;
+/** A live window at least this long (seconds) counts as rewindable. */
+const LIVE_DVR_MIN_SECONDS = 120;
+/** Further than this behind the live edge shows "Go live". */
+const LIVE_EDGE_SECONDS = 30;
+const GO_LIVE_STYLE: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  borderRadius: 20,
+  borderWidth: 2,
+  borderColor: 'transparent',
+  backgroundColor: 'rgba(211,47,47,0.9)',
+};
 const goFullScreen = () => {
   SystemBars.setHidden(true);
   if (Platform.OS === 'android') {
@@ -710,6 +725,12 @@ const Player = ({route}: Props): React.JSX.Element => {
   // Segments skipped on their own, and segments whose button already took TV focus.
   const autoSkippedRef = useRef(new Set<string>());
   const focusedSkipRef = useRef<string | null>(null);
+  // Live channels with a DVR window (HLS that keeps past segments) can pause
+  // and rewind; "Go live" jumps back to the live edge. Replays are not live.
+  const isLiveChannel = !!route.params.live && !route.params.catchup;
+  const liveWindowRef = useRef(0);
+  const [liveSeekable, setLiveSeekable] = useState(false);
+  const [behindLive, setBehindLive] = useState(false);
   useEffect(() => {
     playbackTimeRef.current = 0;
     playbackRenderKeyRef.current = '';
@@ -724,6 +745,8 @@ const Player = ({route}: Props): React.JSX.Element => {
     null,
   );
   const playPauseTVRef = useRef<HostInstance>(null);
+  const goLiveTVRef = useRef<HostInstance>(null);
+  const [goLiveTVHandle, setGoLiveTVHandle] = useState<number | null>(null);
   const [playPauseTVHandle, setPlayPauseTVHandle] = useState<number | null>(
     null,
   );
@@ -946,6 +969,13 @@ const Player = ({route}: Props): React.JSX.Element => {
       checkSleepTimer();
       prefetchNextEpisode(e.currentTime, e.seekableDuration);
       playbackTimeRef.current = e.currentTime;
+      if (isLiveChannel) {
+        const window = Number.isFinite(e.seekableDuration) ? e.seekableDuration : 0;
+        liveWindowRef.current = window;
+        const seekable = window >= LIVE_DVR_MIN_SECONDS;
+        setLiveSeekable(seekable);
+        setBehindLive(seekable && window - e.currentTime > LIVE_EDGE_SECONDS);
+      }
       if (liveTimelineRef.current) {
         setCurrentPlaybackTime(e.currentTime);
         return;
@@ -960,8 +990,14 @@ const Player = ({route}: Props): React.JSX.Element => {
         setCurrentPlaybackTime(e.currentTime);
       }
     },
-    [handleProgress, videoPositionRef, checkSleepTimer, prefetchNextEpisode],
+    [handleProgress, videoPositionRef, checkSleepTimer, prefetchNextEpisode, isLiveChannel],
   );
+
+  const goLive = useCallback(() => {
+    if (liveWindowRef.current > 0) playerRef.current?.seek(liveWindowRef.current);
+    setBehindLive(false);
+    setIsPaused(false);
+  }, []);
 
   // The TV timeline shows the running time, so it needs every progress tick.
   useEffect(() => {
@@ -2943,7 +2979,10 @@ const Player = ({route}: Props): React.JSX.Element => {
     () => ({
       disableGesture: isPlayerLocked || !enableSwipeGesture,
       doubleTapTime: 200,
-      disableSeekButtons: isPlayerLocked || hideSeekButtons,
+      disableSeekButtons: isPlayerLocked || hideSeekButtons || (isLiveChannel && !liveSeekable),
+      // A live stream without a DVR window cannot seek; its seekbar would only jitter.
+      disableSeekbar: isLiveChannel && !liveSeekable,
+      live: isLiveChannel,
       showControls,
       showOnStart: showControls,
       // TV visibility and its idle timer are owned by usePlayerTVControls.
@@ -3073,6 +3112,8 @@ const Player = ({route}: Props): React.JSX.Element => {
       handleSeekSnap,
       handleVideoEnd,
       handleVideoSeek,
+      isLiveChannel,
+      liveSeekable,
       processedStreamUrl,
       torrentStartMs,
       reloadStartMs,
@@ -3700,7 +3741,7 @@ const Player = ({route}: Props): React.JSX.Element => {
                 setPlayPauseTVHandle(getNodeHandle(playPauseTVRef.current))
               }
               nextFocusLeft={playPauseTVHandle ?? undefined}
-              nextFocusRight={playPauseTVHandle ?? undefined}
+              nextFocusRight={(behindLive && goLiveTVHandle) || (playPauseTVHandle ?? undefined)}
               nextFocusUp={topControlTVHandle ?? undefined}
               nextFocusDown={timelineFocusHandle ?? undefined}
               accessibilityRole="button"
@@ -3728,6 +3769,24 @@ const Player = ({route}: Props): React.JSX.Element => {
                 color="white"
               />
             </TVFocusPressable>
+            {behindLive ? (
+              <TVFocusPressable
+                ref={goLiveTVRef}
+                focusRadius={24 * controlStyle.scale}
+                focusWidth={3}
+                onLayout={() => setGoLiveTVHandle(getNodeHandle(goLiveTVRef.current))}
+                nextFocusLeft={playPauseTVHandle ?? undefined}
+                nextFocusRight={goLiveTVHandle ?? undefined}
+                nextFocusUp={topControlTVHandle ?? undefined}
+                nextFocusDown={timelineFocusHandle ?? undefined}
+                accessibilityRole="button"
+                accessibilityLabel="Go live"
+                onPress={goLive}
+                style={[GO_LIVE_STYLE, {position: 'absolute', top: '40%', left: '50%', marginLeft: 60 * controlStyle.scale, marginTop: 14 * controlStyle.scale, zIndex: 65}]}>
+                <MaterialCommunityIcons name="broadcast" size={20 * controlStyle.scale} color="white" />
+                <Text style={{color: 'white', fontSize: 15 * controlStyle.scale, fontWeight: '600'}}>Go live</Text>
+              </TVFocusPressable>
+            ) : null}
             <TVFocusPressable
               ref={timelineRef}
               focusWidth={2}
@@ -3803,6 +3862,17 @@ const Player = ({route}: Props): React.JSX.Element => {
             </TVFocusPressable>
           </>
         )}
+
+      {!isTV && !isCasting && !streamLoading && !isPlayerLocked && !showSettings && !showEpisodeSidebar && showControls && behindLive && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go live"
+          onPress={goLive}
+          style={[GO_LIVE_STYLE, {position: 'absolute', alignSelf: 'center', top: 64, zIndex: 60}]}>
+          <MaterialCommunityIcons name="broadcast" size={18} color="white" />
+          <Text style={{color: 'white', fontSize: 14, fontWeight: '600'}}>Go live</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Full-screen overlay to detect taps when locked */}
       {!isCasting && isPlayerLocked && (

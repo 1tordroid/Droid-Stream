@@ -74,6 +74,7 @@ const AnimatedVideoPlayer = (
     controlScale = 1,
     seekbarScale = 1,
     playbackSuspended = false,
+    live = false,
     rate = 1,
     showDuration = false,
     showTimeRemaining = false,
@@ -403,6 +404,10 @@ const AnimatedVideoPlayer = (
       if (!seekingRef.current && !buffering) {
         const newCurrentTime = data.currentTime;
         const newCachedDuration = data.playableDuration;
+        // A live DVR window grows or slides; onLoad only gave its first length.
+        if (live && Number.isFinite(data.seekableDuration) && data.seekableDuration > 0 && Math.abs(data.seekableDuration - duration) >= 1) {
+          setDuration(data.seekableDuration);
+        }
 
         // Update current time
         setCurrentTime(newCurrentTime);
@@ -427,7 +432,7 @@ const AnimatedVideoPlayer = (
         }
       }
     },
-    [buffering, onProgress, duration, seekerWidth],
+    [buffering, onProgress, duration, seekerWidth, live],
   );
 
   const _onScreenTouch = useCallback(() => {
