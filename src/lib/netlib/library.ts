@@ -2,6 +2,7 @@ import {create} from 'zustand';
 import {getTmdbApiKey} from '../hooks/useTmdbStory';
 import {registerStorageClearHook} from '../storage/StorageService';
 import {getSourceSettings, loadLibrary, saveLibrary} from './cache';
+import {cloudLister, isCloudKind} from './cloud';
 import {groupNetlib} from './group';
 import {matchItems} from './match';
 import {findNetlibSource, savedSourceOf, scanRootOf} from './resolve';
@@ -63,6 +64,7 @@ export const useNetlibItem = (id?: string): NetlibItem | undefined => {
 
 const listerFor = (source: NetlibSource): NetlibLister => {
   if (source.kind === 'device') return deviceLister;
+  if (isCloudKind(source.kind)) return cloudLister(source);
   const saved = savedSourceOf(source.id);
   if (!saved) throw new Error('This source was removed.');
   return source.kind === 'smb' ? smbLister(saved) : webDavLister(saved);

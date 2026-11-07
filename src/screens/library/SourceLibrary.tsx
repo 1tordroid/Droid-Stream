@@ -5,6 +5,8 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ActivityIndicator, BackHandler, ScrollView, View, useWindowDimensions, type HostInstance} from 'react-native';
 import MediaPosterCard from '../../components/MediaPosterCard';
 import FixMatch from '../../components/netlib/FixMatch';
+import CloudSourceBar, {canShareCloud, CloudShareButton, openCloudSignIn} from '../../components/cloud/CloudSourceBar';
+import PhotoPreview from '../../components/cloud/PhotoPreview';
 import Chip from '../../components/torrentSearch/Chip';
 import {TVFocusable} from '../../components/tv';
 import MaterialDialogSurface from '../../components/ui/MaterialDialogSurface';
@@ -18,6 +20,8 @@ import {netlibResume} from '../../lib/netlib/continueWatching';
 import {watchProgressStorage} from '../../lib/storage';
 import {findNetlibSource} from '../../lib/netlib/resolve';
 import {isNetlibVideo} from '../../lib/netlib/parsePath';
+import {isCloudEntryImage, isCloudKind} from '../../lib/netlib/cloud';
+import {pikpakImageUrl} from '../../lib/pikpak/drive';
 import type {NetlibEntry, NetlibItem, NetlibSort, NetlibSource} from '../../lib/netlib/types';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {isTV} from '../../lib/tv/constants';
@@ -115,6 +119,7 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
   const [entries, setEntries] = useState<NetlibEntry[]>();
   const [folderError, setFolderError] = useState<string>();
   const [initialCardFocused, setInitialCardFocused] = useState(false);
+  const [photo, setPhoto] = useState<NetlibEntry>();
   const listRef = useRef<FlashListRef<NetlibItem>>(null);
   const topRef = useRef<HostInstance>(null);
   const scrolled = useRef(false);
@@ -156,7 +161,8 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
         .then(list =>
           setEntries(
             list
-              .filter(entry => entry.directory || isNetlibVideo(entry.name))
+              // PikPak folders also show pictures, which open in a preview.
+              .filter(entry => entry.directory || isNetlibVideo(entry.name) || (source.kind === 'pikpak' && isCloudEntryImage(entry)))
               .sort((a, b) => Number(b.directory) - Number(a.directory) || a.name.localeCompare(b.name, undefined, {numeric: true})),
           ),
         )
@@ -172,7 +178,7 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (fixing || settingsOpen) return false;
+        if (fixing || settingsOpen || photo) return false;
         if (tab === 'folders' && folders.length) {
           setFolders(current => current.slice(0, -1));
           return true;
@@ -187,7 +193,7 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
         return false;
       });
       return () => subscription.remove();
-    }, [fixing, settingsOpen, tab, folders.length]),
+    }, [fixing, settingsOpen, photo, tab, folders.length]),
   );
 
   const updateSettings = (patch: Parameters<typeof setSourceSettings>[1]) => setSettings(setSourceSettings(sourceId, patch));
@@ -233,6 +239,7 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
           <MaterialCommunityIcons name="tune-variant" size={24} color={colors.onSurfaceVariant} />
         </TVFocusable>
       </View>
+      {isCloudKind(source.kind) ? <CloudSourceBar source={source} navigation={navigation} /> : null}
       {tab !== 'folders' ? (
         <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 48, paddingHorizontal: 16, marginHorizontal: 16, marginTop: 8}}>
           <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
@@ -264,7 +271,7 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
       return (
         <Notice icon="cloud-alert-outline" title="Could not reach this source" body={error}>
           <Chip label="Try again" icon="refresh" onPress={() => scanNetlibSource(sourceId)} />
-          {source.kind !== 'device' ? <Chip label="Check sign-in" icon="account-key-outline" onPress={() => navigation.navigate('Sources', {openId: sourceId})} /> : null}
+          {source.kind !== 'device' ? <Chip label="Check sign-in" icon="account-key-outline" onPress={() => (isCloudKind(source.kind) ? openCloudSignIn(navigation, source) : navigation.navigate('Sources', {openId: sourceId}))} /> : null}
         </Notice>
       );
     }
@@ -306,20 +313,25 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
       {folderError ? <Notice icon="folder-alert-outline" title="Could not open this folder" body={folderError} /> : null}
       {!entries && !folderError ? <ActivityIndicator color={colors.primary} style={{marginTop: 24}} /> : null}
       {entries && !entries.length ? <Notice icon="folder-outline" title="Empty folder" body="No folders or videos here." /> : null}
-      {entries?.map((entry, index) => (
-        <TVFocusable
-          key={entry.path}
-          accessibilityRole="button"
-          accessibilityLabel={entry.directory ? `Open ${entry.name}` : `Play ${entry.name}`}
-          hasTVPreferredFocus={isTV && index === 0}
-          onPress={() => (entry.directory ? setFolders(current => [...current, {path: entry.path, name: entry.name}]) : playEntry(entry))}
-          borderRadius={14}
-          focusScale={1}
-          style={{flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56, marginHorizontal: 12, paddingHorizontal: 12, borderRadius: 14}}>
-          <MaterialCommunityIcons name={entry.directory ? 'folder' : 'play-circle-outline'} size={26} color={colors.primary} />
-          <AppText role="bodyLarge" numberOfLines={2} style={{color: colors.onSurface, flex: 1}}>{entry.name}</AppText>
-        </TVFocusable>
-      ))}
+      {entries?.map((entry, index) => {
+        const image = !entry.directory && isCloudEntryImage(entry) && !isNetlibVideo(entry.name);
+        return (
+          <View key={entry.path} style={{flexDirection: 'row', alignItems: 'center', marginHorizontal: 12}}>
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel={entry.directory ? `Open ${entry.name}` : image ? `View ${entry.name}` : `Play ${entry.name}`}
+              hasTVPreferredFocus={isTV && index === 0}
+              onPress={() => (entry.directory ? setFolders(current => [...current, {path: entry.path, name: entry.name}]) : image ? setPhoto(entry) : playEntry(entry))}
+              borderRadius={14}
+              focusScale={1}
+              style={{flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56, paddingHorizontal: 12, borderRadius: 14}}>
+              <MaterialCommunityIcons name={entry.directory ? 'folder' : image ? 'image-outline' : 'play-circle-outline'} size={26} color={colors.primary} />
+              <AppText role="bodyLarge" numberOfLines={2} style={{color: colors.onSurface, flex: 1}}>{entry.name}</AppText>
+            </TVFocusable>
+            {canShareCloud(sourceId) ? <CloudShareButton sourceId={sourceId} entry={entry} /> : null}
+          </View>
+        );
+      })}
     </ScrollView>
   );
 
@@ -407,6 +419,7 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
         ) : null}
       </MaterialDialogSurface>
       <FixMatch item={fixing} onClose={() => setFixing(undefined)} />
+      {photo ? <PhotoPreview name={photo.name} load={() => pikpakImageUrl(photo.path)} onClose={() => setPhoto(undefined)} /> : null}
     </View>
   );
 };

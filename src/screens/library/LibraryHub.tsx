@@ -1,35 +1,38 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {useFocusEffect} from '@react-navigation/native';
 import React, {useCallback, useState} from 'react';
-import {Pressable, ScrollView, View} from 'react-native';
+import {ScrollView, View} from 'react-native';
 import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {TVFocusable} from '../../components/tv';
 import {listSources, type SavedSource, type SourceKind} from '../../lib/sources/vault';
 import {listDeviceSources, loadLibrary} from '../../lib/netlib/cache';
+import {listCloudSources} from '../../lib/netlib/cloud';
 import {itemTab} from '../../lib/netlib/group';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-const ICONS: {kind: SourceKind | 'pikpak'; label: string; icon: IconName}[] = [
+const ICONS: {kind: SourceKind | 'pikpak' | 'tdplus'; label: string; icon: IconName}[] = [
   {kind: 'webdav', label: 'WebDAV', icon: 'cloud-outline'},
   {kind: 'smb', label: 'SMB', icon: 'folder-network-outline'},
   {kind: 'jellyfin', label: 'Jellyfin', icon: 'play-box-multiple-outline'},
   {kind: 'emby', label: 'Emby', icon: 'play-box-outline'},
   {kind: 'plex', label: 'Plex', icon: 'plex'},
   {kind: 'pikpak', label: 'PikPak', icon: 'cloud-download-outline'},
+  {kind: 'tdplus', label: 'Tordroid Plus', icon: 'account-group-outline'},
 ];
 
-const FILTERS: {id: 'all' | SourceKind; label: string}[] = [
+const FILTERS: {id: 'all' | SourceKind | 'cloud'; label: string}[] = [
   {id: 'all', label: 'All'},
   {id: 'webdav', label: 'WebDAV'},
   {id: 'smb', label: 'SMB'},
   {id: 'jellyfin', label: 'Jellyfin'},
   {id: 'emby', label: 'Emby'},
   {id: 'plex', label: 'Plex'},
+  {id: 'cloud', label: 'Cloud'},
 ];
 
 const iconOf = (kind: string): IconName => ICONS.find(item => item.kind === kind)?.icon || 'folder-outline';
@@ -70,13 +73,18 @@ const Row = ({label, title, description, icon, onPress}: {label: string; title: 
 const LibraryHub = ({navigation}: {navigation: any}) => {
   const colors = useM3Colors();
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | SourceKind>('all');
+  const [filter, setFilter] = useState<'all' | SourceKind | 'cloud'>('all');
   const [saved, setSaved] = useState(() => listSources());
+  // PikPak, debrid services and Tordroid Plus once signed in.
+  const [cloud, setCloud] = useState(() => listCloudSources());
   // A kids profile does not see debrid, cloud files or network sources.
   const kids = useIsKidsProfile();
 
   // A source added or removed on the Sources page shows up on return.
-  useFocusEffect(useCallback(() => setSaved(listSources()), []));
+  useFocusEffect(useCallback(() => {
+    setSaved(listSources());
+    setCloud(listCloudSources());
+  }, []));
 
   const sources = saved.filter(source => {
     const text = `${source.name} ${source.kind} ${source.server}`.toLowerCase();
@@ -95,13 +103,13 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
       <View style={{marginTop: 16}}>
         <Row label="Saved titles" title="Saved" description="Titles you saved from providers." icon="bookmark-outline" onPress={() => navigation.navigate('WatchList')} />
         <Row label="Videos on this device" title="On this device" description="Poster grid for videos in a folder you pick." icon="cellphone" onPress={() => navigation.navigate('LocalLibrary')} />
-        {kids ? null : <Row label="Cloud and debrid files" title="Cloud files" description="Play or save files from PikPak, TorBox, Real-Debrid and others." icon="cloud-check-outline" onPress={() => navigation.navigate('CloudFiles')} />}
+        {kids ? null : <Row label="Cloud and debrid files" title="Cloud files" description="PikPak, TorBox, Real-Debrid and others, as posters or a list." icon="cloud-check-outline" onPress={() => navigation.navigate('CloudFiles')} />}
         <Row label="Live TV" title="Live TV" description="Free Indian channels, JioTV with your Jio number, JioTV Go and your IPTV playlists." icon="television-classic" onPress={() => navigation.navigate('LiveTV')} />
       </View>
 
       {kids ? null : (<>
       <AppText role="titleMedium" style={{color: colors.onSurface, marginTop: 16, marginBottom: 8}}>Your sources</AppText>
-      {saved.length ? (
+      {saved.length || cloud.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 12}}>
           {FILTERS.map(item => <Chip key={item.id} label={item.label} accessibilityLabel={`Filter ${item.id}`} selected={filter === item.id} onPress={() => setFilter(item.id)} />)}
         </ScrollView>
@@ -118,24 +126,29 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
         <Row key={source.id} label={`Open ${source.name}`} title={source.name} description={sourceCardDescription({id: source.id, kind: 'webdav', server: '', authState: 'ok'}, 'This device')} icon="cellphone"
           onPress={() => navigation.navigate('LocalLibrary')} />
       )) : null}
-      {!saved.length ? (
+      {filter === 'all' || filter === 'cloud' ? cloud.filter(source => !query || source.name.toLowerCase().includes(query.toLowerCase())).map(source => (
+        <Row key={source.id} label={`Open ${source.name}`} title={source.name} description={sourceCardDescription({id: source.id, kind: 'webdav', server: '', authState: 'ok'}, source.kind === 'debrid' ? 'Debrid' : 'Cloud')} icon={source.kind === 'tdplus' ? 'account-group-outline' : source.kind === 'pikpak' ? 'cloud-download-outline' : 'lightning-bolt-outline'}
+          onPress={() => navigation.navigate('SourceLibrary', {sourceId: source.id})} />
+      )) : null}
+      {!saved.length && !cloud.length ? (
         <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginBottom: 4}}>No sources yet. Add your own server below and its videos appear here.</AppText>
-      ) : !sources.length ? (
+      ) : !sources.length && filter !== 'cloud' && !cloud.length ? (
         <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginBottom: 4}}>No sources match.</AppText>
       ) : null}
 
       <AppText role="titleMedium" style={{color: colors.onSurface, marginTop: 16, marginBottom: 8}}>Add a source</AppText>
       <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
         {ICONS.map(item => (
-          <Pressable
+          <TVFocusable
             key={item.kind}
             accessibilityRole="button"
             accessibilityLabel={`Add ${item.label}`}
-            onPress={() => navigation.navigate('Sources', {kind: item.kind})}
+            borderRadius={16}
+            onPress={() => (item.kind === 'tdplus' ? navigation.navigate('TordroidPlus') : navigation.navigate('Sources', {kind: item.kind}))}
             style={{flexBasis: '31%', flexGrow: 1, minHeight: 84, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceContainer, borderRadius: 16}}>
             <MaterialCommunityIcons name={item.icon} size={28} color={colors.primary} />
             <AppText role="labelLarge" style={{color: colors.onSurface, marginTop: 6}}>{item.label}</AppText>
-          </Pressable>
+          </TVFocusable>
         ))}
       </View>
       </>)}

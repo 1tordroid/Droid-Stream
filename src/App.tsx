@@ -23,6 +23,7 @@ import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
 import AdvancedDownloads from './screens/settings/AdvancedDownloads';
 import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
+import TordroidPlus from './screens/library/TordroidPlus';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
 import SourceLibrary from './screens/library/SourceLibrary';
@@ -211,14 +212,15 @@ export type SearchStackParamList = {
 export type WatchListStackParamList = {
   LibraryHome: undefined;
   DebridSettings: undefined;
-  CloudFiles: undefined;
+  CloudFiles: {mode?: 'list'} | undefined;
+  TordroidPlus: undefined;
   LiveTV: undefined;
   LiveGuide: {sourceId: string; group?: string};
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
   SourceLibrary: {sourceId: string};
-  Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}} | undefined;
+  Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}; prefill?: import('./screens/Sources').SourcesParams['prefill']} | undefined;
   Info: {link: string; provider?: string; poster?: string};
 };
 
@@ -495,6 +497,7 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
       <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
       <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
+      <WatchListStack.Screen name="TordroidPlus" component={TordroidPlus} options={subpageOptions} />
       <WatchListStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
       <WatchListStack.Screen name="LiveGuide" component={LiveGuide} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
