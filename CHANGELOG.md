@@ -7,6 +7,19 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
+## Coming in 5.6.1
+
+Built and being tested:
+
+- Photos from social apps keep working when a site changes: the app
+  takes signed site rules from the Droid Stream repository once a day,
+  or with Check now in Video downloader settings, which shows the
+  rules version.
+- "This site stopped working" on the photo downloader's error and in
+  Video downloader settings opens a GitHub issue with the site, app
+  version, rules version and error. The post link is added only if you
+  tick the box.
+
 ## 5.6.0
 
 - Skip intro, recap, credits and previews for every show (provider,
