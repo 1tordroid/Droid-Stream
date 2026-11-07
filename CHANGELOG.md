@@ -23,6 +23,9 @@ Not released yet. Built and being tested:
   rewind on live channels.
 - Profiles with their own history and library, a kids mode and PIN
   locks. Your current data becomes the first profile.
+- Smart unblock, on by default: sites your provider blocks open
+  through ByeDPI or Cloudflare WARP, only for those sites, and debrid
+  stays direct. Always ByeDPI, Always WARP and Off are still there.
 - Update download notifications no longer vibrate every second.
 
 Being built:

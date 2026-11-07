@@ -150,6 +150,7 @@ It runs on Android phones, tablets and Android TV.
 ## Network and privacy
 
 - ✅ Cloudflare WARP mode, ByeDPI and DNS over HTTPS to get past ISP blocks.
+- 🧪 Smart unblock, on by default: only sites your provider blocks open through ByeDPI or Cloudflare WARP; debrid stays direct.
 - ✅ Providers can't reach devices on your home network.
 - ✅ In-app updates check the download before installing, signed with the Droid Stream key.
 - ✅ Encrypted storage for sign-ins and keys; no analytics or trackers.
