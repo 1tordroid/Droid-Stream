@@ -248,7 +248,8 @@ const rememberWorldCache = (sourceId: string, count: number) => {
 
 // ---- Favourites and recent ----
 
-const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedChannel => {
+/** The saved form of a channel (Favourites, Recent, multi-view). */
+export const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedChannel => {
   const resolution = channel.resolution || parseResolution(channel.name, 'attrs' in channel ? channel.attrs : undefined, channel.tvgId);
   const languages = detectLanguages(channel);
   const attrs = catchupAttrsOf(channel.attrs);
