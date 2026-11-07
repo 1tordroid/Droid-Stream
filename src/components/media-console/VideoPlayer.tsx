@@ -12,6 +12,7 @@ import React, {
 } from 'react';
 import {DeviceEventEmitter, NativeModules, Platform, ToastAndroid, View, type HostInstance} from 'react-native';
 import {settingsStorage} from '../../lib/storage';
+import {isTV} from '../../lib/tv/constants';
 import {useFocusEffect} from '@react-navigation/native';
 import * as Brightness from 'expo-brightness';
 import Video, {
@@ -151,6 +152,11 @@ const AnimatedVideoPlayer = (
     Platform.OS === 'android' && settingsStorage.isVolumeBoostEnabled(),
   );
   const volumeBoostAvailable = volumeBoostEnabled;
+  // Read once per player; the toggles live in Player settings (phone only).
+  const [leaveBehaviour] = useState(() => ({
+    autoPip: !isTV && settingsStorage.isAutoPictureInPictureEnabled(),
+    backgroundAudio: !isTV && settingsStorage.isBackgroundAudioEnabled(),
+  }));
   const subtitleUrisRef = useRef(new Set<string>());
   subtitleUrisRef.current = new Set(source?.textTracks?.map(track => track.uri) || []);
   const failedSubtitleUrisRef = useRef(new Set<string>());
@@ -1053,6 +1059,8 @@ const AnimatedVideoPlayer = (
             source={source}
             onBuffer={onBuffer}
             onPictureInPictureStatusChanged={handlePipStatus}
+            enterPictureInPictureOnLeave={leaveBehaviour.autoPip}
+            playInBackground={leaveBehaviour.backgroundAudio}
             // Preserve the native HDR/Dolby Vision output path.
             useTextureView={Platform.OS === 'android' ? false : props.useTextureView}
             viewType={Platform.OS === 'android' ? ViewType.SURFACE : props.viewType}

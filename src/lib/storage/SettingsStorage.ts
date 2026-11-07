@@ -119,6 +119,8 @@ export enum SettingsKeys {
 
   // Remote Playback
   ALWAYS_CAST_MODE = 'alwaysCastMode',
+  AUTO_PICTURE_IN_PICTURE = 'autoPictureInPicture',
+  BACKGROUND_AUDIO = 'backgroundAudio',
   ASK_LOCAL_FILE_FIRST = 'askLocalFileFirst',
   TORRENT_FULL_DOWNLOAD = 'torrentFullDownload',
 
@@ -225,6 +227,24 @@ export class SettingsStorage {
 
   setAlwaysCastMode(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.ALWAYS_CAST_MODE, enabled);
+  }
+
+  /** Phone: go to picture-in-picture when Home is pressed during playback. */
+  isAutoPictureInPictureEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.AUTO_PICTURE_IN_PICTURE, false);
+  }
+
+  setAutoPictureInPictureEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.AUTO_PICTURE_IN_PICTURE, enabled);
+  }
+
+  /** Phone: keep the audio playing when the app is in the background or the screen locks. */
+  isBackgroundAudioEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.BACKGROUND_AUDIO, false);
+  }
+
+  setBackgroundAudioEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.BACKGROUND_AUDIO, enabled);
   }
 
   /**
