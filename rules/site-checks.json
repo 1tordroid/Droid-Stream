@@ -1,0 +1,12 @@
+{
+  "about": "Public posts for the weekly photo downloader check (scripts/rules/check-sites.mjs), read signed out, one request per site. \"requests\": 2 lets the reader also try its fallback (Reddit often blocks www.reddit.com but not old.reddit.com). Replace a post here if it is deleted.",
+  "posts": {
+    "instagram": "https://www.instagram.com/nasa/",
+    "twitter": "https://x.com/TheEllenShow/status/440322224407314432",
+    "reddit": {"url": "https://www.reddit.com/r/videos/comments/6rrwyj/that_small_heart_attack/", "requests": 2},
+    "tumblr": "https://tatianamaslanydaily.tumblr.com/post/54196191430/orphan-black-dvd-extra-behind-the-scenes",
+    "pinterest": "https://www.pinterest.com/pin/664281013778109217/",
+    "threads": "https://www.threads.com/@zuck/post/CuP48CiS5sx",
+    "facebook": "https://www.facebook.com/photo/?fbid=10102593052469281"
+  }
+}
