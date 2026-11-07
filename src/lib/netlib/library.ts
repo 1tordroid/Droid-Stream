@@ -1,5 +1,6 @@
 import {create} from 'zustand';
 import {getTmdbApiKey} from '../hooks/useTmdbStory';
+import {registerStorageClearHook} from '../storage/StorageService';
 import {getSourceSettings, loadLibrary, saveLibrary} from './cache';
 import {groupNetlib} from './group';
 import {matchItems} from './match';
@@ -23,6 +24,11 @@ interface NetlibState {
 
 /** Libraries loaded this session and scans in progress, for the screens. */
 export const useNetlibStore = create<NetlibState>(() => ({libraries: {}, scans: {}, errors: {}}));
+
+// Erase all empties the netlib store; forget what was loaded from it.
+if (typeof registerStorageClearHook === 'function') {
+  registerStorageClearHook(() => useNetlibStore.setState({libraries: {}, errors: {}}));
+}
 
 const setLibrary = (library: NetlibLibrary) => {
   saveLibrary(library);

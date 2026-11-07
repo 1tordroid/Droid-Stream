@@ -5,6 +5,8 @@ import {findSavedSubtitle, savedSubtitleLabel} from '../../lib/subtitles/savedSu
 import RemovableSubtitleRow from '../../components/RemovableSubtitleRow';
 import {getPlaybackQuality} from '../../lib/player/playbackQuality';
 import {localContentId} from '../../lib/localContent/library';
+import {netlibItemIdOf} from '../../lib/netlib/ids';
+import {saveNetlibHistory} from '../../lib/netlib/history';
 import useLocalContentStore from '../../lib/zustand/localContentStore';
 import PlayerMoreMenu from '../../components/PlayerMoreMenu';
 import {PlayerControlStyle} from '../../lib/player/controlStyle';
@@ -463,6 +465,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       isTV ||
       Boolean(route.params.externalVideo) ||
       Boolean(route.params.initialStream) ||
+      Boolean(route.params.netlib) ||
       !settingsStorage.isAskLocalFileFirst() ||
       Boolean((route.params as any)?.alwaysCast) ||
       settingsStorage.isAlwaysCastMode() ||
@@ -564,6 +567,8 @@ const Player = ({route}: Props): React.JSX.Element => {
   useEffect(() => {
     if (
       route.params.localContent ||
+      // Library titles keep their history in the netlib store, out of sync.
+      route.params.netlib ||
       !syncReady ||
       !continueWatchingId ||
       !route.params.infoUrl ||
@@ -602,6 +607,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     continueWatchingId,
     route.params.infoUrl,
     route.params.localContent,
+    route.params.netlib,
     route.params.poster?.background,
     route.params.poster?.poster,
     route.params.primaryTitle,
@@ -621,6 +627,11 @@ const Player = ({route}: Props): React.JSX.Element => {
       if (route.params.localContent) {
         const id = localContentId(route.params.infoUrl || '');
         if (id && activeEpisode?.link) useLocalContentStore.getState().savePlayback(id, activeEpisode.link, position, duration);
+        return;
+      }
+      if (route.params.netlib) {
+        const id = netlibItemIdOf(route.params.infoUrl);
+        if (id && activeEpisode?.link) saveNetlibHistory(id, activeEpisode.link, position, duration);
         return;
       }
       if (!route.params.localContent && continueWatchingId) {
@@ -656,6 +667,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       finishContinueWatchingEpisode,
       route.params.episodeList,
       route.params.localContent,
+      route.params.netlib,
       route.params.infoUrl,
       updateContinueWatchingProgress,
     ],

@@ -17,6 +17,8 @@ import { TextTrackType } from 'react-native-video';
 import { downloadOutputExists } from '../downloadDestination';
 import {guardWafPrompts} from '../services/wafSession';
 import {withoutUnplayableTorrents} from '../torrentStream';
+import {isVersionKey} from '../netlib/ids';
+import {resolveNetlibStream} from '../netlib/resolve';
 
 interface UseStreamOptions {
   activeEpisode: any;
@@ -478,6 +480,16 @@ export const fetchStreamList = async ({
   }
 
   if (routeParams?.externalVideo) return [externalVideoStream(routeParams)!];
+  // A network library file: its link is a version key, opened here so the
+  // next episode plays from the same source.
+  if (routeParams?.netlib || isVersionKey(episode?.link)) {
+    if (!isVersionKey(episode?.link)) return [];
+    // The first file was opened before the player; opening it again would end an SMB stream.
+    const initial = getInitialStream(episode, routeParams);
+    if (initial) return [initial];
+    const stream = await resolveNetlibStream(episode.link);
+    return [{server: stream.local ? 'This device' : 'Library', link: stream.url, type: stream.type, ...(stream.headers ? {headers: stream.headers} : {})}];
+  }
   if (routeParams?.localContent) {
     return isLocalPath(episode?.link)
       ? [{server: 'Local file', link: episode.link, type: 'local'}]

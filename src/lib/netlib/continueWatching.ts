@@ -1,4 +1,7 @@
+import {itemTitle} from './group';
 import {historyFor, isWatchedProgress, type NetlibHistoryEntry} from './history';
+import {NETLIB_PROVIDER, netlibLink} from './ids';
+import {episodeLabel} from './playback';
 import type {NetlibEpisode, NetlibItem} from './types';
 
 type ReadProgress = (key: string) => {position: number; duration: number} | undefined;
@@ -100,3 +103,56 @@ export const netlibResume = (
     updatedAt,
   };
 };
+
+/** A Continue Watching row, the same shape the provider rows use. */
+export interface NetlibContinueRow {
+  id: string;
+  title: string;
+  episodeTitle?: string;
+  seasonTitle?: string;
+  episode: {id: string; link: string; title: string};
+  type: string;
+  poster?: string;
+  background?: string;
+  providerValue: string;
+  infoUrl: string;
+  position: number;
+  duration: number;
+  updatedAt: number;
+}
+
+/**
+ * Continue Watching rows for library titles, from library history: the file
+ * left part way, or the next episode or part once one is watched. Finished
+ * titles, removed rows and titles no longer in a library are left out.
+ */
+export const netlibContinueWatchingRows = (
+  entries: NetlibHistoryEntry[],
+  findItem: (id: string) => NetlibItem | undefined,
+  readProgress: ReadProgress,
+): NetlibContinueRow[] =>
+  entries.flatMap(entry => {
+    if (entry.hidden) return [];
+    const item = findItem(entry.itemId);
+    if (!item) return [];
+    const target = netlibResume(item, readProgress, entry);
+    if (!target || target.finished || target.mode === 'start') return [];
+    const link = netlibLink(item.id);
+    const label = target.episode ? episodeLabel(target.episode) : itemTitle(item);
+    return [
+      {
+        id: link,
+        infoUrl: link,
+        providerValue: NETLIB_PROVIDER,
+        title: itemTitle(item),
+        ...(target.episode ? {episodeTitle: label, seasonTitle: target.episode.season === 0 ? 'Specials' : `Season ${target.episode.season}`} : {}),
+        episode: {id: target.key, link: target.key, title: label},
+        type: item.kind === 'show' ? 'series' : 'movie',
+        ...(item.match?.poster ? {poster: item.match.poster} : {}),
+        ...(item.match?.background ? {background: item.match.background} : {}),
+        position: target.position,
+        duration: target.duration,
+        updatedAt: entry.updatedAt,
+      },
+    ];
+  });

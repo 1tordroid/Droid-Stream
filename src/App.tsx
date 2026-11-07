@@ -162,6 +162,8 @@ export type RootStackParamList = {
     meta?: import('./lib/watchMeta').WatchMeta;
     /** A live TV channel: no watch progress or resume point is saved. */
     live?: boolean;
+    /** A network library file: episode links are version keys, history stays in the netlib store. */
+    netlib?: boolean;
   };
 };
 

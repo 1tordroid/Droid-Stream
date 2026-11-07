@@ -1,3 +1,4 @@
+import {registerStorageClearHook} from '../storage/StorageService';
 import {netlibStorage} from './cache';
 
 /** Where a library title was left: the file (version key) and the position in it. */
@@ -22,7 +23,8 @@ const MAX_ENTRIES = 200;
 
 export const readNetlibHistory = (): NetlibHistoryEntry[] => netlibStorage.readJson<NetlibHistoryEntry[]>(KEY) || [];
 
-export const historyFor = (itemId: string): NetlibHistoryEntry | undefined => readNetlibHistory().find(entry => entry.itemId === itemId);
+export const historyFor = (itemId: string): NetlibHistoryEntry | undefined =>
+  getNetlibHistorySnapshot().find(entry => entry.itemId === itemId);
 
 const listeners = new Set<() => void>();
 export const subscribeNetlibHistory = (listener: () => void): (() => void) => {
@@ -32,8 +34,17 @@ export const subscribeNetlibHistory = (listener: () => void): (() => void) => {
   };
 };
 
+let snapshot: NetlibHistoryEntry[] | undefined;
+
+/** The same array until history changes, for useSyncExternalStore. */
+export const getNetlibHistorySnapshot = (): NetlibHistoryEntry[] => {
+  if (!snapshot) snapshot = readNetlibHistory();
+  return snapshot;
+};
+
 const write = (entries: NetlibHistoryEntry[]) => {
   netlibStorage.writeJson(KEY, entries.slice(0, MAX_ENTRIES));
+  snapshot = undefined;
   listeners.forEach(listener => listener());
 };
 
@@ -48,3 +59,11 @@ export const hideNetlibHistory = (itemId: string): void =>
   write(readNetlibHistory().map(entry => (entry.itemId === itemId ? {...entry, hidden: true} : entry)));
 
 export const clearNetlibHistory = (itemId: string): void => write(readNetlibHistory().filter(entry => entry.itemId !== itemId));
+
+// Erase all empties the store; the next read must not return the old list.
+if (typeof registerStorageClearHook === 'function') {
+  registerStorageClearHook(() => {
+    snapshot = undefined;
+    listeners.forEach(listener => listener());
+  });
+}

@@ -14,6 +14,8 @@ import {itemTab, itemTitle, itemYear} from '../../lib/netlib/group';
 import {NETLIB_PROVIDER, netlibLink, normalizeTitle, versionKey} from '../../lib/netlib/ids';
 import {listNetlibFolder, scanNetlibSource, cancelNetlibScan, useNetlibLibrary, useNetlibStore} from '../../lib/netlib/library';
 import {playNetlibVersion} from '../../lib/netlib/playback';
+import {netlibResume} from '../../lib/netlib/continueWatching';
+import {watchProgressStorage} from '../../lib/storage';
 import {findNetlibSource} from '../../lib/netlib/resolve';
 import {isNetlibVideo} from '../../lib/netlib/parsePath';
 import type {NetlibEntry, NetlibItem, NetlibSort, NetlibSource} from '../../lib/netlib/types';
@@ -340,6 +342,7 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
           }}
           renderItem={({item, index}) => {
             const year = itemYear(item);
+            const resume = netlibResume(item, key => watchProgressStorage.getProgress(key) || undefined);
             return (
               <View style={{padding: 6, alignItems: 'center'}}>
                 <MediaPosterCard
@@ -348,6 +351,8 @@ export const SourceLibraryView = ({sourceId, navigation, onChangeFolder}: Source
                   width={cardWidth}
                   subtitle={item.kind === 'show' ? `${item.episodes.length} ${item.episodes.length === 1 ? 'episode' : 'episodes'}` : year ? String(year) : undefined}
                   badge={item.match?.rating}
+                  progress={resume?.mode === 'resume' ? resume.progress : undefined}
+                  watched={resume?.finished}
                   fullTitle={!item.match}
                   // FlashList reuses cells, so index 0 alone would claim focus again.
                   hasTVPreferredFocus={isTV && index === 0 && !initialCardFocused}
