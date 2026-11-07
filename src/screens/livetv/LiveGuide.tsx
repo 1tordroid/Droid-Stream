@@ -29,9 +29,8 @@ import {TVFocusable} from '../../components/tv';
 import Button from '../../components/ui/Button';
 import AppText, {RawTextInput as TextInput} from '../../components/ui/Text';
 import {catchupAttrsOf, catchupInfo} from '../../lib/livetv/catchup';
-import {isMixedGuide, planGuideLoads, withPlaylistDetails} from '../../lib/livetv/guideSources';
+import {guideBackMs, isMixedGuide, mergeGuides, planGuideLoads, withPlaylistDetails} from '../../lib/livetv/guideSources';
 import {
-  DAY,
   HOUR,
   MINUTE,
   dayLabel,
@@ -63,7 +62,10 @@ import {
   setChannelFilters,
   setEpgOverride,
 } from '../../lib/livetv/store';
-import {findSource} from '../../lib/livetv/world';
+import {findSource, isWorldAll} from '../../lib/livetv/world';
+import {loadAllCountries, peekAllCountries} from '../../lib/livetv/allCountries';
+import {AUTO_GUIDE_MAX_BYTES, autoGuideCountry, autoGuideUrls, guideSiteOf, isLowMemoryRam, NO_COUNTRY_GUIDE} from '../../lib/livetv/worldGuides';
+import {getTotalRamMB} from '../../lib/deviceMemory';
 import {normalizeChannelName} from '../../lib/livetv/xmltv';
 import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
@@ -78,9 +80,6 @@ const CHANNEL_W = isTV ? 200 : 112;
 const ROW_H = isTV ? 72 : 62;
 const HEADER_H = 32;
 const PX_PER_MS = (isTV ? 6 : 4.4) / MINUTE;
-/** How far back the grid goes when no channel has catch-up. */
-const NO_CATCHUP_BACK = 2 * HOUR;
-const MAX_BACK_DAYS = 7;
 const FORWARD = 24 * HOUR;
 /** Programmes this far outside the visible time range are drawn too, for smooth scrolling and D-pad moves. */
 const RANGE_PAD = 3 * HOUR;
@@ -89,6 +88,20 @@ type Colors = ReturnType<typeof useM3Colors>;
 type Params = {sourceId: string; group?: string};
 
 const withSource = (list: {id: string}[], sourceId: string) => list.map(channel => ({...channel, sourceId}) as GridChannel);
+
+/** Asks for a country before loading the guide of All countries. */
+const PICK_COUNTRY_FOR_GUIDE = 'Pick a country in Filters to see its guide.';
+
+/**
+ * Which guide a channel uses: its source's, or for All countries the guide
+ * of one country (the one picked, else the first that lists the channel).
+ */
+const guideKeyOf = (channel: GridChannel, picked?: string): string => {
+  if (!isWorldAll(channel.sourceId)) return channel.sourceId;
+  const countries = channel.countries || [];
+  const country = picked && countries.includes(picked) ? picked : countries[0];
+  return `${channel.sourceId}|${country || ''}`;
+};
 
 /** JioTV guide days already fetched, per channel, for this app session. */
 const jioRows = new Map<string, {offsets: Set<number>; list: GuideProgramme[]}>();
@@ -349,8 +362,10 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     [],
   );
 
+  const allCountries = isWorldAll(sourceId);
   const [allChannels, setAllChannels] = useState<GridChannel[]>(() => {
     if (mixed) return filterKids(sourceId === 'favourites' ? listFavourites() : listRecent());
+    if (allCountries) return filterKids(peekAllCountries()?.channels || []);
     const cached = source ? readCachedPlaylist(source) : undefined;
     return cached ? filterKids(withSource(cached.playlist.channels, sourceId)) : [];
   });
@@ -420,7 +435,9 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     }
     const load = isJio
       ? loadJioChannels().then(list => withSource(list, sourceId))
-      : source
+      : allCountries
+        ? loadAllCountries().then(list => list.channels as GridChannel[])
+        : source
         ? loadPlaylist(source).then(result => {
             if (alive) setPlaylistEpg(result.playlist.epgUrl);
             return withSource(result.playlist.channels, sourceId);
@@ -432,36 +449,48 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     return () => {
       alive = false;
     };
-  }, [isJio, mixed, source, sources, sourceId, filterKids]);
+  }, [isJio, mixed, allCountries, source, sources, sourceId, filterKids]);
 
   // ---- Time ----
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(timer);
   }, []);
-  const backMs = useMemo(() => {
-    let days = 0;
-    for (const channel of allChannels) days = Math.max(days, catchupInfo(channel)?.days || 0);
-    return days ? Math.min(days, MAX_BACK_DAYS) * DAY : NO_CATCHUP_BACK;
-  }, [allChannels]);
+  const backMs = useMemo(() => guideBackMs(allChannels), [allChannels]);
   const window = useMemo(() => guideWindow(Date.now(), backMs, FORWARD), [backMs]);
   const stripWidth = Math.round((window.end - window.start) * PX_PER_MS);
 
   // ---- XMLTV guide ----
   const jiotv = source?.kind === 'jiotv' ? getJioServer() : undefined;
   const epgUrl = isJio || mixed ? undefined : override || playlistEpg || (jiotv ? jioEpgUrl(jiotv) : undefined);
-  const guideUrlFor = useCallback(
-    (id: string): string | undefined => {
-      if (!mixed) return id === sourceId ? epgUrl : undefined;
-      const from = sources.find(item => item.id === id);
-      if (!from) return undefined;
-      const server = from.kind === 'jiotv' ? getJioServer() : undefined;
-      return getEpgOverride(id) || mixedEpgs[id] || (server ? jioEpgUrl(server) : undefined);
-    },
-    [mixed, sourceId, epgUrl, sources, mixedEpgs],
+  // World countries and Free Indian channels: the free guide for the country, when there is one.
+  // An address typed in, or the playlist's own, wins.
+  const lowMemory = useMemo(() => isLowMemoryRam(getTotalRamMB()), []);
+  const picked = allCountries ? filters.country : undefined;
+  const autoUrls = useMemo(
+    () => (isJio || mixed || epgUrl ? [] : autoGuideUrls(sourceId, {country: picked, lowMemory})),
+    [isJio, mixed, epgUrl, sourceId, picked, lowMemory],
   );
+  const guideUrlFor = useCallback(
+    (id: string, channel: GridChannel): string | string[] | undefined => {
+      if (!mixed) return id === sourceId ? epgUrl || autoUrls : undefined;
+      const typed = getEpgOverride(id);
+      if (typed) return typed;
+      const from = sources.find(item => item.id === id);
+      const server = from?.kind === 'jiotv' ? getJioServer() : undefined;
+      const own = mixedEpgs[id] || (server ? jioEpgUrl(server) : undefined);
+      return own || autoGuideUrls(id, {country: channel.countries?.[0], lowMemory});
+    },
+    [mixed, sourceId, epgUrl, autoUrls, sources, mixedEpgs, lowMemory],
+  );
+  const keyOf = useCallback((channel: GridChannel) => guideKeyOf(channel, picked), [picked]);
   // Every channel shown here, so changing a filter does not load the guide again.
-  const loads = useMemo(() => planGuideLoads(allChannels, guideUrlFor, normalizeChannelName), [allChannels, guideUrlFor]);
+  // All countries loads one country's guide at a time: the one picked in the filters.
+  const guideChannels = useMemo(
+    () => (allCountries ? (picked ? allChannels.filter(channel => channel.countries?.includes(picked)) : []) : allChannels),
+    [allCountries, picked, allChannels],
+  );
+  const loads = useMemo(() => planGuideLoads(guideChannels, guideUrlFor, normalizeChannelName, keyOf), [guideChannels, guideUrlFor, keyOf]);
   const loadsKey = loads.map(load => load.key).join('\n');
   const loadsRef = useRef(loads);
   loadsRef.current = loads;
@@ -482,9 +511,15 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
       let failure = '';
       for (const load of list) {
         try {
-          const result = await loadXmltvGuide(load.url, {ids: load.ids, names: load.names, backMs}, {force: reload > 0});
+          const auto = !!guideSiteOf(load.url);
+          const result = await loadXmltvGuide(
+            load.url,
+            {ids: load.ids, names: load.names, backMs},
+            {force: reload > 0, ...(auto ? {maxBytes: AUTO_GUIDE_MAX_BYTES} : {})},
+          );
+          // A second guide for the same channels fills what the first does not have.
           load.sourceIds.forEach(id => {
-            next[id] = result;
+            next[id] = mergeGuides(next[id], result);
           });
           if (alive) setGuides({...next});
         } catch (err: any) {
@@ -661,7 +696,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
       <Row
         channel={item}
         index={index}
-        guide={guides[item.sourceId]}
+        guide={guides[guideKeyOf(item, picked)]}
         window={window}
         range={range}
         now={minuteNow}
@@ -677,7 +712,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
         onPlayChannel={playLive}
       />
     ),
-    [guides, window, range, minuteNow, scrollX, colors, reminders, editing, filtersUsed, filters.qualityBadge, registerNowCell, onPressCell, onLongPressCell, onFocusCell, playLive],
+    [guides, picked, window, range, minuteNow, scrollX, colors, reminders, editing, filtersUsed, filters.qualityBadge, registerNowCell, onPressCell, onLongPressCell, onFocusCell, playLive],
   );
 
   const slots = useMemo(() => timeSlots({start: Math.max(window.start, range.start), end: Math.min(window.end, range.end)}), [window, range]);
@@ -690,7 +725,10 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     const loaded = Object.values(guides);
     if (mixed) {
       if (!loads.length && !hasJioChannels && allChannels.length) return 'No guide for these channels. Add a guide address on the TV guide of their source.';
-    } else if (!epgUrl) return 'This playlist has no guide address. Add one to see programmes.';
+    } else if (allCountries && !picked && !epgUrl) return PICK_COUNTRY_FOR_GUIDE;
+    else if (!epgUrl && !autoUrls.length) {
+      return autoGuideCountry(sourceId, picked) ? NO_COUNTRY_GUIDE : 'This playlist has no guide address. Add one to see programmes.';
+    }
     if (loaded.length && loaded.every(item => !Object.keys(item.programmes).length)) return 'The guide has no programmes for these channels.';
     return '';
   })();
@@ -742,7 +780,9 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
         {editing ? (
           <View style={{paddingVertical: 8}}>
             <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant}}>
-              XMLTV guide address (.xml or .xml.gz). Leave it empty to use the playlist's own guide.
+              {autoGuideCountry(sourceId, picked) || allCountries
+                ? 'XMLTV guide address (.xml or .xml.gz). Leave it empty to use the free guide for this country, when there is one.'
+                : "XMLTV guide address (.xml or .xml.gz). Leave it empty to use the playlist's own guide."}
             </AppText>
             <TextInput
               value={draft}
@@ -768,6 +808,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
             filters={effective}
             counts={counts}
             groups={groups}
+            countries={allCountries}
             shown={channels.length}
             total={allChannels.length}
             onChange={updateFilters}
@@ -811,7 +852,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
       <View style={{flex: 1}} onLayout={onLayout}>
         {!channels.length ? (
           <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, paddingHorizontal: isTV ? 40 : 12}}>
-            {error || (allChannels.length ? 'No channels match these filters.' : 'Loading channels…')}
+            {allChannels.length ? 'No channels match these filters.' : error || 'Loading channels…'}
           </AppText>
         ) : viewport.height > 0 ? (
           <Animated.ScrollView
