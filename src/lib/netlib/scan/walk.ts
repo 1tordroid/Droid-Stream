@@ -45,8 +45,14 @@ export const walkVideos = async (
           truncated = true;
           break;
         }
-        const {directory: _directory, ...file} = entry;
-        files.push({...file, folders: folder.folders});
+        files.push({
+          path: entry.path,
+          name: entry.name,
+          folders: folder.folders,
+          ...(entry.size !== undefined ? {size: entry.size} : {}),
+          ...(entry.modified !== undefined ? {modified: entry.modified} : {}),
+          ...(entry.etag ? {etag: entry.etag} : {}),
+        });
       }
     }
     options.onProgress?.(files.length);

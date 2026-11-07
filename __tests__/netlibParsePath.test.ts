@@ -11,7 +11,8 @@ const parse = (path: string) => {
 describe('netlib path parsing', () => {
   it.each(tree.map(row => [row.path, row]))('%s', (path, row) => {
     const parsed = parse(path as string);
-    const {path: _path, ...expected} = row as Record<string, any>;
+    const expected = {...(row as Record<string, any>)};
+    delete expected.path;
     expect(parsed).toMatchObject(expected);
     if (expected.kind !== 'episode') expect(parsed.season).toBeUndefined();
   });

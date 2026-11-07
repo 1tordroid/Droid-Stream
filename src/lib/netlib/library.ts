@@ -139,8 +139,10 @@ export const setNetlibMatch = (id: string, match: NetlibMatch | undefined): void
     ...library,
     items: library.items.map(item => {
       if (item.id !== id) return item;
-      const {match: _old, ...rest} = item;
-      return match ? {...rest, match: {...match, manual: true}} : rest;
+      if (match) return {...item, match: {...match, manual: true}};
+      const rest = {...item};
+      delete rest.match;
+      return rest;
     }),
   });
 };
