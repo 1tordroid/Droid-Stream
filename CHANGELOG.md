@@ -22,6 +22,10 @@ Built and being tested:
 - Tordroid Plus in Library > Add a source: family downloads with
   progress, play with quality choice or in VLC, add magnets, quota, share
   links and its WebDAV in the poster library.
+- Live TV World: free channels for any country, listed by iptv-org.
+  Live TV starts on your country, found on the device from the SIM,
+  network or language settings, and Change country picks another.
+  Free Indian channels and JioTV stay as they were.
 
 ## 5.6.0
 
