@@ -105,9 +105,9 @@ It runs on Android phones, tablets and Android TV.
   - a built-in browser with site shortcuts
   - a download button on videos
   - a list of all media on the page
-- 🔨 Photos from social apps: single photos, carousels, stories and profile pictures, with a "photo only" option.
-- 🔨 Instagram photo with its song, saved as a video (or photo only, or song only).
-- 🔨 Batch downloads of a carousel, playlist or profile.
+- 🧪 Photos from social apps: Instagram (photos, carousels, reel covers, stories and highlights when signed in, full-size profile pictures), Facebook, X, Threads, Pinterest, Reddit and Tumblr. Pick items, "Photos only" and original quality; saved in Social/<site>/<author>.
+- 🧪 Instagram photo with its song: save the photo, the song, or a video of the photo (or a carousel slideshow) with the song, made on the phone.
+- 🧪 Batch downloads of a whole carousel or the latest posts of a profile (playlists go through the yt-dlp downloader).
 - 🔨 MPEG-DASH downloads (separate video and audio).
 - 🔨 Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
 - 🔨 FTP and FTPS downloads.

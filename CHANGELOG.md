@@ -28,6 +28,10 @@ Not released yet. Built and being tested:
   playlists, a queue with start times, site sign-in for cookies, and
   yt-dlp updates inside the app.
 - Update download notifications no longer vibrate every second.
+- Save photos from Instagram, Facebook, X, Threads, Pinterest, Reddit
+  and Tumblr posts: carousels, stories, highlights, profile pictures and
+  a profile's latest posts, and Instagram photos with their song as a
+  photo, a song file or a video.
 
 Being built:
 
