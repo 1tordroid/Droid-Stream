@@ -10,6 +10,7 @@ import {watchSyncBaseStorage} from '../watchSync';
 import {profileKey, profileKeyPrefix} from './scope';
 import {BROWSER_INSTANCE_ID, PROFILE_BROWSER_KEYS} from '../browser/store';
 import {deleteProfileLogins} from '../browser/passwords';
+import {ADDON_ROWS_KEY} from '../addonRows/keys';
 
 /**
  * Everything a profile owns, by store. The default profile owns the bare
@@ -23,6 +24,7 @@ export const PROFILE_MAIN_KEYS = [
   CONTINUE_WATCHING_KEY,
   'searchHistory',
   'library-selected-filter',
+  ADDON_ROWS_KEY,
 ] as const;
 export const LIVETV_INSTANCE_ID = 'droid-stream-livetv';
 export const PROFILE_LIVETV_KEYS = ['favourites', 'recent', 'liveFilters', 'liveView', 'liveCountry', 'liveCountries'] as const;
