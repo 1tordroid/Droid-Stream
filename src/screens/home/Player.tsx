@@ -69,6 +69,7 @@ import {
 } from '../../lib/hooks/useStream';
 import {useStreamTrackSelections} from '../../lib/hooks/useStreamTrackSelections';
 import {useStreamResumePosition} from '../../lib/hooks/useStreamResumePosition';
+import {usePlaybackFallback} from '../../lib/hooks/usePlaybackFallback';
 import {getNextEpisode, isWatched} from '../../lib/player/upNext';
 import {
   usePlayerProgress,
@@ -506,7 +507,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     isLoading: streamLoading,
     error: streamError,
     refreshLinks,
-    switchToNextStream,
+    switchToNextStream: switchToNextProviderStream,
   } = useStream({
     activeEpisode,
     routeParams: route.params,
@@ -1220,6 +1221,20 @@ const Player = ({route}: Props): React.JSX.Element => {
       videoPositionRef,
     });
 
+  // Play best: a dead source moves on to the next one in its list first.
+  const playBestFallback = usePlaybackFallback({
+    plan: route.params.playBest,
+    selectedStream,
+    setSelectedStream,
+    videoPositionRef,
+    paused: isPaused,
+  });
+  const {handleError: takePlayBestError, handleLoad: markPlayBestLoaded} = playBestFallback;
+  const switchToNextStream = useCallback(
+    () => takePlayBestError() || switchToNextProviderStream(),
+    [takePlayBestError, switchToNextProviderStream],
+  );
+
   // Selected tracks, reset to the defaults whenever the stream changes
   const {
     selectedAudioTrack,
@@ -1668,6 +1683,10 @@ const Player = ({route}: Props): React.JSX.Element => {
           ToastAndroid.show('Playback interrupted, retrying', ToastAndroid.SHORT);
           return;
         }
+        if (takePlayBestError()) {
+          setShowControls(true);
+          return;
+        }
         // The reload failed too, so the link has likely expired. Ask the
         // provider for new links once; the same server then continues from
         // where it stopped.
@@ -1727,6 +1746,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       markStreamsOnline,
       navigation,
       refreshLinks,
+      takePlayBestError,
       route.params.directUrl,
       route.params.externalVideo,
       route.params.file,
@@ -2760,6 +2780,7 @@ const Player = ({route}: Props): React.JSX.Element => {
         setTextTracks(e.textTracks);
       }
       videoLoadedRef.current = true;
+      markPlayBestLoaded();
       playbackRetryRef.current = markPlaybackLoaded(
         playbackRetryRef.current,
         selectedStreamRef.current,
@@ -2791,6 +2812,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       setTextTracks,
       getStartPosition,
       markStreamLoaded,
+      markPlayBestLoaded,
     ],
   );
 
@@ -3317,7 +3339,7 @@ const Player = ({route}: Props): React.JSX.Element => {
 
   // Show error state
   if (
-    streamError &&
+    (streamError || playBestFallback.exhausted) &&
     !isRemoteActive &&
     !isCasting &&
     !isLocalOrDownloadedStream
@@ -3346,7 +3368,7 @@ const Player = ({route}: Props): React.JSX.Element => {
             navigation.goBack();
           }}>
           <Text style={{color: '#ffffff', fontWeight: 'bold', fontSize: 16}}>
-            Go Back
+            {playBestFallback.exhausted ? 'Choose source' : 'Go Back'}
           </Text>
         </TVFocusable>
       </SafeAreaView>

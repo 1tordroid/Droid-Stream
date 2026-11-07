@@ -12,6 +12,8 @@ import {fetchMeta, fetchStreams, videoId, type StremioStream} from '../stremio';
 import {searchAll} from '../torrentSearch/search';
 import type {TorrentResult} from '../torrentSearch/types';
 import {buildMagnet, infoHashFrom, makeResult, parseSize} from '../torrentSearch/util';
+import {defaultPlayBestFilters, type PlayBestFilters} from './fallback';
+import {demoteFailed, recentFailures} from './failedSources';
 
 const storage = openStore('droid-stream-finder');
 
@@ -60,6 +62,14 @@ export interface FinderPrefs {
   preloadNext: boolean;
   /** Also search the torrent sites, not only add-ons. */
   includeSites: boolean;
+  /** Play best moves on to the next source by itself when one does not play. */
+  autoFallback: boolean;
+  /** Seconds a source may take to show its first frame before Play best tries the next. */
+  fallbackFirstFrameSec: number;
+  /** Seconds a source may sit buffering at the start before Play best tries the next. */
+  fallbackStallSec: number;
+  /** Limits Play best applies when it picks sources (the full list still shows everything). */
+  playBestFilters: PlayBestFilters;
 }
 
 export const defaultPrefs = (): FinderPrefs => ({
@@ -69,11 +79,16 @@ export const defaultPrefs = (): FinderPrefs => ({
   debridForUncached: true,
   preloadNext: true,
   includeSites: true,
+  autoFallback: true,
+  fallbackFirstFrameSec: 15,
+  fallbackStallSec: 20,
+  playBestFilters: defaultPlayBestFilters(),
 });
 
 export const readPrefs = (): FinderPrefs => {
   try {
-    return {...defaultPrefs(), ...JSON.parse(storage.getString('prefs') || '{}')};
+    const saved = JSON.parse(storage.getString('prefs') || '{}');
+    return {...defaultPrefs(), ...saved, playBestFilters: {...defaultPlayBestFilters(), ...saved?.playBestFilters}};
   } catch {
     return defaultPrefs();
   }
@@ -231,7 +246,9 @@ export const findSources = async (
   const prefs = readPrefs();
   const status: Record<string, FinderStatus> = {};
   let all: Candidate[] = [];
-  const emit = () => onUpdate?.(rankCandidates(all, prefs), {...status});
+  // Sources that failed for this title lately go last.
+  const failed = recentFailures(want);
+  const emit = () => onUpdate?.(demoteFailed(rankCandidates(all, prefs), failed), {...status});
 
   const addonTask = want.imdbId
     ? fetchStreams(want.type, videoId(want.imdbId, want.season, want.episode), undefined, result => {
@@ -287,7 +304,7 @@ export const findSources = async (
     all = all.map(candidate => (candidate.infoHash && cached[candidate.infoHash] ? {...candidate, cachedOn: cached[candidate.infoHash]} : candidate));
     status.cache = {label: 'Debrid caches', state: 'done', count: Object.keys(cached).length};
   }
-  const ranked = rankCandidates(all, prefs);
+  const ranked = demoteFailed(rankCandidates(all, prefs), failed);
   memory.set(memoryKey(want), ranked);
   onUpdate?.(ranked, {...status});
   return ranked;
