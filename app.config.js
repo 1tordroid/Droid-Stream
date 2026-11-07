@@ -190,6 +190,8 @@ module.exports = () => {
           'android.permission.RECORD_AUDIO',
           // No overlay windows: picture-in-picture does not need this.
           'android.permission.SYSTEM_ALERT_WINDOW',
+          // Not used; blocked so older generated projects drop it too.
+          'android.permission.WRITE_SETTINGS',
           'android.permission.MANAGE_EXTERNAL_STORAGE',
           'android.permission.READ_EXTERNAL_STORAGE',
           'android.permission.READ_MEDIA_VIDEO',
