@@ -28,6 +28,7 @@ import {Drawer} from 'react-native-drawer-layout';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Post} from '../../lib/providers/types';
 import Tutorial from '../../components/Touturial';
+import UnblockNoticeDialog from '../../components/unblock/UnblockNoticeDialog';
 import {QueryErrorBoundary} from '../../components/ErrorBoundary';
 import {StatusBar} from 'expo-status-bar';
 import AppText from '../../components/ui/Text';
@@ -394,6 +395,9 @@ const Home = ({navigation}: Props) => {
               }
             />
           </Drawer>
+
+          {/* Once, for people updating from a version without Smart unblock. */}
+          <UnblockNoticeDialog />
 
           {isTV && isDrawerOpen ? (
             <Modal

@@ -1,7 +1,7 @@
-import { NativeModules, Platform, ToastAndroid } from 'react-native';
-import { settingsStorage } from '../storage';
+import { NativeModules, Platform } from 'react-native';
 
-const { WarpModule, ByeDpiModule } = NativeModules;
+// Smart unblock (lib/unblock/unblockService) decides when WARP runs.
+const { WarpModule } = NativeModules;
 
 export interface WarpStatus {
   running: boolean;
@@ -31,37 +31,4 @@ export const getWarpStatus = async (): Promise<WarpStatus> => {
     return { running: false };
   }
   return await WarpModule.getStatus();
-};
-
-export const toggleWarp = async (enabled: boolean): Promise<WarpStatus> => {
-  settingsStorage.setWarpEnabled(enabled);
-  if (enabled) {
-    settingsStorage.setByeDpiEnabled(false);
-    if (ByeDpiModule) {
-      ByeDpiModule.stopByeDpi().catch(() => {});
-    }
-    return await startWarp();
-  } else {
-    return await stopWarp();
-  }
-};
-
-export const syncWarpSettings = async (): Promise<void> => {
-  if (!isWarpSupported()) {
-    return;
-  }
-  const enabled = settingsStorage.isWarpEnabled();
-  if (enabled) {
-    try {
-      await startWarp();
-    } catch (e) {
-      console.warn('[WARP] Startup initialization warning:', e);
-      ToastAndroid.show(
-        'Failed to start WARP.',
-        ToastAndroid.SHORT,
-      );
-    }
-  } else {
-    await stopWarp();
-  }
 };

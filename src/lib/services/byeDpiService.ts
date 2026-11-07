@@ -1,7 +1,8 @@
-import { NativeModules, Platform, ToastAndroid } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import { settingsStorage } from '../storage';
 
-const { ByeDpiModule, WarpModule } = NativeModules;
+// Smart unblock (lib/unblock/unblockService) decides when ByeDPI runs.
+const { ByeDpiModule } = NativeModules;
 
 export const DEFAULT_BYEDPI_ARGS = '--split 1 --disorder 1 --auto=torst';
 
@@ -82,38 +83,4 @@ export const getByeDpiStatus = async (): Promise<ByeDpiStatus> => {
     return { running: false };
   }
   return await ByeDpiModule.getStatus();
-};
-
-export const toggleByeDpi = async (
-  enabled: boolean,
-  customArgs?: string,
-): Promise<ByeDpiStatus> => {
-  settingsStorage.setByeDpiEnabled(enabled);
-  if (enabled) {
-    // Disable WARP if active
-    settingsStorage.setWarpEnabled(false);
-    if (WarpModule) {
-      WarpModule.stopWarp().catch(() => {});
-    }
-    return await startByeDpi(customArgs);
-  } else {
-    return await stopByeDpi();
-  }
-};
-
-export const syncByeDpiSettings = async (): Promise<void> => {
-  if (!isByeDpiSupported()) {
-    return;
-  }
-  const enabled = settingsStorage.isByeDpiEnabled();
-  if (enabled) {
-    try {
-      await startByeDpi();
-    } catch (e) {
-      console.warn('[ByeDPI] Startup initialization warning:', e);
-      ToastAndroid.show('Failed to start ByeDPI.', ToastAndroid.SHORT);
-    }
-  } else {
-    await stopByeDpi();
-  }
 };

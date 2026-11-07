@@ -23,6 +23,7 @@ jest.mock('../src/components/DiscoverRows', () => 'DiscoverRows');
 jest.mock('../src/components/ui/StatusBarScrim', () => 'Scrim');
 jest.mock('../src/components/ui/Text', () => require('react-native').Text);
 jest.mock('../src/components/Touturial', () => 'Tutorial');
+jest.mock('../src/components/unblock/UnblockNoticeDialog', () => 'UnblockNoticeDialog');
 jest.mock('../src/components/ErrorBoundary', () => ({QueryErrorBoundary: ({children}: any) => children}));
 jest.mock('expo-status-bar', () => ({StatusBar: 'StatusBar'}));
 
