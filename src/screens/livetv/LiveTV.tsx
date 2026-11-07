@@ -34,6 +34,7 @@ import {
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {openChannel, type GridChannel} from './play';
 import {showChannelMenu} from './record';
+import {addChannelToMultiView, openMultiView} from './multiViewActions';
 import ChannelFilterBar, {countryChipLabel, countryChoices, QualityBadge} from './ChannelFilterBar';
 import {isKidsChannelGroup} from '../../lib/profiles/kids';
 import {ALL_COUNTRIES, countryLabel, flagOf, findCountry} from '../../lib/livetv/countries';
@@ -402,6 +403,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
         )}
         {kids && !jioNumber ? null : chip(`view:${JIO_SOURCE_ID}`, <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />)}
         {chip('world', <Chip label="World" icon="web" selected={mode === 'country' || (mode === 'grid' && (!!worldCountry || allCountries))} onPress={openWorld} />)}
+        {chip('multiview', <Chip label="Multi-view" icon="view-grid-outline" accessibilityLabel="Multi-view: watch 2 to 4 channels at once" onPress={() => openMultiView(navigation)} />)}
         {/* Server and playlist setup is not shown on a kids profile. */}
         {kids ? null : chip('mode:jiotv', <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />)}
         {kids ? null : chip('mode:add', <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />)}
@@ -693,7 +695,11 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             preferred={index === 0 && !chipsUsed}
             busy={opening === item.id}
             onPress={() => onPlay(item)}
-            onLongPress={() => showChannelMenu(item, favouriteKeys.has(`${item.sourceId}|${item.id}`), () => onToggleFavourite(item))}
+            onLongPress={() =>
+              showChannelMenu(item, favouriteKeys.has(`${item.sourceId}|${item.id}`), () => onToggleFavourite(item), [
+                {label: 'Add to multi-view', onPress: () => addChannelToMultiView(navigation, item)},
+              ])
+            }
           />
         )}
       />
