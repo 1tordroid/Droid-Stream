@@ -29,11 +29,17 @@ export const recordProgramme = (channel: GridChannel, programme: GuideProgramme)
 
 export const canRecord = (channel: GridChannel): boolean => !recordingBlocker(channel);
 
-/** Long-press menu of a channel tile: favourite and record. */
-export const showChannelMenu = (channel: GridChannel, favourite: boolean, toggleFavourite: () => void): void => {
+/** Long-press menu of a channel tile: favourite, record and any extra actions (multi-view). */
+export const showChannelMenu = (
+  channel: GridChannel,
+  favourite: boolean,
+  toggleFavourite: () => void,
+  extra: {label: string; onPress: () => void}[] = [],
+): void => {
   const actions = [
     {label: 'Cancel'},
     {label: favourite ? 'Remove from favourites' : 'Add to favourites', onPress: toggleFavourite},
+    ...extra,
   ];
   if (canRecord(channel)) actions.push({label: 'Record', onPress: () => recordChannel(channel)});
   showAppDialog({title: channel.name, message: channel.group || 'Live TV channel', actions});

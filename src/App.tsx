@@ -32,6 +32,7 @@ import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
 import SourceLibrary from './screens/library/SourceLibrary';
 import LiveTV from './screens/livetv/LiveTV';
+import MultiView from './screens/livetv/MultiView';
 import LiveGuide from './screens/livetv/LiveGuide';
 import Torrents from './screens/torrents/Torrents';
 import TorrentDetails from './screens/torrents/TorrentDetails';
@@ -194,6 +195,8 @@ export type RootStackParamList = {
     /** Play best: sources to fall back on when the playing one is dead. */
     playBest?: import('./lib/streams/play').PlayBestPlan;
   };
+  /** Live TV multi-view: 2 to 4 channels at once. */
+  MultiView: undefined;
   /** The yt-dlp Download sheet, from Share or from Downloads. */
   YtdlDownload: {url?: string} | undefined;
   /** The built-in browser (not in a kids profile). */
@@ -424,6 +427,11 @@ const navigationTheme = {
     notification: '#E4E4E4',
   },
 } as const;
+
+/** Multi-view fills the screen; TVs stay in landscape. */
+const multiViewScreenOptions = {
+  orientation: isTV ? ('landscape' as const) : ('default' as const),
+};
 
 const playerScreenOptions = ({route}: {route: {params?: object}}) => {
   const isRemotePortrait =
@@ -924,6 +932,11 @@ const App = () => {
                     name="Player"
                     component={Player}
                     options={playerScreenOptions}
+                  />
+                  <Stack.Screen
+                    name="MultiView"
+                    component={MultiView}
+                    options={multiViewScreenOptions}
                   />
                   <Stack.Screen
                     name="YtdlDownload"
