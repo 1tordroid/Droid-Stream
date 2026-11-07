@@ -127,7 +127,8 @@ It runs on Android phones, tablets and Android TV.
 - ✅ MPEG-DASH downloads (separate video and audio).
 - ✅ Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
 - ✅ FTP and FTPS downloads.
-- 📋 Season and rolling downloads (keep the next episodes ready).
+- 🧪 Season downloads: a whole season, a range, or the next episodes, with the server, quality and language you pick for one episode. Files are named Show/Season 01/S01E02 Title.
+- 🧪 Keep next episodes ready: per show, 1 to 5 unwatched episodes stay downloaded, the next one is added after you watch, watched ones can be deleted. Wi-Fi only and a free space limit; managed in Series downloads.
 
 ### Advanced downloads (off by default, for rare needs)
 
@@ -163,7 +164,8 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Trakt scrobbling: "watching now", and watches saved even when offline.
 - ✅ Bring Trakt progress into Continue watching: a "Continue on Trakt" row, and playback starts where Trakt says you stopped.
 - ✅ Simkl scrobbling, with its own switch, that keeps working offline.
-- 📋 New-episode calendar and alerts.
+- 🧪 Calendar of new episodes for shows in your watch list, Continue watching and Trakt, by day in local time (TVmaze, Cinemeta, TMDB with your key).
+- 🧪 New-episode alerts at air time or a time you pick, with a mute per show (Settings > Notifications, off until you turn them on).
 
 ## Cast and TV
 
