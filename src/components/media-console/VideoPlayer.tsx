@@ -25,6 +25,7 @@ import Video, {
   ViewType,
 } from 'react-native-video';
 import {useControlTimeout, useJSAnimations, usePanResponders} from './hooks';
+import {usePlayRequest} from './hooks/usePlayRequest';
 import {
   Error,
   Loader,
@@ -74,6 +75,7 @@ const AnimatedVideoPlayer = (
     controlScale = 1,
     seekbarScale = 1,
     playbackSuspended = false,
+    playRequest,
     live = false,
     rate = 1,
     showDuration = false,
@@ -636,6 +638,9 @@ const AnimatedVideoPlayer = (
   useEffect(() => {
     setPaused(paused);
   }, [paused]);
+
+  // Go live and similar actions play even after a pause made on these controls.
+  usePlayRequest(playRequest, () => setPaused(false));
 
   useEffect(() => {
     if (seeking) {

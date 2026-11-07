@@ -993,10 +993,14 @@ const Player = ({route}: Props): React.JSX.Element => {
     [handleProgress, videoPositionRef, checkSleepTimer, prefetchNextEpisode, isLiveChannel],
   );
 
+  // On a phone the controls keep their own pause state, so Go live also
+  // sends them a play request; on TV the paused prop is enough.
+  const [playRequest, setPlayRequest] = useState(0);
   const goLive = useCallback(() => {
     if (liveWindowRef.current > 0) playerRef.current?.seek(liveWindowRef.current);
     setBehindLive(false);
     setIsPaused(false);
+    setPlayRequest(count => count + 1);
   }, []);
 
   // The TV timeline shows the running time, so it needs every progress tick.
@@ -3674,7 +3678,7 @@ const Player = ({route}: Props): React.JSX.Element => {
           onSkipPress={handleRemoteSkip}
         />
       ) : processedStreamUrl ? (
-        <VideoPlayer {...videoPlayerProps} controlAppearance={controlStyle} subtitleStyle={playbackSubtitleStyle} nativeVideoViewRef={nativeVideoViewRef} headerStatus={torrentHeaderStatus} headerRightInset={toolbarHeaderInset} playbackSuspended={editingControls} controlScale={controlStyle.scale} seekbarScale={controlStyle.seekbarScale} ambientVideoSize={loadedVideoSize} ambientDisabled={isCasting} />
+        <VideoPlayer {...videoPlayerProps} controlAppearance={controlStyle} subtitleStyle={playbackSubtitleStyle} nativeVideoViewRef={nativeVideoViewRef} headerStatus={torrentHeaderStatus} headerRightInset={toolbarHeaderInset} playbackSuspended={editingControls} playRequest={playRequest} controlScale={controlStyle.scale} seekbarScale={controlStyle.seekbarScale} ambientVideoSize={loadedVideoSize} ambientDisabled={isCasting} />
       ) : (
         <View className="flex-1 justify-center items-center">
           <Animated.View style={[loadingContainerStyle]}>
