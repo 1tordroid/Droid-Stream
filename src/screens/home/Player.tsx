@@ -112,6 +112,7 @@ import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
 import {useScrobble} from '../../lib/hooks/useScrobble';
+import {useTraktResume} from '../../lib/hooks/useTraktResume';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
 import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
@@ -1223,18 +1224,25 @@ const Player = ({route}: Props): React.JSX.Element => {
     [],
   );
 
+  // Where Trakt says this was paused, for when this device has no progress for it.
+  const traktResume = useTraktResume(route.params.live ? undefined : watchMeta, loadedDuration);
+
   // Memoized watched duration
   const watchedDuration = useMemo(() => {
     if (syncedEpisodeMatches) {
       return getResumePosition(syncedPosition, syncedDuration);
     }
     const cachedProgress = readCachedProgress(activeEpisode?.link);
-    return getResumePosition(cachedProgress.position, cachedProgress.duration);
+    if (cachedProgress.position > 0) {
+      return getResumePosition(cachedProgress.position, cachedProgress.duration);
+    }
+    return traktResume;
   }, [
     activeEpisode?.link,
     syncedDuration,
     syncedEpisodeMatches,
     syncedPosition,
+    traktResume,
   ]);
 
   useEffect(() => {

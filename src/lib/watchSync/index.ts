@@ -652,6 +652,10 @@ export const describeAccount = (id: SyncServiceId, account: SyncAccount, now = D
 export const traktAuthedPost = (path: string, body: unknown): Promise<any> =>
   authed('trakt', account => request(`${TRAKT}${path}`, {method: 'POST', headers: traktHeaders(account), body: JSON.stringify(body)}));
 
+/** A GET from the Trakt API with a live token, renewed as needed. */
+export const traktAuthedGet = (path: string): Promise<any> =>
+  authed('trakt', account => request(`${TRAKT}${path}`, {headers: traktHeaders(account)}));
+
 /** A POST to the Simkl API with the saved token. */
 export const simklAuthedPost = (path: string, body: unknown): Promise<any> =>
   authed('simkl', account => {
