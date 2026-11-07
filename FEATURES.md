@@ -5,9 +5,9 @@ planned. For the changes in each release, see [CHANGELOG.md](CHANGELOG.md).
 
 **Status in this list**
 
-- ✅ In the app today (latest release, 5.5.0)
-- 🧪 Built for 5.6.0, being tested
-- 🔨 Being built for 5.6.0
+- ✅ In the app today (latest release, 5.6.0)
+- 🧪 Built for the next release, being tested
+- 🔨 Being built for the next release (5.6.1)
 - 📋 Planned for a later release
 
 Droid Stream is based on Vega by [vega-org](https://github.com/vega-org/vega-app).
@@ -22,9 +22,9 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Title pages with seasons, episodes, cast, ratings and artwork.
 - ✅ Watch list, Library, Continue watching, watched badges and "Hide watched".
 - ✅ Auto play next episode.
-- 🧪 Skip intro, recap, credits and previews for every show: times from the provider, Jellyfin, AniSkip (anime) and IntroDB, or mark them yourself once per season. Off, button or auto skip for each type.
-- 🧪 Play best falls back to the next source by itself when one fails or doesn't start, and remembers links that failed.
-- 🧪 Play best filters: largest file, lowest and highest quality, prefer or avoid HEVC and AV1.
+- ✅ Skip intro, recap, credits and previews for every show: times from the provider, Jellyfin, AniSkip (anime) and IntroDB, or mark them yourself once per season. Off, button or auto skip for each type.
+- ✅ Play best falls back to the next source by itself when one fails or doesn't start, and remembers links that failed.
+- ✅ Play best filters: largest file, lowest and highest quality, prefer or avoid HEVC and AV1.
 - 📋 Chapters in the player.
 - 📋 Night mode and dialogue boost for quiet speech and loud effects.
 - 📋 DTS and TrueHD audio in the built-in player.
@@ -51,12 +51,12 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Free Indian channels with no sign-in, plus any M3U playlist link.
 - ✅ Sign in with Jio (Jio number and SMS code) for Jio channels.
 - ✅ Favourites, recent channels, groups, search and now/next info.
-- 🧪 TV guide grid with channels down and times across.
-- 🧪 Catch-up: replay past programmes where the channel allows it.
-- 🧪 Pause and rewind live channels that keep a buffer, with a "Go live" button.
-- 🧪 Programme reminders.
-- 🧪 Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
-- 🧪 Record live channels and programmes.
+- ✅ TV guide grid with channels down and times across.
+- ✅ Catch-up: replay past programmes where the channel allows it.
+- ✅ Pause and rewind live channels that keep a buffer, with a "Go live" button.
+- ✅ Programme reminders.
+- ✅ Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
+- ✅ Record live channels and programmes.
 - 📋 Watch 2 to 4 channels at once.
 
 ## Torrents
@@ -94,7 +94,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ HLS downloads with a quality choice, and checksum checks.
 - ✅ Copy a link and the app offers to download it.
 - ✅ External downloader support.
-- 🧪 yt-dlp downloader:
+- ✅ yt-dlp downloader:
   - share a link from any app
   - pick a video quality, or audio as MP3, M4A or Opus
   - subtitles, thumbnails and SponsorBlock
@@ -102,49 +102,49 @@ It runs on Android phones, tablets and Android TV.
   - pick items from a playlist
   - background queue and scheduling
   - update yt-dlp in the app
-- 🧪 Social media downloads:
+- ✅ Social media downloads:
   - a built-in browser with site shortcuts
   - a download button on videos
   - a list of all media on the page
-- 🧪 Photos from social apps: Instagram (photos, carousels, reel covers, stories and highlights when signed in, full-size profile pictures), Facebook, X, Threads, Pinterest, Reddit and Tumblr. Pick items, "Photos only" and original quality; saved in Social/<site>/<author>.
-- 🧪 Instagram photo with its song: save the photo, the song, or a video of the photo (or a carousel slideshow) with the song, made on the phone.
-- 🧪 Batch downloads of a whole carousel or the latest posts of a profile (playlists go through the yt-dlp downloader).
-- 🧪 MPEG-DASH downloads (separate video and audio).
-- 🧪 Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
-- 🧪 FTP and FTPS downloads.
+- ✅ Photos from social apps: Instagram (photos, carousels, reel covers, stories and highlights when signed in, full-size profile pictures), Facebook, X, Threads, Pinterest, Reddit and Tumblr. Pick items, "Photos only" and original quality; saved in Social/<site>/<author>.
+- ✅ Instagram photo with its song: save the photo, the song, or a video of the photo (or a carousel slideshow) with the song, made on the phone.
+- ✅ Batch downloads of a whole carousel or the latest posts of a profile (playlists go through the yt-dlp downloader).
+- ✅ MPEG-DASH downloads (separate video and audio).
+- ✅ Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
+- ✅ FTP and FTPS downloads.
 - 📋 Season and rolling downloads (keep the next episodes ready).
 
 ### Advanced downloads (off by default, for rare needs)
 
-- 🧪 eD2k links, server list and search.
-- 🧪 GitHub and HuggingFace mirrors that you add yourself.
+- ✅ eD2k links, server list and search.
+- ✅ GitHub and HuggingFace mirrors that you add yourself.
 - 🔨 aria2-style remote control: send downloads to your phone from AriaNg or a browser extension on your Wi-Fi.
 - 🔨 Command access from Termux, ADB or Tasker.
 - 🔨 Browser-like connection for sites that turn away download apps.
 
 ## Browser
 
-- 🧪 Built-in browser: tabs that come back after a restart, private tabs, bookmarks, history, site shortcuts, find in page, dark pages and a choice of search engine, opened from a small globe icon.
-- 🧪 Desktop or mobile layout: Desktop by default, a choice for new tabs and pop-ups, and a Desktop site switch remembered for each site.
-- 🧪 Download detection: a download button on videos and a list of every video, audio, image and stream on the page.
-- 🧪 Ad and tracker blocker with EasyList, EasyPrivacy and IndianList, your own lists and rules, and blocking off for chosen sites.
-- 🧪 Userscripts (Greasemonkey and Tampermonkey style).
-- 🧪 Saved passwords locked with your screen lock, your phone's password manager (autofill), and passkeys where the passkey provider allows the app.
-- 🧪 Send pages, links and media to the downloader, yt-dlp, Torrents, the player or cast, and take file links from other browsers.
+- ✅ Built-in browser: tabs that come back after a restart, private tabs, bookmarks, history, site shortcuts, find in page, dark pages and a choice of search engine, opened from a small globe icon.
+- ✅ Desktop or mobile layout: Desktop by default, a choice for new tabs and pop-ups, and a Desktop site switch remembered for each site.
+- ✅ Download detection: a download button on videos and a list of every video, audio, image and stream on the page.
+- ✅ Ad and tracker blocker with EasyList, EasyPrivacy and IndianList, your own lists and rules, and blocking off for chosen sites.
+- ✅ Userscripts (Greasemonkey and Tampermonkey style).
+- ✅ Saved passwords locked with your screen lock, your phone's password manager (autofill), and passkeys where the passkey provider allows the app.
+- ✅ Send pages, links and media to the downloader, yt-dlp, Torrents, the player or cast, and take file links from other browsers.
 - 📋 Droid Stream (with extension support): a second edition of the whole app. It has every Droid Stream feature, and its Browser runs on Firefox's engine (GeckoView) with Firefox add-ons such as uBlock Origin, Dark Reader and Tampermonkey. Install one or the other: the regular Droid Stream stays smaller, this edition is about 60 MB bigger.
 
 ## Profiles and family
 
-- 🧪 Profiles: each has its own history, library, Continue watching, searches, Live TV favourites and Trakt sign-in.
-- 🧪 Kids mode: hides adult content, the Torrents tab and Settings.
-- 🧪 PIN lock with a wait after wrong tries.
-- 🧪 Existing data becomes the first profile; nothing is lost.
+- ✅ Profiles: each has its own history, library, Continue watching, searches, Live TV favourites and Trakt sign-in.
+- ✅ Kids mode: hides adult content, the Torrents tab and Settings.
+- ✅ PIN lock with a wait after wrong tries.
+- ✅ Existing data becomes the first profile; nothing is lost.
 
 ## Watch sync
 
 - ✅ Trakt, Simkl and AniList.
-- 🧪 Sign in to Trakt and Simkl with a code and a QR code, without typing keys.
-- 🧪 Trakt scrobbling: "watching now", and watches saved even when offline.
+- ✅ Sign in to Trakt and Simkl with a code and a QR code, without typing keys.
+- ✅ Trakt scrobbling: "watching now", and watches saved even when offline.
 - 📋 Bring Trakt progress into Continue watching.
 - 📋 Simkl scrobbling.
 - 📋 New-episode calendar and alerts.
@@ -162,7 +162,7 @@ It runs on Android phones, tablets and Android TV.
 ## Network and privacy
 
 - ✅ Cloudflare WARP mode, ByeDPI and DNS over HTTPS to get past ISP blocks.
-- 🧪 Smart unblock, on by default: only sites your provider blocks open through ByeDPI or Cloudflare WARP; debrid stays direct.
+- ✅ Smart unblock, on by default: only sites your provider blocks open through ByeDPI or Cloudflare WARP; debrid stays direct.
 - ✅ Providers can't reach devices on your home network.
 - ✅ In-app updates check the download before installing, signed with the Droid Stream key.
 - ✅ Encrypted storage for sign-ins and keys; no analytics or trackers.
@@ -172,13 +172,13 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Accent colours, launcher icons, AMOLED black and Soft dark themes.
 - ✅ Advanced mode shows every extra control; tab bar labels, haptics and the Home menu are adjustable.
 - ✅ Search inside Settings to jump to any option.
-- 🧪 Check for updates and the version in Settings; one Credits and licences page with links.
+- ✅ Check for updates and the version in Settings; one Credits and licences page with links.
 - 📋 IMDb, Rotten Tomatoes and Metacritic scores together.
 
 ## Backup
 
 - ✅ Export and import a backup; erase all local data.
-- 🧪 Backups include profiles and PINs.
+- ✅ Backups include profiles and PINs.
 - 📋 Full backup and sync through WebDAV.
 
 ---

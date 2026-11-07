@@ -7,9 +7,7 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
-## Coming in 5.6.0
-
-Not released yet. Built and being tested:
+## 5.6.0
 
 - Skip intro, recap, credits and previews for every show (provider,
   Jellyfin, AniSkip and IntroDB times, or your own marks), with Off,
@@ -51,14 +49,14 @@ Not released yet. Built and being tested:
   each page, an ad and tracker blocker, userscripts, saved passwords
   and passkeys. File links from other browsers can be sent to the
   downloader.
+- The browser menu can turn the ad blocker off for all sites or just
+  one site.
 - Your version and build number, and a Check for updates button, at
   the top of Settings. Credits and open-source licences are now one
   page, with link buttons for the projects and services.
 
-Being built:
-
-- Advanced downloads (off by default): aria2-style remote control,
-  command access and a browser-like connection.
+More in 5.6.1: aria2-style remote control, command access, PikPak and
+debrid files in the poster library, Tordroid Plus, and more.
 
 ## 5.5.0
 
