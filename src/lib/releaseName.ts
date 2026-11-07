@@ -21,6 +21,8 @@ export interface ParsedRelease {
   language?: string[];
   /** Anime absolute episode numbering, "[Group] Show - 1071 [1080p]". */
   absoluteEpisode?: number;
+  /** Disc or part of a movie split into files: cd1, part1, pt1. */
+  part?: number;
 }
 
 const SOURCE: [RegExp, string][] = [
@@ -66,15 +68,20 @@ const first = (text: string, table: [RegExp, string][]): string | undefined => t
 
 /** Words that end the title part of a release name. */
 const TITLE_STOP =
-  /(\b(19|20)\d{2}\b|\bS\d{1,2}(E\d{1,4})?\b|\b\d{1,2}x\d{1,3}\b|\bseason\s?\d|\b(2160|1080|720|480|576)[pi]\b|\b4k\b|\buhd\b|\b(blu-?ray|web-?dl|webrip|hdtv|dvdrip|bdrip|brrip|remux|hdcam|x26[45]|hevc)\b|\bcomplete\b|\[|\(|\s-\s\d{1,4}\b)/i;
+  /(\b(19|20)\d{2}\b|\b(cd|disc|disk) ?\d{1,2}\b|\b(part|pt)\d{1,2}\b|\bS\d{1,2}(E\d{1,4})?\b|\b\d{1,2}x\d{1,3}\b|\bseason\s?\d|\b(2160|1080|720|480|576)[pi]\b|\b4k\b|\buhd\b|\b(blu-?ray|web-?dl|webrip|hdtv|dvdrip|bdrip|brrip|remux|hdcam|x26[45]|hevc)\b|\bcomplete\b|\[|\(|\s-\s\d{1,4}\b)/i;
 
 export const parseRelease = (name: string): ParsedRelease => {
   const raw = name.replace(/\.(mkv|mp4|avi|m4v|ts|webm)$/i, '');
-  // Dots and underscores separate words in scene names; keep decimals like 5.1.
+  // Dots and underscores separate words in scene names. A dot stays only in
+  // channel layouts (5.1, 7.1, 2.0) and codec names (H.264), never between a
+  // title number and a year ("Oceans.11.2001").
+  const KEEP = '\u0000';
   const text = raw
-    .replace(/[._]/g, (char, offset: number, all: string) =>
-      char === '.' && /\d/.test(all[offset - 1] || '') && /\d/.test(all[offset + 1] || '') ? '.' : ' ',
-    )
+    .replace(/(^|\D)([257])\.([01])(?!\d)/g, `$1$2${KEEP}$3`)
+    .replace(/\b([hH])\.(26[45])\b/g, `$1${KEEP}$2`)
+    .replace(/[._]/g, ' ')
+    .split(KEEP)
+    .join('.')
     .replace(/\s+/g, ' ')
     .trim();
   const result: ParsedRelease = {title: ''};
@@ -113,8 +120,15 @@ export const parseRelease = (name: string): ParsedRelease => {
   }
 
   const years = Array.from(body.matchAll(/\b(19[2-9]\d|20[0-4]\d)\b/g)).map(match => Number(match[1]));
+  // A year in brackets is the release year, even after a number in the title
+  // ("Blade Runner 2049 (2017)").
+  const bracketYear = body.match(/[([]((?:19[2-9]|20[0-4])\d)[)\]]/);
   // A year at the very start is usually part of the title ("2001 A Space Odyssey 1968").
-  if (years.length) result.year = years.length > 1 && body.startsWith(String(years[0])) ? years[1] : years[0];
+  if (bracketYear) result.year = Number(bracketYear[1]);
+  else if (years.length) result.year = years.length > 1 && body.startsWith(String(years[0])) ? years[1] : years[0];
+
+  const part = body.match(/\b(?:cd|disc|disk) ?(\d{1,2})\b/i) || raw.match(/(?:^|[^a-z])(?:part|pt)(\d{1,2})(?!\d)/i);
+  if (part) result.part = Number(part[1]);
 
   if (/\b(2160p|4k|uhd)\b/i.test(body)) result.resolution = '2160p';
   else if (/\b1080[pi]\b/i.test(body)) result.resolution = '1080p';
@@ -131,11 +145,24 @@ export const parseRelease = (name: string): ParsedRelease => {
   if (languages.length) result.language = languages;
 
   let titlePart = body;
-  const leadingYear = result.year && body.startsWith(String(result.year)) && years.length > 1;
-  const searchFrom = leadingYear ? 5 : 0;
-  const stop = titlePart.slice(searchFrom).search(TITLE_STOP);
-  if (stop > 0) titlePart = titlePart.slice(0, stop + searchFrom);
-  result.title = titlePart.replace(/[\s\-–:]+$/, '').replace(/\s+/g, ' ').trim() || body;
+  if (bracketYear?.index) {
+    // Everything before the bracketed year, cut at an episode tag or quality word.
+    titlePart = body.slice(0, bracketYear.index);
+    const inner = titlePart.slice(1).search(/\bS\d{1,2}E\d{1,4}\b|\b(2160|1080|720|480)[pi]\b|\[/i);
+    if (inner >= 0) titlePart = titlePart.slice(0, inner + 1);
+  } else {
+    const leadingYear = result.year && body.startsWith(String(result.year)) && years.length > 1;
+    const searchFrom = leadingYear ? 5 : 0;
+    let stop = titlePart.slice(searchFrom).search(TITLE_STOP);
+    // A title that starts with a year-like number ("1917 2019 1080p"): keep the first word.
+    const firstSpace = body.indexOf(' ');
+    if (stop === 0 && !searchFrom && firstSpace > 0) {
+      const again = body.slice(firstSpace).search(TITLE_STOP);
+      stop = again < 0 ? -1 : again + firstSpace;
+    }
+    if (stop > 0) titlePart = titlePart.slice(0, stop + searchFrom);
+  }
+  result.title = titlePart.replace(/[\s\-–:.]+$/, '').replace(/\s+/g, ' ').trim() || body;
   return result;
 };
 

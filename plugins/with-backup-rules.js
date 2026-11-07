@@ -29,6 +29,10 @@ const ENCRYPTED_INSTANCE_IDS = [
 // open their restored files as before.
 const MMKV_ID_STORE = 'mmkvIDStore';
 
+// Unencrypted stores that stay on the phone: the network library's scans
+// and title matches (src/lib/netlib/cache.ts) are rebuilt by a rescan.
+const LOCAL_ONLY_INSTANCE_IDS = ['netlib'];
+
 const BACKUP_RULES = 'droid_stream_backup_rules';
 const DATA_EXTRACTION_RULES = 'droid_stream_data_extraction_rules';
 
@@ -50,6 +54,7 @@ const excludedPaths = (ids = ENCRYPTED_INSTANCE_IDS) => [
       `SKS_DATA_FILE${alias}`,
     ];
   }),
+  ...LOCAL_ONLY_INSTANCE_IDS.flatMap(id => [`mmkv/${id}`, `mmkv/${id}.crc`]),
   `mmkv/${MMKV_ID_STORE}`,
   `mmkv/${MMKV_ID_STORE}.crc`,
 ];
@@ -123,6 +128,7 @@ const withBackupRules = config => {
 
 module.exports = withBackupRules;
 module.exports.ENCRYPTED_INSTANCE_IDS = ENCRYPTED_INSTANCE_IDS;
+module.exports.LOCAL_ONLY_INSTANCE_IDS = LOCAL_ONLY_INSTANCE_IDS;
 module.exports.keyAlias = keyAlias;
 module.exports.excludedPaths = excludedPaths;
 module.exports.buildBackupRulesXml = buildBackupRulesXml;

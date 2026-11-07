@@ -59,7 +59,11 @@ describe('rule files', () => {
       expect(paths).toEqual(expect.arrayContaining(expectedPathsFor(id)));
     }
     expect(paths).toEqual(expect.arrayContaining(['mmkv/mmkvIDStore', 'mmkv/mmkvIDStore.crc']));
-    expect(paths).toHaveLength(ENCRYPTED_INSTANCE_IDS.length * 4 + 2);
+    expect(paths).toHaveLength(ENCRYPTED_INSTANCE_IDS.length * 4 + withBackupRules.LOCAL_ONLY_INSTANCE_IDS.length * 2 + 2);
+  });
+
+  it('keep the network library cache on the phone', () => {
+    expect(excludedPaths()).toEqual(expect.arrayContaining(['mmkv/netlib', 'mmkv/netlib.crc']));
   });
 
   it('keep unencrypted settings in the backup', () => {
