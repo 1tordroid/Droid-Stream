@@ -61,6 +61,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
 - ✅ Record live channels and programmes.
 - 🧪 World: free channels for any country from iptv-org. Starts on your country (from the SIM, network or language settings, never online), and you can change it.
+- 🧪 Quality tags (1080p) sit beside the channel's group instead of on its logo, and the chosen source chip stays in view on narrow phones.
 - 📋 Watch 2 to 4 channels at once.
 
 ## Torrents
@@ -140,6 +141,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Ad and tracker blocker with EasyList, EasyPrivacy and IndianList, your own lists and rules, and blocking off for chosen sites.
 - ✅ Userscripts (Greasemonkey and Tampermonkey style).
 - ✅ Saved passwords locked with your screen lock, your phone's password manager (autofill), and passkeys where the passkey provider allows the app.
+- 🧪 Help when passkeys fail: Sign in with Chrome (the sign-in stays in Chrome), offered once per site, and Choose a passkey manager in Browser settings.
 - ✅ Send pages, links and media to the downloader, yt-dlp, Torrents, the player or cast, and take file links from other browsers.
 - 📋 Droid Stream (with extension support): a second edition of the whole app. It has every Droid Stream feature, and its Browser runs on Firefox's engine (GeckoView) with Firefox add-ons such as uBlock Origin, Dark Reader and Tampermonkey. Install one or the other: the regular Droid Stream stays smaller, this edition is about 60 MB bigger.
 
@@ -184,6 +186,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Search inside Settings to jump to any option.
 - ✅ Check for updates and the version in Settings; one Credits and licences page with links.
 - 🧪 The TMDB logo with the TMDB notice in Credits and licences.
+- 🧪 Send a problem report from About or the error screen: a GitHub issue with your app and phone details, and recent logs only if you tick the box.
 - 📋 IMDb, Rotten Tomatoes and Metacritic scores together.
 
 ## Backup
