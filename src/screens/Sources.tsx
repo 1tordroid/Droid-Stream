@@ -6,9 +6,23 @@ import {RawTextInput as TextInput} from '../components/ui/Text';
 import AppText from '../components/ui/Text';
 import Button from '../components/ui/Button';
 import KeyboardForm from '../components/ui/KeyboardForm';
-import {completeSourceForm, emptySourceForm, formFromSource, listSourceRows, playSource, type SourceForm, type SourceRow} from '../lib/sources/accounts';
+import PlexSignIn from '../components/sources/PlexSignIn';
+import QuickConnectSignIn from '../components/sources/QuickConnectSignIn';
+import {
+  completeSourceForm,
+  emptySourceForm,
+  formFromSource,
+  listSourceRows,
+  mediaDeviceIdFor,
+  playSource,
+  plexLinkSource,
+  quickConnectSource,
+  sourceIdFor,
+  type SourceForm,
+  type SourceRow,
+} from '../lib/sources/accounts';
 import {isSourceAuthError, SOURCE_SERVICE_NAMES as KIND_NAMES, sourceSignedOutMessage} from '../lib/sources/authErrors';
-import {deleteSource, listSources, saveSource, updateSource, type SavedSource, type SourceKind} from '../lib/sources/vault';
+import {deleteSource, getInstallId, listSources, saveSource, updateSource, type SavedSource, type SourceKind} from '../lib/sources/vault';
 import {showAppDialog} from '../lib/zustand/appDialogStore';
 import {isTV} from '../lib/tv/constants';
 import Magnet from './Magnet';
@@ -69,6 +83,10 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
   // A new source, or with an id: editing a saved one or signing it in again.
   const [draft, setDraft] = useState<SourceForm>(emptySourceForm());
   const [open, setOpen] = useState<SavedSource>();
+  // Plex signs in with a plex.tv code unless the user picks the server address way.
+  const [plexByAddress, setPlexByAddress] = useState(false);
+  // A running Jellyfin Quick Connect, with the id and DeviceId the new sign-in is for.
+  const [quickConnect, setQuickConnect] = useState<{id: string; deviceId: string; server: string}>();
   const [showMagnet, setShowMagnet] = useState(false);
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [, setFolder] = useState('');
@@ -208,22 +226,12 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
     const run = ++saveRun.current;
     setSaving(true);
     try {
-      // Read the saved source again: browsing may have marked it signed out meanwhile.
-      const existing = draft.id ? listSources().find(item => item.id === draft.id) : undefined;
-      const signedInAgain = existing?.authState === 'signedOut';
+      const existing = savedDraftSource();
       // The sign-in goes to the trimmed address, the same one that is saved.
       const source = await completeSourceForm({...draft, server}, existing);
       // Cancelled or left while signing in: nothing is saved.
       if (run !== saveRun.current) return;
-      saveSource(source);
-      setDraft(emptySourceForm());
-      ToastAndroid.show(signedInAgain ? 'Signed in again' : 'Source saved', ToastAndroid.SHORT);
-      leave(() => {
-        setAdding(false);
-        refresh();
-        // Carry on to the source the sign-in was needed for.
-        if (signedInAgain) browse(source);
-      });
+      finishSignIn(source, existing);
     } catch (error: any) {
       if (run !== saveRun.current) return;
       // A failed sign-in leaves the saved source as it was.
@@ -233,11 +241,45 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
     }
   };
 
+  /** The saved source the form edits, read again: browsing may have marked it signed out meanwhile. */
+  const savedDraftSource = () => (draft.id ? listSources().find(item => item.id === draft.id) : undefined);
+
+  /** Saves a signed-in source and leaves the form. */
+  const finishSignIn = (source: SavedSource, existing?: SavedSource) => {
+    const signedInAgain = existing?.authState === 'signedOut';
+    saveSource(source);
+    setDraft(emptySourceForm());
+    setQuickConnect(undefined);
+    setPlexByAddress(false);
+    ToastAndroid.show(signedInAgain ? 'Signed in again' : 'Source saved', ToastAndroid.SHORT);
+    leave(() => {
+      setAdding(false);
+      refresh();
+      // Carry on to the source the sign-in was needed for.
+      if (signedInAgain) browse(source);
+    });
+  };
+
+  /** Starts Jellyfin Quick Connect for the server typed in the form. */
+  const startQuickConnect = () => {
+    const server = draft.server.trim().replace(/\/+$/, '');
+    if (!server) {
+      ToastAndroid.show('Enter the server address', ToastAndroid.LONG);
+      inputs.current.server?.focus();
+      return;
+    }
+    const existing = savedDraftSource();
+    const id = sourceIdFor(draft, existing);
+    setQuickConnect({id, deviceId: mediaDeviceIdFor(id, existing?.deviceId), server});
+  };
+
   /** Leaves the form without saving, also while a sign-in is still running. */
   const cancelDraft = () => {
     saveRun.current += 1;
     setSaving(false);
     setDraft(emptySourceForm());
+    setQuickConnect(undefined);
+    setPlexByAddress(false);
     leave(() => setAdding(false));
   };
 
@@ -251,6 +293,11 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
     const editing = draft.id ? sources.find(item => item.id === draft.id) : undefined;
     const signedOut = editing?.authState === 'signedOut';
     const fields = sourceFields(draft.kind, Boolean(editing) && !signedOut);
+    // A new source or one signing in again; a plain edit keeps its sign-in.
+    const signsIn = !editing || signedOut;
+    // Plex starts with a plex.tv code; the server address way stays one tap away.
+    const plexByCode = draft.kind === 'plex' && signsIn && !plexByAddress;
+    const quickConnecting = draft.kind === 'jellyfin' && Boolean(quickConnect);
     // Signing in again starts at the first detail still missing. Plex can sign
     // in with a pasted token alone, so it starts at the password or token.
     const focusFirst: DraftField | undefined = signedOut ? ((draft.username || draft.kind === 'plex') ? 'secret' : 'username') : undefined;
@@ -274,7 +321,10 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
                 accessibilityState={{selected: draft.kind === kind}}
                 hasTVPreferredFocus={isTV && draft.kind === kind}
                 borderRadius={18}
-                onPress={() => setDraft(current => ({...current, kind}))}
+                onPress={() => {
+                  setQuickConnect(undefined);
+                  setDraft(current => ({...current, kind}));
+                }}
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 8,
@@ -286,7 +336,39 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
             ))}
           </View>
         ) : null}
-        {fields.map((field, index) => {
+        {plexByCode ? (
+          <>
+            <PlexSignIn
+              clientId={getInstallId()}
+              preferFocus={Boolean(editing)}
+              onSignedIn={link => {
+                const existing = savedDraftSource();
+                finishSignIn(plexLinkSource(draft, sourceIdFor(draft, existing), link), existing);
+              }}
+            />
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 12, marginTop: 8}}>
+              <Button variant="text" onPress={() => setPlexByAddress(true)}>Sign in with server address</Button>
+              <Button variant="text" onPress={cancelDraft}>Cancel</Button>
+            </View>
+          </>
+        ) : null}
+        {quickConnecting && quickConnect ? (
+          <>
+            <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant}}>{quickConnect.server}</AppText>
+            <QuickConnectSignIn
+              server={quickConnect.server}
+              deviceId={quickConnect.deviceId}
+              onSignedIn={session =>
+                finishSignIn(quickConnectSource({...draft, server: quickConnect.server}, quickConnect.id, quickConnect.deviceId, session), savedDraftSource())
+              }
+            />
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 12, marginTop: 8}}>
+              <Button variant="text" onPress={() => setQuickConnect(undefined)}>Use password instead</Button>
+              <Button variant="text" onPress={cancelDraft}>Cancel</Button>
+            </View>
+          </>
+        ) : null}
+        {plexByCode || quickConnecting ? null : fields.map((field, index) => {
           const last = index === fields.length - 1;
           return (
             <View key={field.key} style={{marginBottom: 12}}>
@@ -316,10 +398,18 @@ const Sources = ({navigation, route}: {navigation: any; route?: {params?: Source
             </View>
           );
         })}
-        <View style={{flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8}}>
-          <Button variant="text" onPress={cancelDraft}>Cancel</Button>
-          <Button onPress={saveDraft} disabled={saving}>{saving ? 'Signing in…' : signedOut ? 'Sign in' : 'Save'}</Button>
-        </View>
+        {plexByCode || quickConnecting ? null : (
+          <View style={{flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 12, marginTop: 8}}>
+            {draft.kind === 'plex' && signsIn ? (
+              <Button variant="text" onPress={() => setPlexByAddress(false)}>Sign in with plex.tv</Button>
+            ) : null}
+            {draft.kind === 'jellyfin' && signsIn ? (
+              <Button variant="tonal" onPress={startQuickConnect} disabled={saving}>Use Quick Connect</Button>
+            ) : null}
+            <Button variant="text" onPress={cancelDraft}>Cancel</Button>
+            <Button onPress={saveDraft} disabled={saving}>{saving ? 'Signing in…' : signedOut ? 'Sign in' : 'Save'}</Button>
+          </View>
+        )}
       </KeyboardForm>
     );
   }

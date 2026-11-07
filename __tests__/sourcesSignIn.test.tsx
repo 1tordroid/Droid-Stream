@@ -290,6 +290,11 @@ describe('Sources sign-in', () => {
       await act(async () => {
         tree.update(<Sources navigation={nav} route={{params: {kind: 'plex'}}} />);
       });
+      // Plex starts with a plex.tv code; the address form is one tap away.
+      expect(texts()).toContain('Get a code');
+      await act(async () => {
+        button('Sign in with server address').props.onPress();
+      });
       expect(input('Server address').props.placeholder).toBe('http://192.168.1.10:32400');
       await act(async () => {
         tree.update(<Sources navigation={nav} route={{params: {kind: 'pikpak', returnTo: RETURN_TO}}} />);

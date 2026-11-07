@@ -124,6 +124,7 @@ import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
 import {useScrobble} from '../../lib/hooks/useScrobble';
+import {useServerProgress} from '../../lib/hooks/useServerProgress';
 import {useTraktResume} from '../../lib/hooks/useTraktResume';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
@@ -1087,6 +1088,8 @@ const Player = ({route}: Props): React.JSX.Element => {
     [selectedStream?.link, activeEpisode?.link, route.params],
   );
   const serverItemKey = useMemo(() => mediaServerItemKey(segmentStreamUrls), [segmentStreamUrls]);
+  // Progress back to that server, when "Sync progress with my servers" is on.
+  useServerProgress(segmentStreamUrls, isPaused, videoPositionRef);
   const [fetchedSegments, setFetchedSegments] = useState<FetchedSegments>(NO_FETCHED_SEGMENTS);
   useEffect(() => {
     setFetchedSegments(NO_FETCHED_SEGMENTS);

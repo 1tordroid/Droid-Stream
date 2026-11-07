@@ -166,12 +166,12 @@ describe('saved source accounts', () => {
     expect(params.directUrl).toBe('https://dav.local/clip.mkv');
   });
 
-  it('keeps media server tokens out of the episode link the player stores', () => {
+  it('keeps media server tokens out of the episode link the player stores', async () => {
     const {accounts} = load();
     const navigation = {navigate: jest.fn()};
     const source = {id: 'j', kind: 'jellyfin', name: 'Home', server: 'https://jf.local', username: 'u', secret: 'tok'};
     const url = 'https://jf.local/Videos/m1/stream?static=true&ApiKey=tok';
-    accounts.playSource(navigation, source, 'Film', url);
+    await accounts.playSource(navigation, source, 'Film', url);
     const params = navigation.navigate.mock.calls[0][1];
     expect(params.episodeList).toEqual([{title: 'Film', link: 'https://jf.local/Videos/m1/stream?static=true'}]);
     expect(params.initialStream).toEqual({server: 'Source', link: url, type: 'mkv'});
@@ -183,6 +183,54 @@ describe('saved source accounts', () => {
 
     accounts.playSource(navigation, source, 'Film');
     expect(navigation.navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens a Jellyfin video where the server says it was stopped, when this device has no progress', async () => {
+    const {accounts} = load();
+    const {watchProgressStorage} = require('../src/lib/storage/WatchProgressStorage');
+    const id = '0123456789abcdef0123456789abcdef';
+    const navigation = {navigate: jest.fn()};
+    const source = {id: 'j', kind: 'jellyfin', name: 'Home', server: 'https://jf.local', username: 'u', secret: 'tok', deviceId: 'd'};
+    const url = `https://jf.local/Videos/${id}/stream?static=true&ApiKey=tok`;
+    const link = `https://jf.local/Videos/${id}/stream?static=true`;
+    watchProgressStorage.removeProgress(link);
+    fetchMock.mockReturnValueOnce(json(200, {RunTimeTicks: 6_000_000_000, UserData: {PlaybackPositionTicks: 1_200_000_000}}));
+    await accounts.playSource(navigation, source, 'Film', url);
+    expect(fetchMock.mock.calls[0][0]).toBe(`https://jf.local/Items/${id}?userId=u`);
+    expect(watchProgressStorage.getProgress(link)).toEqual({position: 120, duration: 600});
+    expect(navigation.navigate.mock.calls[0][1].episodeList).toEqual([{title: 'Film', link}]);
+    watchProgressStorage.removeProgress(link);
+  });
+
+  it('builds the sources Quick Connect and plex.tv sign-ins save', () => {
+    const {accounts} = load();
+    const blank = {id: '', kind: 'jellyfin', name: '', server: ' https://jf.local/ ', username: '', secret: '', share: ''};
+    expect(accounts.quickConnectSource(blank, 's9', 'install-1-s9', {userId: 'user-guid', token: 'jf-token', userName: 'Ana'})).toEqual({
+      id: 's9',
+      kind: 'jellyfin',
+      name: 'Jellyfin',
+      server: 'https://jf.local',
+      share: '',
+      username: 'user-guid',
+      secret: 'jf-token',
+      loginName: 'Ana',
+      deviceId: 'install-1-s9',
+      authState: 'ok',
+    });
+    const server = {id: 'srv', name: 'Basement', owned: false, accessToken: 'shared-token', httpsRequired: false, connections: []};
+    const connection = {uri: 'https://10-0-0-5.abc.plex.direct:32400', protocol: 'https', local: true, relay: false, ipv6: false};
+    expect(accounts.plexLinkSource({...blank, kind: 'plex', server: ''}, 'p1', {server, connection, clientId: 'install-1'})).toEqual({
+      id: 'p1',
+      kind: 'plex',
+      name: 'Basement',
+      server: 'https://10-0-0-5.abc.plex.direct:32400',
+      share: '',
+      username: '',
+      secret: 'shared-token',
+      deviceId: 'install-1',
+      authState: 'ok',
+    });
+    expect(accounts.sourceIdFor({...blank, id: 'kept'})).toBe('kept');
   });
 
   it('reads a Plex part when a video listed without one is opened', async () => {
