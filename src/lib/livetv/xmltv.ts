@@ -34,6 +34,34 @@ export const normalizeChannelName = (name: string) =>
     .replace(/[^a-z0-9À-￿]+/g, '')
     .replace(/(.)(?:hd|fhd|uhd|4k)$/, '$1');
 
+/**
+ * A channel id as a name: "BBCOne.uk@SD" (iptv-org) and "BBC.One.HD.uk"
+ * (guide sites) both give "bbcone". The feed after "@" and a two-letter
+ * country ending are dropped first.
+ */
+export const channelIdKey = (id: string) => normalizeChannelName(id.replace(/@.*$/, '').replace(/\.[a-z]{2}$/i, ''));
+
+const TAGS = /\s*[([][^)\]]*[)\]]/g;
+
+/**
+ * The names a playlist channel may have in a guide: its name and tvg-name
+ * (also without tags like "(1080p)" or "[Geo-blocked]"), then its tvg-id as
+ * a name. Used when the guide's ids are not the playlist's.
+ */
+export const channelNameKeys = (channel: {name: string; tvgName?: string; tvgId?: string}): string[] => {
+  const keys: string[] = [];
+  const add = (key: string) => {
+    if (key && !keys.includes(key)) keys.push(key);
+  };
+  for (const name of [channel.tvgName, channel.name]) {
+    if (!name) continue;
+    add(normalizeChannelName(name));
+    add(normalizeChannelName(name.replace(TAGS, '')));
+  }
+  if (channel.tvgId) add(channelIdKey(channel.tvgId));
+  return keys;
+};
+
 const ENTITIES: Record<string, string> = {lt: '<', gt: '>', quot: '"', apos: "'", amp: '&', nbsp: ' '};
 
 export const decodeXmlText = (text: string) =>
@@ -112,6 +140,12 @@ export class XmltvParser {
       if (!wanted) continue;
       if (!(name in this.names)) this.names[name] = id;
       // Matched by name: keep its programmes too.
+      this.ids?.add(id);
+    }
+    // Guide ids like "BBC.One.HD.uk" also match a playlist's "BBCOne.uk@SD" as a name.
+    const key = this.options.names ? channelIdKey(id) : '';
+    if (key && this.options.names!.has(key)) {
+      if (!(key in this.names)) this.names[key] = id;
       this.ids?.add(id);
     }
   }
