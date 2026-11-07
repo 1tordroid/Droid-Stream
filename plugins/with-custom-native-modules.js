@@ -122,6 +122,7 @@ allprojects {
       'YtdlPackage()',
       'Ed2kPackage()',
       'RemoteAccessPackage()',
+      'PlayerToolsPackage()',
     ];
 
     for (const pkg of packagesToAdd) {

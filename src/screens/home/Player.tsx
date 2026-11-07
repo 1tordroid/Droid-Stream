@@ -122,7 +122,13 @@ import {
   type SkipSegment,
 } from '../../lib/playback/skipSegmentModel';
 import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
+import SubtitleSyncMenu from './player/SubtitleSyncMenu';
+import SecondSubtitleMenu from './player/SecondSubtitleMenu';
+import TimedSubtitleOverlay from './player/TimedSubtitleOverlay';
+import {useSubtitleTools} from './player/useSubtitleTools';
 import {frameRateMatchingNativeValue, getFrameRateMatching} from '../../lib/player/frameRate';
+import {readSecondSubtitleStyle, secondLineBottom} from '../../lib/subtitles/dualSubtitles';
+import {MAX_SUBTITLE_DELAY_MS} from '../../lib/subtitles/subtitleSync';
 import {guessWatchMeta} from '../../lib/watchMeta';
 import {signedOutNotice, syncWatched} from '../../lib/watchSync';
 import {useScrobble} from '../../lib/hooks/useScrobble';
@@ -578,6 +584,9 @@ const Player = ({route}: Props): React.JSX.Element => {
           Boolean((route.params as any)?.alwaysCast) ||
           settingsStorage.isAlwaysCastMode())),
   });
+  const [processedStreamUrl, setProcessedStreamUrl] = useState<string>(() =>
+    isTorrentStream(selectedStream) ? '' : selectedStream.link,
+  );
 
   // Custom hooks for video settings
   const {
@@ -734,6 +743,23 @@ const Player = ({route}: Props): React.JSX.Element => {
   // timeline is visible. playbackTimeRef always holds the latest position.
   const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0);
   const playbackTimeRef = useRef(0);
+  // Where playback is between the once-a-second progress events: the last
+  // reported time plus the time since, while playing. The subtitle lines the
+  // app draws itself (second subtitle, translation) follow it.
+  const playbackClockRef = useRef({time: 0, at: 0, playing: false, rate: 1});
+  playbackClockRef.current.rate = playbackRate;
+  const getPlaybackTime = useCallback(() => {
+    const clock = playbackClockRef.current;
+    if (!clock.playing) return clock.time;
+    return clock.time + Math.min(2, Math.max(0, (Date.now() - clock.at) / 1000)) * clock.rate;
+  }, []);
+  const isPlaybackPlaying = useCallback(() => playbackClockRef.current.playing, []);
+  const handlePlaybackStateChanged = useCallback((e: {isPlaying?: boolean}) => {
+    const clock = playbackClockRef.current;
+    clock.time = getPlaybackTime();
+    clock.at = Date.now();
+    clock.playing = Boolean(e?.isPlaying);
+  }, [getPlaybackTime]);
   const playbackRenderKeyRef = useRef('');
   const combinedSkipsRef = useRef<SkipInterval[]>([]);
   const liveTimelineRef = useRef(false);
@@ -774,6 +800,8 @@ const Player = ({route}: Props): React.JSX.Element => {
   const [editingControls, setEditingControls] = useState(false);
   const [showMoreControls, setShowMoreControls] = useState(false);
   const [showMarksMenu, setShowMarksMenu] = useState(false);
+  const [showSubtitleSync, setShowSubtitleSync] = useState(false);
+  const [showSecondSubtitle, setShowSecondSubtitle] = useState(false);
   const nativeVideoViewRef = useRef<HostInstance>(null);
   const [hdrWidth, setHdrWidth] = useState(0);
   const [decoderMode, setDecoderMode] = useState<'hardware' | 'software'>('hardware');
@@ -966,7 +994,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     primaryColor: primary,
     onTogglePlayPause: handleTogglePlayPause,
     onSeekNotification: handleSeekNotification,
-    remoteSuspended: autoNextVisible || editingControls || showMoreControls || showMarksMenu,
+    remoteSuspended: autoNextVisible || editingControls || showMoreControls || showMarksMenu || showSubtitleSync || showSecondSubtitle,
   });
 
   const [showTimeRemaining, setShowTimeRemaining] = useState<boolean>(() =>
@@ -1021,6 +1049,11 @@ const Player = ({route}: Props): React.JSX.Element => {
       checkSleepTimer();
       prefetchNextEpisode(e.currentTime, e.seekableDuration);
       playbackTimeRef.current = e.currentTime;
+      const clock = playbackClockRef.current;
+      // A time that did not move since the last tick means paused.
+      clock.playing = e.currentTime !== clock.time;
+      clock.time = e.currentTime;
+      clock.at = Date.now();
       if (isLiveChannel) {
         const window = Number.isFinite(e.seekableDuration) ? e.seekableDuration : 0;
         liveWindowRef.current = window;
@@ -1385,16 +1418,31 @@ const Player = ({route}: Props): React.JSX.Element => {
       JSON.stringify(previous) === JSON.stringify(nextStyle) ? previous : nextStyle,
     );
   }, []));
-  const [subtitleDelayMs, setSubtitleDelayMs] = useState(0);
   const [audioDelayMs, setAudioDelayMs] = useState(0);
   useEffect(() => {
-    setSubtitleDelayMs(0);
     setAudioDelayMs(0);
   }, [selectedStream.link]);
+  // The subtitle delay is kept per title. Sync tools, the second subtitle and
+  // translation read the lines of the tracks the player shows.
+  const playbackUri = (isTorrentStream(selectedStream) ? processedStreamUrl : selectedStream.link) || '';
+  const subtitleTools = useSubtitleTools({
+    titleKey: activeEpisodeKey || selectedStream.link?.split('?')[0],
+    streamKey: selectedStream.link,
+    videoUri: playbackUri,
+    headers: selectedStream?.headers,
+    videoType: selectedStream?.type,
+    textTracks,
+    externalSubs,
+    selectedTextTrackIndex,
+    getTime: getPlaybackTime,
+  });
+  const {subtitleDelayMs, setSubtitleDelayMs} = subtitleTools;
+  const hideNativeSubtitles = Boolean(subtitleTools.mainOverlay);
+  const [secondSubtitleStyle, setSecondSubtitleStyle] = useState(readSecondSubtitleStyle);
+  useFocusEffect(useCallback(() => {
+    setSecondSubtitleStyle(readSecondSubtitleStyle());
+  }, []));
 
-  const [processedStreamUrl, setProcessedStreamUrl] = useState<string>(() =>
-    isTorrentStream(selectedStream) ? '' : selectedStream.link,
-  );
   // Resume point handed to the player with a torrent source, fixed per stream so
   // progress updates never reload it. Starting there skips buffering the opening
   // seconds, which on a torrent means downloading pieces that are then skipped.
@@ -1714,6 +1762,8 @@ const Player = ({route}: Props): React.JSX.Element => {
   const handleVideoSeek = useCallback(
     (e: {currentTime: number; seekTime: number}) => {
       const target = e.seekTime ?? e.currentTime;
+      playbackClockRef.current.time = target;
+      playbackClockRef.current.at = Date.now();
       if (isSeekAwayFromEnd(target, videoPositionRef.current.duration)) {
         setAutoNextVisible(false);
       }
@@ -1753,6 +1803,16 @@ const Player = ({route}: Props): React.JSX.Element => {
     },
     [videoPositionRef, loadedDuration, hasNextEpisode, handleNextEpisode, isCasting, route.params?.type],
   );
+
+  // The sync picker pauses while a line is chosen.
+  const pausePlayback = useCallback(() => {
+    if (isTV) setIsPaused(true);
+    else playerRef.current?.pause();
+  }, []);
+  const resumePlayback = useCallback(() => {
+    if (isTV) setIsPaused(false);
+    else playerRef.current?.resume();
+  }, []);
 
   const handleSkip = useCallback(() => {
     if (!activeSkip) return;
@@ -3089,6 +3149,7 @@ const Player = ({route}: Props): React.JSX.Element => {
         },
       },
       onProgress: handleProgressWithTime,
+      onPlaybackStateChanged: handlePlaybackStateChanged,
       skips: combinedSkips,
       onLoad: handleVideoLoadCallback,
       videoRef: playerRef,
@@ -3132,7 +3193,8 @@ const Player = ({route}: Props): React.JSX.Element => {
       resizeMode,
       selectedAudioTrack,
       onAudioTracks: handleAudioTracks,
-      selectedTextTrack,
+      // A translation shown as the main subtitle replaces the original lines.
+      selectedTextTrack: hideNativeSubtitles ? {type: SelectedTrackType.DISABLED} : selectedTextTrack,
       onTextTracks: handleTextTracks,
       onVideoTracks: handleVideoTracks,
       selectedVideoTrack,
@@ -3162,8 +3224,10 @@ const Player = ({route}: Props): React.JSX.Element => {
       selectedStream.drm,
       activeEpisode?.title,
       handleProgressWithTime,
+      handlePlaybackStateChanged,
       combinedSkips,
       frameRateMatching,
+      hideNativeSubtitles,
       handleVideoLoadCallback,
       playbackRate,
       subtitleDelayMs,
@@ -3775,6 +3839,31 @@ const Player = ({route}: Props): React.JSX.Element => {
         </View>
       )}
 
+      {!isRemoteActive && !isCasting && Boolean(processedStreamUrl) && subtitleTools.mainOverlay ? (
+        <TimedSubtitleOverlay
+          cues={subtitleTools.mainOverlay.cues}
+          delayMs={subtitleTools.mainOverlay.delayMs}
+          getTime={getPlaybackTime}
+          fontSize={subtitleStyle.fontSize}
+          color={subtitleStyle.textColor || '#FFFFFF'}
+          position={{bottom: playbackSubtitleStyle.paddingBottom + 4}}
+        />
+      ) : null}
+      {!isRemoteActive && !isCasting && Boolean(processedStreamUrl) && subtitleTools.secondOverlay ? (
+        <TimedSubtitleOverlay
+          cues={subtitleTools.secondOverlay.cues}
+          delayMs={subtitleTools.secondOverlay.delayMs}
+          getTime={getPlaybackTime}
+          fontSize={secondSubtitleStyle.fontSize}
+          color={secondSubtitleStyle.color}
+          position={
+            secondSubtitleStyle.position === 'top'
+              ? {top: 28}
+              : {bottom: secondLineBottom(subtitleStyle.fontSize, playbackSubtitleStyle.paddingBottom)}
+          }
+        />
+      ) : null}
+
       {isTV &&
         !isCasting &&
         !streamLoading &&
@@ -4026,6 +4115,42 @@ const Player = ({route}: Props): React.JSX.Element => {
         />
       )}
 
+      {showSubtitleSync && !isCasting && (
+        <SubtitleSyncMenu
+          tools={subtitleTools}
+          color={primary}
+          videoUri={playbackUri}
+          headers={selectedStream?.headers}
+          getTime={getPlaybackTime}
+          isPlaying={isPlaybackPlaying}
+          onPause={pausePlayback}
+          onResume={resumePlayback}
+          onToast={text => setToast(text, 2000)}
+          onClose={() => {
+            setShowSubtitleSync(false);
+            setShowControls(true);
+          }}
+        />
+      )}
+
+      {showSecondSubtitle && !isCasting && (
+        <SecondSubtitleMenu
+          tools={subtitleTools}
+          textTracks={textTracks}
+          mainTrackIndex={selectedTextTrackIndex}
+          trackLabel={track => {
+            const saved = findSavedSubtitle(track, savedSubtitles);
+            const title = saved?.title || (track.title?.startsWith('vega-saved-subtitle:') ? undefined : track.title);
+            return {title: languageLabel(track.language, 'Unknown'), detail: title || undefined};
+          }}
+          color={primary}
+          onClose={() => {
+            setShowSecondSubtitle(false);
+            setShowControls(true);
+          }}
+        />
+      )}
+
       {/* Floating Skip Button (Intro/Outro/Recap) */}
       {activeSkip && !autoNextVisible && !isCasting && !streamLoading && !isPlayerLocked && (
         <NativeAnimated.View
@@ -4244,17 +4369,52 @@ const Player = ({route}: Props): React.JSX.Element => {
                           Subtitle
                         </Text>
                         {selectedTextTrackIndex !== 1000 ? (
-                          <PlayerDelayControl
-                            title="Subtitle delay"
-                            icon="closed-caption"
-                            laterLabel="Text shows later"
-                            earlierLabel="Text shows earlier"
-                            delayMs={subtitleDelayMs}
-                            accentColor={primary}
-                            onChange={setSubtitleDelayMs}
-                            onTVFocus={() => setSettingsCloseFocused(false)}
-                          />
+                          <>
+                            <PlayerDelayControl
+                              title="Subtitle delay"
+                              icon="closed-caption"
+                              laterLabel="Text shows later"
+                              earlierLabel="Text shows earlier"
+                              delayMs={subtitleDelayMs}
+                              accentColor={primary}
+                              stepMs={100}
+                              coarseStepMs={1000}
+                              maxMs={MAX_SUBTITLE_DELAY_MS}
+                              onChange={setSubtitleDelayMs}
+                              onTVFocus={() => setSettingsCloseFocused(false)}
+                            />
+                            <PlayerMenuRow
+                              onTVFocus={() => setSettingsCloseFocused(false)}
+                              title="Sync tools"
+                              detail="Sync to a line or auto sync"
+                              accentColor={primary}
+                              icon="sync"
+                              onPress={() => {
+                                setShowSettings(false);
+                                setShowSubtitleSync(true);
+                              }}
+                            />
+                          </>
                         ) : null}
+                        <PlayerMenuRow
+                          onTVFocus={() => setSettingsCloseFocused(false)}
+                          title="Second subtitle"
+                          detail={
+                            subtitleTools.secondChoice.kind === 'off' && !subtitleTools.translationAsMain
+                              ? 'Dual subtitles and translation'
+                              : subtitleTools.translationAsMain
+                                ? 'Translation shown as the main subtitle'
+                                : subtitleTools.secondChoice.kind === 'translation'
+                                  ? 'Translation'
+                                  : 'On'
+                          }
+                          accentColor={primary}
+                          icon="translate"
+                          onPress={() => {
+                            setShowSettings(false);
+                            setShowSecondSubtitle(true);
+                          }}
+                        />
                         <PlayerMenuRow
                           onTVFocus={() => setSettingsCloseFocused(false)}
                           ref={

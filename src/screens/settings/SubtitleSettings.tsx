@@ -18,6 +18,7 @@ import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
+import SubtitleExtrasPreference from './components/SubtitleExtrasPreference';
 
 const FONT_OPTIONS = [
   {id: 'default', name: 'Default (System)', fontFam: undefined},
@@ -596,6 +597,8 @@ const SubtitlePreference = ({navigation}: any) => {
               }
             />
           </SettingsSection>
+
+          <SubtitleExtrasPreference />
 
           {/* System & Reset Section */}
           <SettingsSection title="System">
