@@ -37,8 +37,9 @@ const withBrowserPackage = config =>
   });
 
 // BrowserModule.kt sets passkey support through androidx.webkit, which
-// react-native-webview only has as an implementation dependency.
-const WEBKIT = 'androidx.webkit:webkit:1.14.0';
+// react-native-webview only has as an implementation dependency (it asks
+// for 1.14.0 and uses none of the methods 1.15 to 1.18 removed).
+const WEBKIT = 'androidx.webkit:webkit:1.18.0';
 
 const withWebkit = config =>
   withAppBuildGradle(config, cfg => {
@@ -47,6 +48,8 @@ const withWebkit = config =>
         /dependencies\s*\{/,
         match => `${match}\n    implementation '${WEBKIT}'\n`,
       );
+    } else {
+      cfg.modResults.contents = cfg.modResults.contents.replace(/androidx\.webkit:webkit:[0-9.]+/g, WEBKIT);
     }
     return cfg;
   });

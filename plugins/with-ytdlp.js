@@ -20,7 +20,7 @@ const {
  */
 const CHAQUOPY_VERSION = '17.2.0';
 const PYTHON_VERSION = '3.11';
-const JS_ENGINE = 'androidx.javascriptengine:javascriptengine:1.0.0';
+const JS_ENGINE = 'androidx.javascriptengine:javascriptengine:1.1.1';
 // The release bundled in the APK. "Update yt-dlp" replaces it at run time.
 const YTDLP_VERSION = '2026.10.26';
 const YTDLP_SHA256 = 'e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3';
@@ -53,7 +53,9 @@ const addAppGradle = contents => {
       match => `${match}${APPLY}\n`,
     );
   }
-  if (!next.includes(JS_ENGINE)) {
+  if (next.includes('androidx.javascriptengine:javascriptengine:')) {
+    next = next.replace(/androidx\.javascriptengine:javascriptengine:[0-9.]+/g, JS_ENGINE);
+  } else {
     next = next.replace(
       /dependencies\s*\{/,
       match => `${match}\n    implementation '${JS_ENGINE}'\n`,
