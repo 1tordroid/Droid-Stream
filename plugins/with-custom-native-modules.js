@@ -19,7 +19,7 @@ allprojects {
         resolutionStrategy.eachDependency { details ->
             if (details.requested.group == 'androidx.media3') {
                 details.useVersion '1.8.0'
-                details.because 'react-native-video and the FFmpeg decoder require the Media3 1.8 API'
+                details.because 'react-native-video requires the Media3 1.8 API'
             }
         }
     }
@@ -156,14 +156,18 @@ allprojects {
   config = withAppBuildGradle(config, cfg => {
     let contents = cfg.modResults.contents;
 
-    // Add okhttp-dnsoverhttps if not present
+    // smbj 0.15.0 reuses connections and has a full SmbFileChannel. A project
+    // generated with an older smbj is moved up to it.
     if (!contents.includes('com.hierynomus:smbj')) {
       contents = contents.replace(
         /dependencies\s*\{/,
-        match => `${match}\n    implementation 'com.hierynomus:smbj:0.13.0'\n`,
+        match => `${match}\n    implementation 'com.hierynomus:smbj:0.15.0'\n`,
       );
+    } else {
+      contents = contents.replace(/com\.hierynomus:smbj:[0-9.]+/g, 'com.hierynomus:smbj:0.15.0');
     }
 
+    // Add okhttp-dnsoverhttps if not present
     if (!contents.includes('okhttp-dnsoverhttps')) {
       // Find the dependencies block
       contents = contents.replace(
@@ -215,18 +219,25 @@ allprojects {
       );
     }
 
+    // 8.1.9 is FFmpeg n8.1.3 with its security fixes. A project generated
+    // with an older build is moved up to it.
     if (!contents.includes('ffmpeg-kit-https')) {
       contents = contents.replace(
         /dependencies\s*\{/,
         match =>
-          `${match}\n    implementation 'dev.ffmpegkit-maintained:ffmpeg-kit-https:8.1.8'\n`,
+          `${match}\n    implementation 'dev.ffmpegkit-maintained:ffmpeg-kit-https:8.1.9'\n`,
+      );
+    } else {
+      contents = contents.replace(
+        /dev\.ffmpegkit-maintained:ffmpeg-kit-https:[0-9.]+/g,
+        'dev.ffmpegkit-maintained:ffmpeg-kit-https:8.1.9',
       );
     }
 
     if (!contents.includes('androidx.documentfile:documentfile')) {
       contents = contents.replace(
         /dependencies\s*\{/,
-        match => `${match}\n    implementation 'androidx.documentfile:documentfile:1.0.1'\n`,
+        match => `${match}\n    implementation 'androidx.documentfile:documentfile:1.1.0'\n`,
       );
     }
 
@@ -253,11 +264,21 @@ configurations.configureEach {
 `;
     }
 
-    if (!contents.includes('libtorrent4j:2.1.0-39')) {
+    // The Java API plus the native engine for each shipped ABI. Each one is
+    // checked on its own so a project generated before armeabi-v7a support
+    // picks up the 32-bit library too.
+    const torrentArtifacts = [
+      'libtorrent4j',
+      'libtorrent4j-android-arm64',
+      'libtorrent4j-android-arm',
+    ].filter(name => !contents.includes(`org.libtorrent4j:${name}:2.1.0-39`));
+    if (torrentArtifacts.length > 0) {
       contents = contents.replace(
         /dependencies\s*\{/,
         match =>
-          `${match}\n    implementation 'org.libtorrent4j:libtorrent4j:2.1.0-39'\n    implementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39'\n`,
+          `${match}\n${torrentArtifacts
+            .map(name => `    implementation 'org.libtorrent4j:${name}:2.1.0-39'`)
+            .join('\n')}\n`,
       );
     }
 

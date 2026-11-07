@@ -1341,7 +1341,9 @@ class RemotePlaybackManager {
       const server = await this.awaitPlaybackOperation(
         remoteDeliveryService.ensureServerStarted(), operationToken,
       );
-      deliveryUrl = `${server.baseUrl}/proxy/${this.currentSessionId}/stream`;
+      // The path key carries the session's token; the bare id is refused.
+      const pathKey = remoteDeliveryService.sessionPathKey(this.currentSessionId) || this.currentSessionId;
+      deliveryUrl = `${server.baseUrl}/proxy/${pathKey}/stream`;
     }
     const parsedDelivery = new URL(deliveryUrl);
     const sessionId = /^\/(ffmpeg|hlsout|dlna|proxy|hls)\//.test(parsedDelivery.pathname)

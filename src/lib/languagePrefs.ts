@@ -2,9 +2,9 @@
  * Preferred audio and subtitle languages, and the rules that pick a track
  * from what a video offers.
  */
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from './storage/openStore';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-languages').initialize();
+const storage = openStore('droid-stream-languages');
 
 export interface Language {
   code: string;

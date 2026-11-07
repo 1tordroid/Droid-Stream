@@ -4,7 +4,7 @@ How to build, test and release Droid Stream, and where things live in the code.
 
 ## Requirements
 
-- Node.js 22. Expo's tooling needs 20.19.4 or newer; CI uses 22.
+- Node.js 22.13 or newer, as Expo SDK 58 requires; CI uses 22.
 - JDK 17 and the Android SDK for APK builds.
 - Git Bash on Windows for the helper scripts in `scripts/dev`.
 - An arm64 Android phone with USB debugging for device tests.
@@ -110,8 +110,24 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 ### Network sources, links and downloads
 
 - SMB (smbj), WebDAV, Jellyfin, Emby and Plex, with credentials in an encrypted MMKV store.
+- `native-src/android/com/vega/SmbStreamServer.kt` serves SMB files to the player on `127.0.0.1` with Range support: one random 128-bit token per opened file, no listing route, tokens expire 30 minutes after the last read. `lib/sources/smb.ts` (`openSmbStream`, `SMB_STREAMING.enabled`) gates it; it is off until device seek tests pass, so SMB is browse-only.
+
+### Network library (netlib)
+
+- `src/lib/netlib/` turns WebDAV and SMB sources and device folders into poster libraries. `scan/` lists folders (`walk.ts`: 8 levels, 5000 videos), `parsePath.ts` reads a title from the file name and the folders above it (season folders, show folders, film folders, id tags such as `{tmdb-603}`, extras), and `group.ts` makes movies (versions, cd1/cd2 parts), shows (episodes) and Other.
+- `match/` matches titles: an id tag, then TMDB `/search/movie` or `/search/tv` with the year when a TMDB key is saved, else Cinemeta (`findImdb`). Four requests at once with backoff on 429 (`match/index.ts`), scored by `match/score.ts`. `cache.ts` keeps hits 180 days and misses 7 days.
+- Everything is in the unencrypted MMKV instance `netlib`: libraries, per-source settings (library folder, online lookups, Other tab), device folders, matches and library history. Erase all clears it; Android Auto Backup skips it (`plugins/with-backup-rules.js`), and it is not in the settings backup or watch sync.
+- A file's player link is a version key (`ids.ts`, `netlib:v:<source>:<path>`, no sign-in in it). `resolve.ts` turns it into a stream: WebDAV with Basic auth headers, SMB through the stream server, device files as they are. `useStream` resolves it too, so the next episode plays from the same source.
+- Screens: `screens/library/SourceLibrary.tsx` (Movies, Shows, Other, Folders; A-Z, Recently added, Year; search; settings sheet; FlashList with the first-focus guard), `components/netlib/FixMatch.tsx` (the metadata picker), `components/netlib/NetlibEpisodeList.tsx` (Info body). `LocalLibrary.tsx` is the device source. Info links are `netlib:i:<item id>` with provider `netlib`.
+- Continue Watching: the player writes `history.ts` (not the synced store); `continueWatching.ts` builds the rows and the resume point, counting 85% as watched.
 - `lib/linkIntake.ts` takes magnets and links shared or opened from other apps, and offers a copied magnet. RSS feeds are polled every 15 minutes.
 - Downloaded files can be checked against an MD5, SHA-1 or SHA-256 hash.
+
+### Live TV
+
+- `src/screens/livetv/LiveTV.tsx` is the screen (Home drawer, Home welcome screen and the Library hub open it). Sources: the iptv-org India playlist, the user's own jiotv_go server (`<address>/playlist.m3u`, optional `?q=`; the app never talks to Jio itself) and any M3U URL.
+- `src/lib/livetv/m3u.ts` is a pure M3U parser (`#EXTINF` attributes, `#EXTVLCOPT` user agent and referrer as headers, `#KODIPROP` skipped). `store.ts` keeps playlists, the server address, the playlist cache (12 hours), favourites and recent channels in MMKV. `epg.ts` reads now and next from plain XMLTV guides; gzipped guides (jiotv_go's `epg.xml.gz`) are skipped.
+- Channels open in the built-in player with `live: true`, which stops it saving watch progress.
 
 ## Status
 
@@ -126,10 +142,11 @@ Known issues:
 
 Not tested yet: Cloud files with real PikPak or debrid accounts, debrid and watch sync sign-in, the "Because you watched" row, and Android TV.
 
+5.5.0 network library, not yet tested on a device: scanning a real WebDAV server, SMB share and device folder; poster matching with and without a TMDB key; Fix match; resume and next episode from Continue Watching; the TV D-pad pass through the library grid. SMB playback (smbj 0.15.0 and `SmbStreamServer`) is built but switched off until a 4 GB MKV plays and seeks at 10%, 50% and 90% from Windows and Samba shares on the OnePlus 12 and an Android TV.
+
 ## Roadmap
 
 - Android TV focus pass on the newer screens, and the TV Maestro flow.
-- `react-native-bootsplash` 7. It removes the build-time `sharp`, `fast-xml-parser` and `uuid` advisories, but it generates the splash at prebuild with new options (`logo`, `assetsOutput`, no `parentTheme`), so `plugins/with-dynamic-launcher-splash.js` has to move to the v7 resources and themes first.
 - `react-native-mmkv-storage` 13. It wraps Android encryption keys in the Keystore ("migrated automatically"), `initialize()` throws instead of failing silently, and `useMMKVStorage` returns stored falsy values. Test the encrypted debrid and network stores on an upgraded install before taking it.
 - Point `extra.eas.projectId` in `app.config.js` at a Droid Stream Expo project. It still names the upstream project.
 - A yt-dlp based downloader, written from scratch (nothing from the GPL YTDLnis or youtubedl-android).

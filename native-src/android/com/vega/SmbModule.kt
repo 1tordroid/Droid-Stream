@@ -48,6 +48,37 @@ class SmbModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
             promise.reject("SMB_ERROR", error.message, error)
         }
     }
+
+    /** Opens one file for the player and resolves its loopback address. */
+    @ReactMethod
+    fun openStream(
+        host: String,
+        shareName: String,
+        path: String,
+        username: String,
+        password: String,
+        domain: String,
+        promise: Promise,
+    ) {
+        Thread {
+            try {
+                promise.resolve(streamServer.open(host, shareName, path, username, password, domain))
+            } catch (error: Exception) {
+                promise.reject("SMB_ERROR", error.message, error)
+            }
+        }.start()
+    }
+
+    @ReactMethod
+    fun closeStream(url: String, promise: Promise) {
+        streamServer.close(url)
+        promise.resolve(null)
+    }
+
+    companion object {
+        /** One loopback server for every SMB stream; tokens keep files apart. */
+        private val streamServer by lazy { SmbStreamServer() }
+    }
 }
 
 class SmbPackage : com.facebook.react.ReactPackage {

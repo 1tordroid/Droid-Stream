@@ -130,6 +130,9 @@ jobs:
     env:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
+      # Fails prebuild and Gradle instead of signing with the debug key. Set
+      # on this job only: verify-android-manifests runs prebuild unsigned.
+      RELEASE: '1'
       MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}

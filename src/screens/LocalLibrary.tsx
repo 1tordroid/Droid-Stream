@@ -1,139 +1,65 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React, {useMemo, useState} from 'react';
-import {FlatList, ToastAndroid, View} from 'react-native';
-import MediaPosterCard from '../components/MediaPosterCard';
+import React, {useState} from 'react';
+import {ToastAndroid, View} from 'react-native';
+import Button from '../components/ui/Button';
 import AppText from '../components/ui/Text';
 import {TVFocusable} from '../components/tv';
-import {listLocalFolder, pickLocalFolder} from '../lib/localContent/files';
-import {lookupArtwork} from '../lib/localLibrary/artwork';
-import {isVideoFileName, parseVideoFileName} from '../lib/localLibrary/parseFileName';
+import {pickLocalFolder} from '../lib/localContent/files';
+import {listDeviceSources, removeLibrary, saveDeviceSource, setSourceSettings} from '../lib/netlib/cache';
+import {scanNetlibSource} from '../lib/netlib/library';
+import {isTV} from '../lib/tv/constants';
 import {useM3Colors} from '../theme/M3PaletteContext';
+import {SourceLibraryView} from './library/SourceLibrary';
 
-type SortKey = 'name' | 'date' | 'rating' | 'type';
+/** The device library source: one folder on this phone or TV. */
+export const DEVICE_SOURCE_ID = 'device';
 
-interface LibraryItem {
-  uri: string;
-  name: string;
-  title: string;
-  year?: number;
-  modified: number;
-  poster?: string;
-  rating?: string;
-  mediaType?: 'movie' | 'tv';
-}
-
-const walk = async (uri: string, depth: number, into: {uri: string; name: string}[]) => {
-  if (depth > 3 || into.length > 400) return;
-  const entries = await listLocalFolder(uri);
-  for (const entry of entries) {
-    if (entry.directory) await walk(entry.uri, depth + 1, into);
-    else if (isVideoFileName(entry.name)) into.push({uri: entry.uri, name: entry.name});
-  }
-};
-
+/**
+ * Videos on this device, as a library source: pick a folder once and its
+ * videos stay in a poster grid with Movies, Shows, Other and Folders.
+ */
 const LocalLibrary = ({navigation}: {navigation: any}) => {
   const colors = useM3Colors();
-  const [items, setItems] = useState<LibraryItem[]>([]);
-  const [sort, setSort] = useState<SortKey>('name');
-  const [busy, setBusy] = useState(false);
+  const [source, setSource] = useState(() => listDeviceSources().find(item => item.id === DEVICE_SOURCE_ID));
 
-  const scan = async () => {
-    const folder = await pickLocalFolder();
-    if (!folder) return;
-    setBusy(true);
+  const pick = async () => {
     try {
-      const files: {uri: string; name: string}[] = [];
-      await walk(folder.uri, 0, files);
-      const next: LibraryItem[] = files.map(file => {
-        const parsed = parseVideoFileName(file.name);
-        return {uri: file.uri, name: file.name, title: parsed.title, year: parsed.year, modified: 0};
-      });
-      setItems(next);
-      for (const item of next) {
-        try {
-          const art = await lookupArtwork(item.title, item.year);
-          if (!art) continue;
-          setItems(current =>
-            current.map(row =>
-              row.uri === item.uri
-                ? {...row, poster: art.poster, rating: art.rating, mediaType: art.mediaType, title: art.title}
-                : row,
-            ),
-          );
-        } catch {
-          // Artwork is optional. The file still plays.
-        }
+      const folder = await pickLocalFolder();
+      if (!folder) return;
+      const next = {id: DEVICE_SOURCE_ID, kind: 'device' as const, name: folder.name || 'On this device', root: folder.uri};
+      if (source && source.root !== folder.uri) {
+        // A new folder starts a new library; matches are cached and come back at once.
+        removeLibrary(DEVICE_SOURCE_ID);
+        setSourceSettings(DEVICE_SOURCE_ID, {root: undefined});
       }
+      saveDeviceSource(next);
+      setSource(next);
+      scanNetlibSource(DEVICE_SOURCE_ID);
     } catch (error: any) {
-      ToastAndroid.show(error?.message || 'Could not scan that folder', ToastAndroid.LONG);
-    } finally {
-      setBusy(false);
+      ToastAndroid.show(error?.message || 'Could not open that folder', ToastAndroid.LONG);
     }
   };
 
-  const sorted = useMemo(() => {
-    const copy = [...items];
-    copy.sort((a, b) => {
-      if (sort === 'rating') return Number(b.rating || 0) - Number(a.rating || 0);
-      if (sort === 'type') return (a.mediaType || '').localeCompare(b.mediaType || '');
-      if (sort === 'date') return b.modified - a.modified || a.title.localeCompare(b.title);
-      return a.title.localeCompare(b.title);
-    });
-    return copy;
-  }, [items, sort]);
+  if (source) return <SourceLibraryView sourceId={source.id} navigation={navigation} onChangeFolder={pick} />;
 
   return (
-    <View style={{flex: 1, backgroundColor: colors.background, paddingTop: 12}}>
-      <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8}}>
-        <TVFocusable accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={{padding: 8}}>
-          <MaterialCommunityIcons name="arrow-left" size={28} color={colors.onBackground} />
-        </TVFocusable>
-        <AppText role="headlineSmallEmphasized" className="ml-2 text-m3-on-background">Video library</AppText>
+    <View style={{flex: 1, backgroundColor: colors.background, padding: 16}}>
+      <TVFocusable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.goBack()} borderRadius={24} style={{padding: 8, alignSelf: 'flex-start', borderRadius: 24}}>
+        <MaterialCommunityIcons name="arrow-left" size={26} color={colors.onBackground} />
+      </TVFocusable>
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16}}>
+        <MaterialCommunityIcons name="folder-play-outline" size={56} color={colors.primary} />
+        <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground, marginTop: 12, textAlign: 'center'}}>
+          Videos on this device
+        </AppText>
+        <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 8, textAlign: 'center', maxWidth: 420}}>
+          Pick the folder that holds your movies and shows. Droid Stream sorts them into a poster library, finds artwork,
+          and remembers where you stopped. Nothing is copied or uploaded.
+        </AppText>
+        <View style={{marginTop: 20}}>
+          <Button onPress={pick} hasTVPreferredFocus={isTV}>Pick a folder</Button>
+        </View>
       </View>
-      <View style={{flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 12}}>
-        <TVFocusable accessibilityLabel="Scan folder" onPress={scan} style={{paddingVertical: 8, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.primaryContainer}}>
-          <AppText style={{color: colors.onPrimaryContainer}}>{busy ? 'Scanning…' : 'Scan folder'}</AppText>
-        </TVFocusable>
-        {(['name', 'rating', 'type', 'date'] as SortKey[]).map(key => (
-          <TVFocusable key={key} accessibilityLabel={`Sort by ${key}`} onPress={() => setSort(key)} style={{paddingVertical: 8, paddingHorizontal: 10}}>
-            <AppText style={{color: sort === key ? colors.primary : colors.onSurfaceVariant}}>{key}</AppText>
-          </TVFocusable>
-        ))}
-      </View>
-      <FlatList
-        data={sorted}
-        numColumns={3}
-        keyExtractor={item => item.uri}
-        contentContainerStyle={{paddingHorizontal: 12, paddingBottom: 32}}
-        ListEmptyComponent={
-          <AppText className="px-4 text-m3-on-surface-variant">
-            Scan a folder for MKV, MP4, AVI, MOV, and ISO files. Posters and ratings load when a TMDB key is saved.
-          </AppText>
-        }
-        renderItem={({item}) => (
-          <View style={{margin: 6}}>
-            <MediaPosterCard
-              title={item.title}
-              poster={item.poster}
-              width={108}
-              badge={item.rating}
-              cornerTag={item.year ? String(item.year) : undefined}
-              onPress={() =>
-                navigation.navigate('Player', {
-                  linkIndex: 0,
-                  episodeList: [{title: item.title, link: item.uri}],
-                  directUrl: item.uri,
-                  file: item.uri,
-                  localContent: true,
-                  type: item.mediaType || 'movie',
-                  primaryTitle: item.title,
-                  poster: {poster: item.poster},
-                })
-              }
-            />
-          </View>
-        )}
-      />
     </View>
   );
 };

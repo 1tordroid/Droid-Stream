@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useState, useSyncExternalStore} from 'react';
 import {FlatList, TouchableOpacity, View} from 'react-native';
 import ReactNativeHapticFeedback, {
   HapticFeedbackTypes,
@@ -24,6 +24,10 @@ import useLocalContentStore from '../lib/zustand/localContentStore';
 import {localContentId, localContentInfo, localContentLink} from '../lib/localContent/library';
 import {getLocalContinueWatching} from '../lib/localContent/playback';
 import {watchProgressStorage} from '../lib/storage';
+import {netlibItemIdOf} from '../lib/netlib/ids';
+import {getNetlibHistorySnapshot, hideNetlibHistory, subscribeNetlibHistory} from '../lib/netlib/history';
+import {netlibContinueWatchingRows} from '../lib/netlib/continueWatching';
+import {findNetlibItem} from '../lib/netlib/library';
 
 interface ContinueWatchingCardProps {
   item: ContinueWatchingItem;
@@ -96,6 +100,8 @@ const ContinueWatching = ({localOnly = false}: {localOnly?: boolean}) => {
   const localTitles = useLocalContentStore(state => state.titles);
   const removeItem = useContinueWatchingStore(state => state.removeItem);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Library titles (WebDAV, SMB, device folders) keep their own history.
+  const netlibHistory = useSyncExternalStore(subscribeNetlibHistory, getNetlibHistorySnapshot);
 
   const isSelectionMode = selectedIds.size > 0;
 
@@ -115,9 +121,10 @@ const ContinueWatching = ({localOnly = false}: {localOnly?: boolean}) => {
           type: localContentInfo(title).type || 'series', poster: title.metadata?.poster, background: title.metadata?.background,
           position: target.position, duration: target.duration, updatedAt: target.updatedAt}];
       });
-      return getContinueWatchingRow([...(localOnly ? [] : storedItems), ...localItems]);
+      const netlibItems: ContinueWatchingItem[] = netlibContinueWatchingRows(netlibHistory, findNetlibItem, uri => watchProgressStorage.getProgress(uri) || undefined);
+      return getContinueWatchingRow([...(localOnly ? [] : storedItems), ...localItems, ...netlibItems]);
     },
-    [storedItems, localTitles, localOnly],
+    [storedItems, localTitles, localOnly, netlibHistory],
   );
 
   const triggerHaptic = useCallback(
@@ -210,7 +217,9 @@ const ContinueWatching = ({localOnly = false}: {localOnly?: boolean}) => {
           onPress: () => {
             selectedIds.forEach(id => {
               const localId = localContentId(id);
+              const netlibId = netlibItemIdOf(id);
               if (localId) useLocalContentStore.getState().clearPlayback(localId);
+              else if (netlibId) hideNetlibHistory(netlibId);
               else removeItem(id);
             });
             setSelectedIds(new Set());

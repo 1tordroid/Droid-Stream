@@ -10,9 +10,11 @@ import {
   UPDATE_REPOSITORY,
   UPDATE_RELEASES_URL,
   compareVersions,
+  isAllowedUpdateUrl,
   selectReleaseApk,
   stripVersionTag,
 } from './release';
+import {verifyApkDigest} from './verifyApk';
 
 const deletePartialFile = async (filePath: string) => {
   try {
@@ -22,8 +24,17 @@ const deletePartialFile = async (filePath: string) => {
   } catch {}
 };
 
-export const downloadUpdate = async (url: string, name: string) => {
+export const downloadUpdate = async (
+  url: string,
+  name: string,
+  digest?: string | null,
+) => {
   console.log('downloading', url, name);
+  if (!isAllowedUpdateUrl(url)) {
+    console.log('[update] Refusing download from', url);
+    ToastAndroid.show('Update link is not from GitHub', ToastAndroid.LONG);
+    return;
+  }
   await notificationService.requestPermission();
 
   const filePath = `${RNFS.CachesDirectoryPath}/${name}`;
@@ -62,6 +73,16 @@ export const downloadUpdate = async (url: string, name: string) => {
       );
       await deletePartialFile(filePath);
       ToastAndroid.show('Download failed, please try again', ToastAndroid.SHORT);
+      return;
+    }
+
+    if ((await verifyApkDigest(filePath, digest)) === 'mismatch') {
+      console.log('[update] SHA-256 mismatch, deleting', filePath);
+      await deletePartialFile(filePath);
+      ToastAndroid.show(
+        'Update file is damaged or changed, please try again',
+        ToastAndroid.LONG,
+      );
       return;
     }
 
@@ -132,7 +153,11 @@ export const checkForUpdate = async (
       const apkAsset = selectReleaseApk(data.assets, isTV);
       const startDownload = (): Promise<unknown> => {
         if (apkAsset?.browser_download_url && apkAsset.name) {
-          return downloadUpdate(apkAsset.browser_download_url, apkAsset.name);
+          return downloadUpdate(
+            apkAsset.browser_download_url,
+            apkAsset.name,
+            apkAsset.digest,
+          );
         }
         if (data.html_url) {
           return Linking.openURL(data.html_url);

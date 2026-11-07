@@ -90,6 +90,12 @@ export default function PlayerSettings({navigation}: Props) {
   const [alwaysCastMode, setAlwaysCastMode] = useState<boolean>(() =>
     settingsStorage.isAlwaysCastMode(),
   );
+  const [autoPip, setAutoPip] = useState<boolean>(() =>
+    settingsStorage.isAutoPictureInPictureEnabled(),
+  );
+  const [backgroundAudio, setBackgroundAudio] = useState<boolean>(() =>
+    settingsStorage.isBackgroundAudioEnabled(),
+  );
   const [askLocalFileFirst, setAskLocalFileFirst] = useState<boolean>(() =>
     settingsStorage.isAskLocalFileFirst(),
   );
@@ -218,6 +224,29 @@ export default function PlayerSettings({navigation}: Props) {
               />
             )}
           </SettingsSection>
+          {!isTV && (
+            <SettingsSection title="Leaving the player">
+              <SettingsSwitchRow
+                title="Picture-in-picture on Home"
+                description="Keep watching in a small window when you press Home during playback"
+                value={autoPip}
+                onValueChange={next => {
+                  settingsStorage.setAutoPictureInPictureEnabled(next);
+                  setAutoPip(next);
+                }}
+              />
+              <SettingsSwitchRow
+                title="Background audio"
+                description="Keep the sound playing when you leave the app or lock the screen"
+                value={backgroundAudio}
+                divider={false}
+                onValueChange={next => {
+                  settingsStorage.setBackgroundAudioEnabled(next);
+                  setBackgroundAudio(next);
+                }}
+              />
+            </SettingsSection>
+          )}
           <SettingsSection title="Playback">
             <View
               className="px-4 py-3"

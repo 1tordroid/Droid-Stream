@@ -3,7 +3,7 @@
  * sites, and the user's debrid caches. Ranks them so "Play best" picks a
  * cached source first, then the healthiest torrent at the preferred quality.
  */
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from '../storage/openStore';
 import {checkAllCaches, connectedServices, getService, pickVideo, readDebridSettings, sendToDebrid, type DebridFile, type DebridId} from '../debrid';
 import {readLanguagePrefs, normalizeLanguage} from '../languagePrefs';
 import {episodeTag, parseRelease, releaseMatches} from '../releaseName';
@@ -13,7 +13,7 @@ import {searchAll} from '../torrentSearch/search';
 import type {TorrentResult} from '../torrentSearch/types';
 import {buildMagnet, infoHashFrom, makeResult, parseSize} from '../torrentSearch/util';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-finder').initialize();
+const storage = openStore('droid-stream-finder');
 
 export interface WantedVideo {
   title: string;

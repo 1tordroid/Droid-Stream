@@ -18,6 +18,7 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
 import fi.iki.elonen.NanoHTTPD
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response as OkHttpResponse
@@ -84,6 +85,8 @@ class RemoteDeliveryModule(
 
     data class MediaSession(
         val sessionId: String,
+        // Random per session; every URL carries it as "<sessionId>.<token>".
+        val token: String,
         val sourceUrl: String,
         val isLocal: Boolean,
         val headers: Map<String, String>,
@@ -94,8 +97,47 @@ class RemoteDeliveryModule(
         @Volatile var activeStreamOffsetUs: Long? = null,
         val ffmpegPackager: FFmpegMp4Packager? = null,
         val hlsPackager: HlsSegmentPackager? = null,
-        val hlsSegmentPrefixes: ConcurrentHashMap<String, Int> = ConcurrentHashMap()
-    )
+        val hlsSegmentPrefixes: ConcurrentHashMap<String, Int> = ConcurrentHashMap(),
+        // Hosts /hls may fetch with the session's headers: the source, its audio
+        // rendition and every host named by a playlist read through the proxy.
+        val hlsHosts: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    ) {
+        val pathKey: String get() = "$sessionId.$token"
+    }
+
+    private val secureRandom = java.security.SecureRandom()
+
+    private fun newSessionToken(): String {
+        val bytes = ByteArray(16)
+        secureRandom.nextBytes(bytes)
+        return bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    }
+
+    /** Resolves "<sessionId>.<token>" to its session; null when either part is wrong. */
+    private fun sessionForPathKey(pathKey: String): MediaSession? {
+        val dot = pathKey.lastIndexOf('.')
+        if (dot <= 0 || dot == pathKey.length - 1) return null
+        val session = sessions[pathKey.substring(0, dot)] ?: return null
+        val given = pathKey.substring(dot + 1).toByteArray(Charsets.UTF_8)
+        return session.takeIf {
+            java.security.MessageDigest.isEqual(it.token.toByteArray(Charsets.UTF_8), given)
+        }
+    }
+
+    private fun hostOf(url: String): String? =
+        url.toHttpUrlOrNull()?.host?.lowercase(Locale.ROOT)
+
+    /**
+     * Pages that read cast media with fetch/XHR: the Vega Cast receiver
+     * (cast.vega-app.in) and Google's Default Media Receiver (gstatic.com).
+     */
+    private fun isAllowedReceiverOrigin(origin: String): Boolean {
+        val url = origin.toHttpUrlOrNull() ?: return false
+        if (url.scheme != "https") return false
+        val host = url.host.lowercase(Locale.ROOT)
+        return host == "vega-app.in" || host.endsWith(".vega-app.in") ||
+            host == "gstatic.com" || host.endsWith(".gstatic.com")
+    }
 
     private val sessions = ConcurrentHashMap<String, MediaSession>()
     private val sessionErrors = ConcurrentHashMap<String, String>()
@@ -392,7 +434,7 @@ class RemoteDeliveryModule(
             .build()
     }
 
-    private fun hlsProxyUrl(sessionId: String, url: String, playlist: Boolean): String {
+    private fun hlsProxyUrl(pathKey: String, lan: Boolean, url: String, playlist: Boolean): String {
         val encoded = android.util.Base64.encodeToString(
             url.toByteArray(Charsets.UTF_8),
             android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
@@ -400,11 +442,17 @@ class RemoteDeliveryModule(
         val port = server?.listeningPort ?: 0
         // Browser receivers need LAN URLs for every rendition, segment and key.
         // Internal FFmpeg inputs keep their existing loopback delivery path.
-        val host = if (sessions[sessionId]?.mode == "proxy") getLocalIpAddress() else "127.0.0.1"
-        return "http://$host:$port/hls/$sessionId/$encoded/" + if (playlist) "index.m3u8" else "seg.ts"
+        val host = if (lan) getLocalIpAddress() else "127.0.0.1"
+        return "http://$host:$port/hls/$pathKey/$encoded/" + if (playlist) "index.m3u8" else "seg.ts"
     }
 
-    private fun rewritePlaylist(sessionId: String, body: String, base: okhttp3.HttpUrl): String {
+    private fun rewritePlaylist(session: MediaSession, body: String, base: okhttp3.HttpUrl): String {
+        val lan = session.mode == "proxy"
+        fun proxied(abs: String, playlist: Boolean): String {
+            // A playlist read from an allowed host may name segment or key hosts.
+            hostOf(abs)?.let { if (session.hlsHosts.size < 256) session.hlsHosts.add(it) }
+            return hlsProxyUrl(session.pathKey, lan, abs, playlist)
+        }
         val uriAttr = Regex("""URI="([^"]+)"""")
         val out = StringBuilder()
         var nextIsPlaylist = false
@@ -417,13 +465,13 @@ class RemoteDeliveryModule(
                     out.append(uriAttr.replace(raw) { m ->
                         val abs = base.resolve(m.groupValues[1])?.toString() ?: m.groupValues[1]
                         val isPlaylist = line.startsWith("#EXT-X-MEDIA") || line.startsWith("#EXT-X-I-FRAME-STREAM-INF")
-                        "URI=\"${hlsProxyUrl(sessionId, abs, isPlaylist)}\""
+                        "URI=\"${proxied(abs, isPlaylist)}\""
                     })
                 }
                 else -> {
                     val abs = base.resolve(line)?.toString() ?: line
                     val isPlaylist = nextIsPlaylist || abs.substringBefore('?').endsWith(".m3u8", ignoreCase = true)
-                    out.append(hlsProxyUrl(sessionId, abs, isPlaylist))
+                    out.append(proxied(abs, isPlaylist))
                     nextIsPlaylist = false
                 }
             }
@@ -449,6 +497,12 @@ class RemoteDeliveryModule(
                 String(android.util.Base64.decode(it, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING), Charsets.UTF_8)
             } catch (_: Exception) { null }
         } ?: return addCors(NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.BAD_REQUEST, NanoHTTPD.MIME_PLAINTEXT, "Bad URL"), corsHeaders)
+        // The session's headers (cookies, tokens) go only to hosts it registered.
+        val targetHost = hostOf(target)
+        if (targetHost == null || targetHost !in session.hlsHosts) {
+            VegaLog.w(TAG, "HLS proxy refused an unregistered host: $targetHost")
+            return addCors(NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.FORBIDDEN, NanoHTTPD.MIME_PLAINTEXT, "Host not allowed"), corsHeaders)
+        }
 
         RemoteSourceFailures.check(target)
         val builder = Request.Builder().url(target)
@@ -478,7 +532,9 @@ class RemoteDeliveryModule(
         if (looksPlaylist || disguisedPlaylist) {
             val text = body.string()
             if (text.trimStart().startsWith("#EXTM3U")) {
-                val rewritten = rewritePlaylist(session.sessionId, text, upstream.request.url)
+                // After redirects the playlist's own host is the base for relative entries.
+                upstream.request.url.host.lowercase(Locale.ROOT).let { if (session.hlsHosts.size < 256) session.hlsHosts.add(it) }
+                val rewritten = rewritePlaylist(session, text, upstream.request.url)
                 return addCors(NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/vnd.apple.mpegurl", rewritten), corsHeaders)
             }
             return addCors(NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, contentType.ifEmpty { "application/octet-stream" }, text), corsHeaders)
@@ -531,6 +587,8 @@ class RemoteDeliveryModule(
     ) {
         Thread {
         try {
+            val token = newSessionToken()
+            val pathKey = "$sessionId.$token"
             val headers = mutableMapOf<String, String>()
             headersMap?.toHashMap()?.forEach { (k, v) ->
                 if (v != null) headers[k] = v.toString()
@@ -580,10 +638,10 @@ class RemoteDeliveryModule(
                     durationSeconds = resolvedDuration,
                     totalSizeBytes = totalSizeBytes.toLong(),
                     inputUrl = if (isRemoteHls && server != null) {
-                        hlsProxyUrl(sessionId, sourceUrl, playlist = true)
+                        hlsProxyUrl(pathKey, lan = false, url = sourceUrl, playlist = true)
                     } else sourceUrl,
                     audioInputUrl = audioUrl?.takeIf { it.isNotBlank() }?.let {
-                        if (isRemoteHls && server != null) hlsProxyUrl(sessionId, it, playlist = true) else it
+                        if (isRemoteHls && server != null) hlsProxyUrl(pathKey, lan = false, url = it, playlist = true) else it
                     },
                     audioDelayMs = audioDelayMs,
                     onError = { message -> sessionErrors[sessionId] = message },
@@ -611,6 +669,7 @@ class RemoteDeliveryModule(
 
             val session = MediaSession(
                 sessionId = sessionId,
+                token = token,
                 sourceUrl = sourceUrl,
                 isLocal = isLocal,
                 headers = headers,
@@ -626,6 +685,9 @@ class RemoteDeliveryModule(
                 ffmpegPackager = ffmpegPackager,
                 hlsPackager = hlsPackager
             )
+            listOf(sourceUrl, audioUrl).forEach { url ->
+                url?.takeIf { it.isNotBlank() }?.let { hostOf(it) }?.let { session.hlsHosts.add(it) }
+            }
             val lanIp = getLocalIpAddress()
             val port = server?.listeningPort ?: 0
             if (port <= 0 || lanIp == "127.0.0.1" || server == null) {
@@ -639,25 +701,26 @@ class RemoteDeliveryModule(
 
             val streamUrl = when (mode) {
                 "ffmpeg" -> if (ffmpegStart > 0.0) {
-                    "http://$lanIp:$port/ffmpeg/$sessionId/stream.mp4?start=$ffmpegStart"
+                    "http://$lanIp:$port/ffmpeg/$pathKey/stream.mp4?start=$ffmpegStart"
                 } else {
-                    "http://$lanIp:$port/ffmpeg/$sessionId/stream.mp4"
+                    "http://$lanIp:$port/ffmpeg/$pathKey/stream.mp4"
                 }
-                "hls" -> "http://$lanIp:$port/hlsout/$sessionId/index.m3u8"
-                "progressive" -> "http://$lanIp:$port/dlna/$sessionId/stream.mp4"
+                "hls" -> "http://$lanIp:$port/hlsout/$pathKey/index.m3u8"
+                "progressive" -> "http://$lanIp:$port/dlna/$pathKey/stream.mp4"
                 "proxy" -> if (isRemoteHls || mimeType.contains("mpegurl", ignoreCase = true)) {
-                    hlsProxyUrl(sessionId, sourceUrl, playlist = true)
-                } else "http://$lanIp:$port/proxy/$sessionId/stream"
-                else -> "http://$lanIp:$port/proxy/$sessionId/stream"
+                    hlsProxyUrl(pathKey, lan = true, url = sourceUrl, playlist = true)
+                } else "http://$lanIp:$port/proxy/$pathKey/stream"
+                else -> "http://$lanIp:$port/proxy/$pathKey/stream"
             }
-            // Full URL for manual testing: adb logcat -s RemoteDeliveryModule
-            VegaLog.i(TAG, "Registered $mode delivery: $streamUrl")
+            // The URL carries the session token, so only the mode is logged.
+            VegaLog.i(TAG, "Registered $mode delivery for $sessionId")
 
             val timelineOffset = if (mode == "ffmpeg") ffmpegStart else 0.0
             val dur = if (resolvedDuration > 0.0) resolvedDuration else 0.0
 
             val result = Arguments.createMap()
             result.putString("sessionId", sessionId)
+            result.putString("sessionKey", pathKey)
             result.putString("streamUrl", streamUrl)
             result.putString("baseUrl", "http://$lanIp:$port")
             result.putString("mimeType", session.mimeType)
@@ -1452,12 +1515,16 @@ class RemoteDeliveryModule(
 
             VegaLog.d(TAG, "Serve HTTP $method: $uri, Range: $rangeHeader")
 
-            val corsHeaders = mapOf(
-                "Access-Control-Allow-Origin" to "*",
+            // Only receiver pages may read responses cross-origin. DLNA renderers,
+            // Kodi and FFmpeg send no Origin and need no CORS headers.
+            val origin = session.headers["origin"]
+            val corsHeaders = if (origin != null && isAllowedReceiverOrigin(origin)) mapOf(
+                "Access-Control-Allow-Origin" to origin,
+                "Vary" to "Origin",
                 "Access-Control-Allow-Methods" to "GET, HEAD, OPTIONS",
                 "Access-Control-Allow-Headers" to "Range, Origin, Accept, Content-Type",
                 "Access-Control-Expose-Headers" to "Content-Length, Content-Range, Accept-Ranges"
-            )
+            ) else mapOf("Vary" to "Origin")
 
             if (method == Method.OPTIONS) {
                 val resp = newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "")
@@ -1471,12 +1538,13 @@ class RemoteDeliveryModule(
             }
 
             val endpoint = parts[0]
-            val sessionId = parts[1]
-            val mediaSession = sessions[sessionId]
-
-            if (mediaSession == null) {
+            val sessionId = parts[1].substringBeforeLast('.')
+            if (sessions[sessionId] == null) {
                 return addCors(newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Session expired or invalid"), corsHeaders)
             }
+            // A LAN client that knows no token gets nothing, not even an error detail.
+            val mediaSession = sessionForPathKey(parts[1])
+                ?: return addCors(newFixedLengthResponse(Response.Status.FORBIDDEN, MIME_PLAINTEXT, "Forbidden"), corsHeaders)
 
             return try {
                 when (endpoint) {
@@ -1707,7 +1775,7 @@ class RemoteDeliveryModule(
             val uri = Uri.parse(url)
             val parts = uri.pathSegments
             require(parts.size == 3 && parts[0] in listOf("subtitle", "extsub")) { "Invalid subtitle URL" }
-            val session = sessions[parts[1]] ?: throw java.io.IOException("Cast session expired")
+            val session = sessionForPathKey(parts[1]) ?: throw java.io.IOException("Cast session expired")
             val ordinal = parts[2].substringBeforeLast('.').toIntOrNull()
                 ?.takeIf { it >= 0 } ?: throw IllegalArgumentException("Invalid subtitle track")
             val externalUrl = if (parts[0] == "extsub") {

@@ -1,11 +1,11 @@
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from '../storage/openStore';
 import {sandboxBridge} from '../sandbox/sandboxBridge';
 import {MAX_MODULE_SIZE} from '../sandbox/protocol';
 import {normalizeRepoUrl, parseRepoManifest, validStreams, wrapPluginCode, type ScriptPluginEntry, type ScriptPluginStream} from './format';
 
 export type {ScriptPluginStream} from './format';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-script-plugins').initialize();
+const storage = openStore('droid-stream-script-plugins');
 const INDEX_KEY = 'plugins';
 const codeKey = (repoUrl: string, id: string) => `code:${repoUrl}:${id}`;
 

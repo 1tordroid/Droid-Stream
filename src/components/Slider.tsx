@@ -14,6 +14,8 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useNavigation} from '@react-navigation/native';
 import {HomeStackParamList} from '../App';
 import useContentStore from '../lib/zustand/contentStore';
+import useNavigationPreferencesStore from '../lib/zustand/navigationPreferencesStore';
+import {useWatchStateMap, withoutWatched} from '../lib/watchState';
 import SkeletonLoader from './Skeleton';
 import MediaPosterCard, {parseAspectRatio} from './MediaPosterCard';
 import {useM3Colors} from '../theme/M3PaletteContext';
@@ -38,7 +40,17 @@ const SliderSeparator = () => <View style={{width: 14}} />;
 // One memoized cell per post, so the press handler stays stable and
 // MediaPosterCard skips re-rendering when the list re-renders.
 const SliderPosterItem = memo(
-  ({item, onPressItem}: {item: Post; onPressItem: (item: Post) => void}) => {
+  ({
+    item,
+    onPressItem,
+    progress,
+    watched,
+  }: {
+    item: Post;
+    onPressItem: (item: Post) => void;
+    progress?: number;
+    watched?: boolean;
+  }) => {
     const ratio = parseAspectRatio(item.aspectRatio, 2 / 3);
     const cardWidth = ratio > 1.2 ? 220 : ratio > 0.85 ? 150 : 124;
     const handlePress = useCallback(
@@ -55,6 +67,8 @@ const SliderPosterItem = memo(
         borderRadius={item.borderRadius}
         cornerTag={item.cornerTag || item.tag}
         badge={item.rating}
+        progress={progress}
+        watched={watched}
         onPress={handlePress}
       />
     );
@@ -116,7 +130,18 @@ const Slider = ({
     });
     pendingOffset.current = undefined;
   }, []);
-  const uniquePosts = useMemo(() => deduplicatePosts(posts), [posts]);
+  const watchStates = useWatchStateMap();
+  const hideWatched = useNavigationPreferencesStore(state => state.hideWatched);
+  const uniquePosts = useMemo(
+    () =>
+      withoutWatched(
+        deduplicatePosts(posts),
+        watchStates,
+        Boolean(hideWatched) && !isSearch,
+        post => post.link,
+      ),
+    [posts, watchStates, hideWatched, isSearch],
+  );
   const {width: windowWidth} = useWindowDimensions();
   // Cards that fit on screen, plus one. The skeleton row clips overflow, so
   // more are never seen; the post row renders this many before measuring.
@@ -155,10 +180,18 @@ const Slider = ({
   );
 
   const renderItem = useCallback(
-    ({item}: {item: Post}) => (
-      <SliderPosterItem item={item} onPressItem={handleItemPress} />
-    ),
-    [handleItemPress],
+    ({item}: {item: Post}) => {
+      const state = watchStates.get(item.link);
+      return (
+        <SliderPosterItem
+          item={item}
+          onPressItem={handleItemPress}
+          progress={state?.progress}
+          watched={state?.watched}
+        />
+      );
+    },
+    [handleItemPress, watchStates],
   );
 
   const keyExtractor = useCallback(

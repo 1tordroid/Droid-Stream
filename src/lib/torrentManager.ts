@@ -1,6 +1,7 @@
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import * as FileSystem from 'expo-file-system/legacy';
 import {NativeModules, Platform} from 'react-native';
+import {markTorrentEngineUnavailable} from './torrentStream';
 
 const {TorrentModule, TorrentClientModule, HttpDownloadModule} = NativeModules;
 
@@ -136,6 +137,9 @@ class TorrentManager {
       console.log('TorrentManager initialized, stream port:', this.streamPort);
     } catch (error) {
       console.error('Failed to init TorrentModule:', error);
+      if ((error as {code?: string} | undefined)?.code === 'INIT_ERROR') {
+        markTorrentEngineUnavailable();
+      }
       throw error;
     }
     try {
@@ -280,6 +284,20 @@ class TorrentManager {
   async applyBlocklist(text: string): Promise<{applied: boolean; ranges: number; reason: string}> {
     if (!this.isInitialized) await this.init();
     return TorrentClientModule.applyBlocklist(text);
+  }
+
+  /** Keeps the engine's foreground service up while an external app is in front. */
+  async keepEngineInForeground(): Promise<void> {
+    await TorrentClientModule?.keepEngineInForeground?.();
+  }
+
+  /** Ends that service once no torrent is left in the engine. */
+  async releaseEngineForeground(): Promise<void> {
+    try {
+      await TorrentClientModule?.releaseEngineForeground?.();
+    } catch (error) {
+      console.warn('Could not stop the torrent service:', error);
+    }
   }
 
   /** Safe before the engine starts: the first torrent then follows this value. */

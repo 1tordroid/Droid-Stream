@@ -1,9 +1,12 @@
 import {markerKey, markersToSkips, readShowMarkers} from '../../lib/playback/introMarkers';
 import VlcPlayerScreen from './VlcPlayerScreen';
+import {createPlayerEntry} from './createPlayerEntry';
 import {findSavedSubtitle, savedSubtitleLabel} from '../../lib/subtitles/savedSubtitles';
 import RemovableSubtitleRow from '../../components/RemovableSubtitleRow';
 import {getPlaybackQuality} from '../../lib/player/playbackQuality';
 import {localContentId} from '../../lib/localContent/library';
+import {netlibItemIdOf} from '../../lib/netlib/ids';
+import {saveNetlibHistory} from '../../lib/netlib/history';
 import useLocalContentStore from '../../lib/zustand/localContentStore';
 import PlayerMoreMenu from '../../components/PlayerMoreMenu';
 import {PlayerControlStyle} from '../../lib/player/controlStyle';
@@ -47,6 +50,7 @@ import {
   ResizeMode,
   SelectedTrackType,
   BufferingStrategyType,
+  type Drm,
 } from 'react-native-video';
 import useContentStore from '../../lib/zustand/contentStore';
 import GoogleCast, {
@@ -84,7 +88,7 @@ import TVFocusPressable from '../../components/tv/TVFocusPressable';
 import useContinueWatchingStore from '../../lib/zustand/continueWatchingStore';
 import {findAnimeSkips} from '../../lib/aniskip';
 import {guessWatchMeta} from '../../lib/watchMeta';
-import {syncWatched} from '../../lib/watchSync';
+import {signedOutNotice, syncWatched} from '../../lib/watchSync';
 import MatchedSubtitles from '../../components/MatchedSubtitles';
 import {TextTrackType} from 'react-native-video';
 import {chooseAudioTrack, chooseSubtitleTrack, languageNameFor, missingSubtitleLanguages, normalizeLanguage, NO_SUBTITLE, readLanguagePrefs} from '../../lib/languagePrefs';
@@ -158,6 +162,7 @@ import {
   NO_PLAYBACK_RETRY,
   isContainerParsingError,
   decidePlaybackError,
+  getDecoderFallbackHint,
   getReloadStartMs,
   markPlaybackLoaded,
 } from '../../lib/player/playbackErrorRetry';
@@ -460,6 +465,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       isTV ||
       Boolean(route.params.externalVideo) ||
       Boolean(route.params.initialStream) ||
+      Boolean(route.params.netlib) ||
       !settingsStorage.isAskLocalFileFirst() ||
       Boolean((route.params as any)?.alwaysCast) ||
       settingsStorage.isAlwaysCastMode() ||
@@ -561,6 +567,8 @@ const Player = ({route}: Props): React.JSX.Element => {
   useEffect(() => {
     if (
       route.params.localContent ||
+      // Library titles keep their history in the netlib store, out of sync.
+      route.params.netlib ||
       !syncReady ||
       !continueWatchingId ||
       !route.params.infoUrl ||
@@ -599,6 +607,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     continueWatchingId,
     route.params.infoUrl,
     route.params.localContent,
+    route.params.netlib,
     route.params.poster?.background,
     route.params.poster?.poster,
     route.params.primaryTitle,
@@ -620,6 +629,11 @@ const Player = ({route}: Props): React.JSX.Element => {
         if (id && activeEpisode?.link) useLocalContentStore.getState().savePlayback(id, activeEpisode.link, position, duration);
         return;
       }
+      if (route.params.netlib) {
+        const id = netlibItemIdOf(route.params.infoUrl);
+        if (id && activeEpisode?.link) saveNetlibHistory(id, activeEpisode.link, position, duration);
+        return;
+      }
       if (!route.params.localContent && continueWatchingId) {
         updateContinueWatchingProgress(
           continueWatchingId,
@@ -630,7 +644,9 @@ const Player = ({route}: Props): React.JSX.Element => {
         // Up next: once watched, the entry moves on to the next episode.
         if (activeEpisode && isWatched(position, duration)) {
           // Trakt, Simkl, AniList. Deduplicated, so repeated progress ticks are cheap.
-          syncWatched(watchMetaRef.current).catch(() => undefined);
+          syncWatched(watchMetaRef.current)
+            .then(({signedOut}) => signedOut.forEach(service => ToastAndroid.show(signedOutNotice(service), ToastAndroid.LONG)))
+            .catch(() => undefined);
           const next = getNextEpisode(route.params.episodeList, activeEpisode);
           if (
             finishContinueWatchingEpisode(
@@ -651,6 +667,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       finishContinueWatchingEpisode,
       route.params.episodeList,
       route.params.localContent,
+      route.params.netlib,
       route.params.infoUrl,
       updateContinueWatchingProgress,
     ],
@@ -785,6 +802,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     usePlayerProgress({
       activeEpisode,
       onProgressSaved: saveContinueWatchingProgress,
+      saveEnabled: !route.params.live,
     });
 
   const [isPaused, setIsPaused] = useState(false);
@@ -1239,8 +1257,10 @@ const Player = ({route}: Props): React.JSX.Element => {
   const canCastStream = useMemo(
     () =>
       !Platform.isTV &&
+      // A licence-protected stream plays only in this player.
+      !selectedStream?.drm &&
       isCastableStreamUrl(processedStreamUrl, selectedStream?.type),
-    [processedStreamUrl, selectedStream?.type],
+    [processedStreamUrl, selectedStream?.type, selectedStream?.drm],
   );
   const isLocalOrDownloadedStream = useMemo(
     () =>
@@ -1581,11 +1601,18 @@ const Player = ({route}: Props): React.JSX.Element => {
   const handleVideoError = useCallback(
     (e: any) => {
       console.log('PlayerError', e);
+      // The VLC engine opens files, direct links and downloads, not provider
+      // streams, so only those are pointed at it when no decoder exists.
+      const decoderHint = getDecoderFallbackHint(
+        e,
+        !!(route.params.localContent || route.params.directUrl ||
+          route.params.file || route.params.externalVideo),
+      );
 
       if (route.params.localContent) {
-        ToastAndroid.show(isContainerParsingError(e)
+        ToastAndroid.show(decoderHint ?? (isContainerParsingError(e)
           ? 'Unable to read the video container.'
-          : 'Cannot play this local file. Check the file and reselect its folder if access was lost.', ToastAndroid.LONG);
+          : 'Cannot play this local file. Check the file and reselect its folder if access was lost.'), ToastAndroid.LONG);
         navigation.goBack();
         return;
       }
@@ -1681,10 +1708,14 @@ const Player = ({route}: Props): React.JSX.Element => {
       }
 
       if (!switchToNextStream()) {
-        ToastAndroid.show(
-          'Video could not be played, try again later',
-          ToastAndroid.SHORT,
-        );
+        if (decoderHint) {
+          ToastAndroid.show(decoderHint, ToastAndroid.LONG);
+        } else {
+          ToastAndroid.show(
+            'Video could not be played, try again later',
+            ToastAndroid.SHORT,
+          );
+        }
         navigation.goBack();
       }
       setShowControls(true);
@@ -1696,6 +1727,9 @@ const Player = ({route}: Props): React.JSX.Element => {
       markStreamsOnline,
       navigation,
       refreshLinks,
+      route.params.directUrl,
+      route.params.externalVideo,
+      route.params.file,
       route.params.localContent,
       setSelectedStream,
       setShowControls,
@@ -2796,6 +2830,8 @@ const Player = ({route}: Props): React.JSX.Element => {
         ...(selectedStream?.type === 'm3u8' && {type: 'm3u8'}),
         ...(selectedStream?.type === 'mpd' && {type: 'mpd'}),
         headers: selectedStream?.headers,
+        // Protected Live TV channels: the standard Widevine source, as issued.
+        ...(selectedStream?.drm && {drm: selectedStream.drm as Drm}),
         metadata: {
           title: route.params?.primaryTitle,
           subtitle: activeEpisode?.title,
@@ -2867,6 +2903,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       selectedStream.link,
       selectedStream.type,
       selectedStream.headers,
+      selectedStream.drm,
       activeEpisode?.title,
       handleProgressWithTime,
       combinedSkips,
@@ -4295,17 +4332,6 @@ const Player = ({route}: Props): React.JSX.Element => {
 
 // The pill is styled on an inner View driven by plain state, so its shape
 // does not depend on a Pressable style function being applied.
-const PlayerEntry = (props: Props): React.JSX.Element => {
-  if (
-    settingsStorage.getPlayerEngine() === 'vlc' &&
-    (props.route.params.localContent ||
-      props.route.params.directUrl ||
-      props.route.params.file ||
-      props.route.params.externalVideo)
-  ) {
-    return <VlcPlayerScreen {...props} />;
-  }
-  return <Player {...props} />;
-};
+const PlayerEntry = createPlayerEntry<Props>(Player, VlcPlayerScreen);
 
 export default PlayerEntry;

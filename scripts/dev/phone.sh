@@ -24,7 +24,12 @@ front() { adb -s "$S" shell dumpsys window displays | grep -F 'mFocusedApp=' | g
 open_app() { adb -s "$S" shell monkey -p "$(pkg)" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; w 8; front; }
 # Never install to the work profile (user 10) unless the owner says so.
 # Newest APK first: older builds keep their versioned files in the same folder.
-install_app() { adb -s "$S" install -r --user 0 "$(ls -t "$ROOT"/android/app/build/outputs/apk/release/*.apk | head -1)"; }
+# adb.exe needs a Windows path: MSYS_NO_PATHCONV stops Git Bash from converting /c/... for it.
+install_app() {
+  local apk; apk="$(ls -t "$ROOT"/android/app/build/outputs/apk/release/*.apk | head -1)"
+  if command -v cygpath >/dev/null 2>&1; then apk="$(cygpath -w "$apk")"; fi
+  adb -s "$S" install -r --user 0 "$apk"
+}
 shot() { adb -s "$S" exec-out screencap -p > "$OUT/$1.png"; echo "$OUT/$1.png"; }
 # Text and content descriptions on screen with their bounds. Empty while progress bars animate.
 dump() {
@@ -46,3 +51,17 @@ share() { adb -s "$S" shell am start --user 0 -a android.intent.action.SEND -t t
 # Frame-time summary since the last reset: jank percentage and percentiles.
 jank_reset() { adb -s "$S" shell dumpsys gfxinfo "$(pkg)" reset >/dev/null; }
 jank() { adb -s "$S" shell dumpsys gfxinfo "$(pkg)" | grep -E 'Total frames rendered|Janky frames:|90th percentile|99th percentile' | sed 's/^ *//' | tr '\n' ';'; echo; }
+# Keep the test phone awake while nobody is using it, without changing any
+# setting: every 2-4 minutes, if Droid Stream is in front, open a random tab.
+# The screen never sits on one static image (OLED burn-in) and never times out.
+# Does nothing while another app is in front or the screen is off.
+# Stop it with Ctrl+C, or: kill %1
+keepalive() {
+  local tabs=(Home Search Torrents Library Settings)
+  while true; do
+    if front >/dev/null 2>&1; then
+      tap "content-desc=\"${tabs[RANDOM % ${#tabs[@]}]}\"" >/dev/null 2>&1
+    fi
+    w $(( 120 + RANDOM % 120 ))
+  done
+}

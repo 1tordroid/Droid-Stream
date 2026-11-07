@@ -19,8 +19,10 @@ export enum SettingsKeys {
   THEME_MODE = 'themeMode',
   IS_CUSTOM_THEME = 'isCustomTheme',
   SHOW_TAB_BAR_LABELS = 'showTabBarLabels',
+  // No longer used. Kept so the key name stays known for values already stored.
   HIDE_DOWNLOADS_TAB = 'hideDownloadsTab',
   SHOW_CONTINUE_WATCHING = 'showContinueWatching',
+  HIDE_WATCHED = 'hideWatched',
   CUSTOM_COLOR = 'customColor',
   ACCENT_SOURCE = 'accentSource',
   LAUNCHER_ICON = 'launcherIcon',
@@ -117,6 +119,8 @@ export enum SettingsKeys {
 
   // Remote Playback
   ALWAYS_CAST_MODE = 'alwaysCastMode',
+  AUTO_PICTURE_IN_PICTURE = 'autoPictureInPicture',
+  BACKGROUND_AUDIO = 'backgroundAudio',
   ASK_LOCAL_FILE_FIRST = 'askLocalFileFirst',
   TORRENT_FULL_DOWNLOAD = 'torrentFullDownload',
 
@@ -223,6 +227,24 @@ export class SettingsStorage {
 
   setAlwaysCastMode(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.ALWAYS_CAST_MODE, enabled);
+  }
+
+  /** Phone: go to picture-in-picture when Home is pressed during playback. */
+  isAutoPictureInPictureEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.AUTO_PICTURE_IN_PICTURE, false);
+  }
+
+  setAutoPictureInPictureEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.AUTO_PICTURE_IN_PICTURE, enabled);
+  }
+
+  /** Phone: keep the audio playing when the app is in the background or the screen locks. */
+  isBackgroundAudioEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.BACKGROUND_AUDIO, false);
+  }
+
+  setBackgroundAudioEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.BACKGROUND_AUDIO, enabled);
   }
 
   /**
@@ -335,14 +357,6 @@ export class SettingsStorage {
     mainStorage.setBool(SettingsKeys.SHOW_TAB_BAR_LABELS, show);
   }
 
-  hideDownloadsTab(): boolean {
-    return mainStorage.getBool(SettingsKeys.HIDE_DOWNLOADS_TAB, false);
-  }
-
-  setHideDownloadsTab(hide: boolean): void {
-    mainStorage.setBool(SettingsKeys.HIDE_DOWNLOADS_TAB, hide);
-  }
-
   /** Continue watching row on Home. Playback positions are saved either way. */
   showContinueWatching(): boolean {
     return mainStorage.getBool(SettingsKeys.SHOW_CONTINUE_WATCHING, true);
@@ -350,6 +364,15 @@ export class SettingsStorage {
 
   setShowContinueWatching(show: boolean): void {
     mainStorage.setBool(SettingsKeys.SHOW_CONTINUE_WATCHING, show);
+  }
+
+  /** Leave watched movies out of Home rows and the Library. */
+  hideWatched(): boolean {
+    return mainStorage.getBool(SettingsKeys.HIDE_WATCHED, false);
+  }
+
+  setHideWatched(hide: boolean): void {
+    mainStorage.setBool(SettingsKeys.HIDE_WATCHED, hide);
   }
 
   isHapticFeedbackEnabled(): boolean {

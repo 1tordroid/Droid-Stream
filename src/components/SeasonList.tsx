@@ -1,4 +1,5 @@
 import {openExternalApp, usesExternalApp} from '../lib/externalApps';
+import {externalPlayerUrl, releaseExternalTorrents} from '../lib/externalTorrent';
 import {applyProviderEpisodeMetadata} from '../lib/providerEpisodeMetadata';
 import useMetadataOverrideStore, {metadataOverrideKey} from '../lib/zustand/metadataOverrideStore';
 import React, {
@@ -859,13 +860,17 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
       streamUrl: string,
       headers?: Record<string, string>,
       title?: string,
+      streamType?: string,
     ) => {
       setShowServerModal(false);
       setVlcLoading(true);
 
-      await launchExternalPlayer(streamUrl, headers, title)
+      // Magnets start on the phone; the player gets the local stream URL.
+      await externalPlayerUrl({link: streamUrl, type: streamType})
+        .then(url => launchExternalPlayer(url, headers, title))
         .catch(error => {
           console.error('Error opening external player:', error);
+          releaseExternalTorrents().catch(() => {});
           ToastAndroid.show(
             'Failed to open external player',
             ToastAndroid.SHORT,
@@ -1508,6 +1513,7 @@ const SeasonListContent: React.FC<SeasonListProps> = ({
             item.link,
             item.headers,
             `${metaTitle || ''} ${item.server || ''}`.trim(),
+            item.type,
           )
         }
       />

@@ -63,17 +63,15 @@ const Preferences = ({navigation}: any) => {
   const [showTabBarLables, setShowTabBarLables] = useState<boolean>(() =>
     settingsStorage.showTabBarLabels(),
   );
-  const hideDownloadsTab = useNavigationPreferencesStore(
-    state => state.hideDownloadsTab,
-  );
-  const setHideDownloadsTab = useNavigationPreferencesStore(
-    state => state.setHideDownloadsTab,
-  );
   const showContinueWatching = useNavigationPreferencesStore(
     state => state.showContinueWatching,
   );
   const setShowContinueWatching = useNavigationPreferencesStore(
     state => state.setShowContinueWatching,
+  );
+  const hideWatched = useNavigationPreferencesStore(state => state.hideWatched);
+  const setHideWatched = useNavigationPreferencesStore(
+    state => state.setHideWatched,
   );
 
   const [hapticFeedback, setHapticFeedback] = useState(() =>
@@ -167,11 +165,6 @@ const Preferences = ({navigation}: any) => {
               }}
             />
             <SettingsSwitchRow
-              title="Hide downloads tab"
-              value={hideDownloadsTab}
-              onValueChange={setHideDownloadsTab}
-            />
-            <SettingsSwitchRow
               title="Hamburger menu"
               value={showHamburgerMenu}
               onValueChange={next => {
@@ -184,6 +177,12 @@ const Preferences = ({navigation}: any) => {
               description="Show the Continue watching row on Home. Playback positions are still saved."
               value={showContinueWatching}
               onValueChange={setShowContinueWatching}
+            />
+            <SettingsSwitchRow
+              title="Hide watched"
+              description="Leave watched movies out of Home rows and the Library."
+              value={hideWatched}
+              onValueChange={setHideWatched}
             />
             <SettingsSwitchRow
               title="Disable drawer"

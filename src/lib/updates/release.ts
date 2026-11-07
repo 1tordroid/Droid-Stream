@@ -5,6 +5,8 @@ export const UPDATE_RELEASES_URL = `https://api.github.com/repos/${UPDATE_REPOSI
 export interface ReleaseAsset {
   name?: string;
   browser_download_url?: string;
+  /** `sha256:<hex>`, set by GitHub on assets uploaded since mid-2025. */
+  digest?: string | null;
 }
 
 export interface GithubRelease {
@@ -76,4 +78,21 @@ export function selectReleaseApk(
     apks.find(asset => asset.name!.toLowerCase().includes('universal')) ||
     apks[0]
   );
+}
+
+/** The lowercase hex SHA-256 from a GitHub asset `digest`, or null when absent or not SHA-256. */
+export function parseSha256Digest(digest: string | null | undefined): string | null {
+  if (typeof digest !== 'string') {
+    return null;
+  }
+  const match = /^sha256:([0-9a-f]{64})$/i.exec(digest.trim());
+  return match ? match[1].toLowerCase() : null;
+}
+
+const UPDATE_DOWNLOAD_HOSTS = ['github.com', 'objects.githubusercontent.com'];
+
+/** Update APKs are only fetched over HTTPS from GitHub's release hosts. */
+export function isAllowedUpdateUrl(url: string): boolean {
+  const match = /^https:\/\/([^/?#:]+)(?::443)?(?:[/?#]|$)/i.exec(url.trim());
+  return !!match && UPDATE_DOWNLOAD_HOSTS.includes(match[1].toLowerCase());
 }

@@ -45,7 +45,6 @@ const BACKUP_SETTINGS: Record<string, SettingType> = {
   [SettingsKeys.PRIMARY_COLOR]: 'string',
   [SettingsKeys.IS_CUSTOM_THEME]: 'bool',
   [SettingsKeys.SHOW_TAB_BAR_LABELS]: 'bool',
-  [SettingsKeys.HIDE_DOWNLOADS_TAB]: 'bool',
   [SettingsKeys.SHOW_CONTINUE_WATCHING]: 'bool',
   [SettingsKeys.CUSTOM_COLOR]: 'string',
   [SettingsKeys.ACCENT_SOURCE]: 'string',

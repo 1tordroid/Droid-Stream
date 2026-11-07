@@ -1,8 +1,10 @@
 import * as RNFS from '@dr.pogodin/react-native-fs';
-import React, {useState} from 'react';
-import {Pressable, ToastAndroid, View} from 'react-native';
+import React, {useRef, useState} from 'react';
+import {Pressable, ToastAndroid, View, type TextInputInstance} from 'react-native';
 import {RawTextInput as TextInput} from '../components/ui/Text';
 import AppText from '../components/ui/Text';
+import Button from '../components/ui/Button';
+import KeyboardForm from '../components/ui/KeyboardForm';
 import {
   addMagnetTask,
   assertMagnet,
@@ -12,7 +14,8 @@ import {
   type MagnetTask,
   type PikPakSession,
 } from '../lib/pikpak/client';
-import {clearPikPakAccount, readPikPakAccount, savePikPakAccount} from '../lib/sources/vault';
+import {clearPikPakAccount, readPikPakAccount, readPikPakUsername, savePikPakAccount} from '../lib/sources/vault';
+import {isPikPakAuthError, withPikPak} from '../lib/pikpak/session';
 import {settingsStorage} from '../lib/storage';
 import {torrentManager} from '../lib/torrentManager';
 import {useM3Colors} from '../theme/M3PaletteContext';
@@ -23,7 +26,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
   const colors = useM3Colors();
   const saved = readPikPakAccount();
   const [route, setRoute] = useState<MagnetRoute>(pikpakOnly ? 'pikpak' : 'direct');
-  const [username, setUsername] = useState(saved?.username || '');
+  const [username, setUsername] = useState(saved?.username || readPikPakUsername());
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
   const [magnet, setMagnet] = useState('');
@@ -33,16 +36,33 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
   const [task, setTask] = useState<MagnetTask>();
   const [wifiOnly, setWifiOnly] = useState(settingsStorage.isDirectTorrentWifiOnly());
   const [keepFile, setKeepFile] = useState(settingsStorage.keepDirectTorrentFile());
+  const [busy, setBusy] = useState(false);
+  const passwordRef = useRef<TextInputInstance>(null);
 
   const signIn = async () => {
+    if (busy) return;
+    if (!token.trim() && (!username.trim() || !password)) {
+      ToastAndroid.show('Enter your PikPak email and password, or paste an access token', ToastAndroid.LONG);
+      return;
+    }
+    setBusy(true);
     try {
       const next = token.trim() ? sessionFromToken(token) : await signInToPikPak(username, password);
-      savePikPakAccount({username: username || 'PikPak', accessToken: next.accessToken, userId: next.userId});
+      // The refresh token keeps a password sign-in going after the access token expires.
+      savePikPakAccount({
+        username: username || 'PikPak',
+        accessToken: next.accessToken,
+        userId: next.userId,
+        refreshToken: next.refreshToken,
+        expiresAt: next.expiresAt,
+      });
       setSession(next);
       setPassword('');
       ToastAndroid.show('This device will use your PikPak account', ToastAndroid.SHORT);
     } catch (error: any) {
       ToastAndroid.show(error?.message || 'Sign-in failed', ToastAndroid.LONG);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -87,11 +107,33 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
       ToastAndroid.show('Sign in to your PikPak account first, or choose Direct', ToastAndroid.LONG);
       return;
     }
+    if (busy) return;
+    setBusy(true);
     try {
-      setTask(await addMagnetTask(session, magnet));
+      setTask(await withPikPak(session.accessToken, accessToken => addMagnetTask({...session, accessToken}, magnet)));
     } catch (error: any) {
-      ToastAndroid.show(error?.message || 'Could not add the magnet', ToastAndroid.LONG);
+      onPikPakError(error, 'Could not add the magnet');
+    } finally {
+      setBusy(false);
     }
+  };
+
+  const refreshTask = async () => {
+    if (!session || !task) return;
+    try {
+      setTask(await withPikPak(session.accessToken, accessToken => readMagnetTask({...session, accessToken}, task)));
+    } catch (error: any) {
+      onPikPakError(error, 'Could not read the progress');
+    }
+  };
+
+  // PikPak ended the sign-in: show the form again with the username filled in.
+  const onPikPakError = (error: any, fallback: string) => {
+    if (isPikPakAuthError(error)) {
+      setSession(undefined);
+      setUsername(readPikPakUsername());
+    }
+    ToastAndroid.show(error?.message || fallback, ToastAndroid.LONG);
   };
 
   const downloadToDevice = async () => {
@@ -103,8 +145,13 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
     ToastAndroid.show(result.statusCode === 200 ? `Saved ${name}` : 'Download failed', ToastAndroid.LONG);
   };
 
+  const label = (text: string) => (
+    <AppText role="labelMedium" style={{color: colors.onSurfaceVariant}}>{text}</AppText>
+  );
+  const inputStyle = {color: colors.onSurface, minHeight: 48, borderBottomWidth: 1, borderColor: colors.outlineVariant, marginBottom: 12};
+
   return (
-    <View style={{flex: 1, backgroundColor: colors.background, padding: 16}}>
+    <KeyboardForm style={{backgroundColor: colors.background}} contentContainerStyle={{padding: 16, paddingBottom: 48}}>
       <Pressable onPress={() => (onClose ? onClose() : navigation.goBack())} style={{marginBottom: 8}}>
         <AppText style={{color: colors.primary}}>Back</AppText>
       </Pressable>
@@ -113,7 +160,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
         <Pressable onPress={() => setRoute('direct')}><AppText style={{color: route === 'direct' ? colors.primary : colors.onSurfaceVariant}}>Direct (on-device)</AppText></Pressable>
         <Pressable onPress={() => setRoute('pikpak')}><AppText style={{color: route === 'pikpak' ? colors.primary : colors.onSurfaceVariant}}>PikPak (cloud)</AppText></Pressable>
       </View> : null}
-      <TextInput value={magnet} onChangeText={setMagnet} placeholder="magnet:?xt=urn:btih:..." placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" multiline style={{color: colors.onSurface, marginBottom: 12}} />
+      <TextInput accessibilityLabel="Magnet link" value={magnet} onChangeText={setMagnet} placeholder="magnet:?xt=urn:btih:..." placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" multiline style={{color: colors.onSurface, marginBottom: 12}} />
       {route === 'direct' ? (
         <View>
           <AppText role="bodySmall" className="mb-3 text-m3-on-surface-variant">
@@ -129,21 +176,63 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
             PikPak is optional. Each person signs in to their own account. The token stays in encrypted storage on this phone. Only send links for content you have the rights to. Nothing is sent to Tordroid.
           </AppText>
           {session ? (
-            <Pressable onPress={signOut}><AppText style={{color: colors.primary}}>Sign out of PikPak</AppText></Pressable>
+            <Button variant="text" onPress={signOut}>Sign out of PikPak</Button>
           ) : (
             <>
-              <TextInput value={username} onChangeText={setUsername} placeholder="PikPak username" placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" style={{color: colors.onSurface, marginBottom: 8}} />
-              <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor={colors.onSurfaceVariant} secureTextEntry style={{color: colors.onSurface, marginBottom: 8}} />
-              <TextInput value={token} onChangeText={setToken} placeholder="Or paste an access token" placeholderTextColor={colors.onSurfaceVariant} autoCapitalize="none" style={{color: colors.onSurface, marginBottom: 8}} />
-              <Pressable onPress={signIn}><AppText style={{color: colors.primary}}>Sign in</AppText></Pressable>
+              {label('Email or username')}
+              <TextInput
+                accessibilityLabel="PikPak email or username"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.onSurfaceVariant}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="username"
+                importantForAutofill="yes"
+                keyboardType="email-address"
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                style={inputStyle}
+              />
+              {label('Password')}
+              <TextInput
+                ref={passwordRef}
+                accessibilityLabel="PikPak password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                placeholderTextColor={colors.onSurfaceVariant}
+                secureTextEntry
+                autoComplete="password"
+                importantForAutofill="yes"
+                returnKeyType="go"
+                onSubmitEditing={signIn}
+                style={inputStyle}
+              />
+              {label('Or paste an access token (lasts about 2 hours)')}
+              <TextInput
+                accessibilityLabel="PikPak access token"
+                value={token}
+                onChangeText={setToken}
+                placeholder="Access token"
+                placeholderTextColor={colors.onSurfaceVariant}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="go"
+                onSubmitEditing={signIn}
+                style={inputStyle}
+              />
+              <Button onPress={signIn} disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
             </>
           )}
-          <Pressable onPress={submitCloud} style={{marginTop: 12}}><AppText style={{color: colors.primary}}>Send to my PikPak</AppText></Pressable>
+          <Button variant="tonal" onPress={submitCloud} disabled={busy} style={{marginTop: 12}}>Send to my PikPak</Button>
           {task ? (
             <View style={{marginTop: 16}}>
               <AppText className="text-m3-on-surface">{task.name || 'Download'}</AppText>
               <AppText className="text-m3-on-surface-variant">{task.phase || 'Waiting'} {task.progress ? `${task.progress}%` : ''}</AppText>
-              <Pressable onPress={async () => session && setTask(await readMagnetTask(session, task))} style={{marginTop: 8}}><AppText style={{color: colors.primary}}>Refresh progress</AppText></Pressable>
+              <Pressable onPress={refreshTask} style={{marginTop: 8}}><AppText style={{color: colors.primary}}>Refresh progress</AppText></Pressable>
               {task.playUrl ? (
                 <>
                   <Pressable onPress={() => navigation.navigate('Player', {linkIndex: 0, episodeList: [{title: task.name || 'PikPak', link: task.playUrl}], directUrl: task.playUrl, type: 'movie', primaryTitle: task.name || 'PikPak', poster: {}})} style={{marginTop: 8}}>
@@ -156,7 +245,7 @@ const Magnet = ({navigation, onClose, pikpakOnly = false}: {navigation: any; onC
           ) : null}
         </View>
       )}
-    </View>
+    </KeyboardForm>
   );
 };
 

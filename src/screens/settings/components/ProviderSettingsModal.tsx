@@ -151,8 +151,10 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
 
   const handleSave = () => {
     if (!provider) return;
-    for (const [key, value] of Object.entries(values)) {
+    for (const [key, raw] of Object.entries(values)) {
       const scopedKey = getScopedKvKey(provider.source?.author, provider.value, key);
+      // Keys, cookies and passwords are often pasted with a stray space or newline.
+      const value = typeof raw === 'string' ? raw.trim() : raw;
       if (value === undefined || value === null || value === '') {
         providerKvStorage.delete(scopedKey);
       } else {
@@ -436,7 +438,14 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
           placeholder={field.placeholder}
           placeholderTextColor={colors.onSurfaceVariant}
           selectionColor={colors.primary}
+          accessibilityLabel={field.label}
+          // Long keys still wrap, but Enter finishes editing instead of adding
+          // a newline, and nothing changes the case of a key or password.
           multiline={true}
+          submitBehavior="blurAndSubmit"
+          returnKeyType="done"
+          autoCapitalize="none"
+          autoCorrect={false}
           style={{
             ...inputStyle,
             maxHeight: 110,
@@ -462,7 +471,10 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
         style={{
           flex: 1,
           justifyContent: 'flex-end',
-          paddingBottom: Platform.OS === 'android' ? keyboardHeight : 0,
+          // The keyboard height reported on Android excludes the navigation
+          // bar, but this edge-to-edge sheet drops its bottom inset while the
+          // keyboard shows, so add it back to keep Save and Cancel visible.
+          paddingBottom: Platform.OS === 'android' && keyboardHeight > 0 ? keyboardHeight + insets.bottom : 0,
         }}>
         <Animated.View
           style={{

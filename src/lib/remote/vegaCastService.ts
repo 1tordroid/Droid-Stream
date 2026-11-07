@@ -380,7 +380,10 @@ class VegaCastService {
     this.generation++;this.polling=false;this.pollAbort?.abort();this.current=null;
     for(const delivery of this.secureDeliveries.values())delivery.close();this.secureDeliveries.clear();
     for(const waiting of this.pending.values()){clearTimeout(waiting.timer);waiting.reject(new Error('Receiver disconnected'));}this.pending.clear();
+    const hadSessions=this.sessions.size>0;
     for(const key of this.sessions)await remoteDeliveryService.cleanupSession(key).catch(()=>{});this.sessions.clear();
+    // The LAN delivery server lives only as long as a cast session needs it.
+    if(hadSessions)await remoteDeliveryService.stopServer().catch(()=>{});
     this.payload=null;this.media=null;this.serverChoices.clear();this.serverSwitch=undefined;
   }
   forget(receiverId:string){mainStorage.setObject(STORE_KEY,this.records().filter(record=>record.receiverId!==receiverId));this.publish();}

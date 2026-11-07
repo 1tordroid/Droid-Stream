@@ -127,7 +127,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 putInt("streamPort", server.listeningPort)
             }
             promise.resolve(result)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             VegaLog.e(TAG, "initEngine failed", e)
             promise.reject("INIT_ERROR", e.message, e)
         }
@@ -302,11 +302,11 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                         VegaLog.d(TAG, "Registered torrent with stream server: $finalHashHex")
                     }
                     promise.resolve(buildTorrentInfo(th))
-                } catch(e: Exception) {
+                } catch(e: Throwable) {
                     promise.reject("INVALID_HANDLE", "Torrent handle error: ${e.message}")
                 }
 
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 VegaLog.e(TAG, "addTorrent failed", e)
                 promise.reject("ADD_ERROR", e.message, e)
             }
@@ -316,7 +316,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     @ReactMethod
     fun getStats(infoHash: String, promise: Promise) {
         try {
-            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Exception) { null }
+            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Throwable) { null }
             if (th == null || !th.isValid) {
                 promise.reject("NOT_FOUND", "Torrent handle not found or invalid")
                 return
@@ -339,7 +339,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 putBoolean("hasMetadata", status.hasMetadata())
             }
             promise.resolve(result)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             promise.reject("STATS_ERROR", e.message, e)
         }
     }
@@ -349,7 +349,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         try {
             val server = ensureServer()
             var filename = "video.mp4"
-            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Exception) { null }
+            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Throwable) { null }
             if (th != null && th.isValid) {
                 try {
                     val ti = th.torrentFile()
@@ -359,7 +359,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             val encodedFilename = java.net.URLEncoder.encode(filename, "UTF-8").replace("+", "%20")
             val url = "http://127.0.0.1:${server.listeningPort}/stream/$infoHash/$fileIndex/$encodedFilename"
             promise.resolve(url)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             promise.reject("STREAM_ERROR", e.message, e)
         }
     }
@@ -466,7 +466,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 } else {
                     promise.reject("TIMEOUT", "Timed out waiting for the first video piece")
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 promise.reject("PREPARE_ERROR", e.message, e)
             }
         }.start()
@@ -475,7 +475,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     @ReactMethod
     fun getFiles(infoHash: String, promise: Promise) {
         try {
-            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Exception) { null }
+            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Throwable) { null }
             if (th == null || !th.isValid) {
                 promise.reject("NOT_FOUND", "Torrent handle not found or invalid")
                 return
@@ -508,7 +508,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
                 files.pushMap(file)
             }
             promise.resolve(files)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             promise.reject("FILES_ERROR", e.message, e)
         }
     }
@@ -516,10 +516,10 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     @ReactMethod
     fun pauseTorrent(infoHash: String, promise: Promise) {
         try {
-            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Exception) { null }
+            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Throwable) { null }
             th?.pause()
             promise.resolve(null)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             promise.reject("PAUSE_ERROR", e.message, e)
         }
     }
@@ -527,10 +527,10 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     @ReactMethod
     fun resumeTorrent(infoHash: String, promise: Promise) {
         try {
-            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Exception) { null }
+            val th = try { ensureSession().find(Sha1Hash.parseHex(infoHash)) } catch(e: Throwable) { null }
             th?.resume()
             promise.resolve(null)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             promise.reject("RESUME_ERROR", e.message, e)
         }
     }
@@ -626,7 +626,7 @@ class TorrentModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
             }
 
             promise.resolve(null)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             promise.reject("DELETE_ERROR", e.message, e)
         }
     }

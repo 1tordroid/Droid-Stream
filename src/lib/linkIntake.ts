@@ -3,7 +3,7 @@
  * apps (browser taps, Share), and copied links when the clipboard grabber is on.
  */
 import {AppState, DeviceEventEmitter, type AppStateStatus} from 'react-native';
-import {MMKVLoader} from 'react-native-mmkv-storage';
+import {openStore} from './storage/openStore';
 import {connectedServices} from './debrid';
 import {probeLink, qualityChoices, queueLink} from './linkGrabber';
 import {settingsStorage} from './storage';
@@ -12,7 +12,7 @@ import {makeResult, infoHashFrom} from './torrentSearch/util';
 import {torrentManager} from './torrentManager';
 import {showAppDialog} from './zustand/appDialogStore';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-intake').initialize();
+const storage = openStore('droid-stream-intake');
 
 export type IncomingKind = 'magnet' | 'torrent' | 'http';
 

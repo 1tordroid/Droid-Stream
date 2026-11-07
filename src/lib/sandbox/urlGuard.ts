@@ -30,8 +30,103 @@ const isPrivateIpv4 = (parts: number[]): boolean => {
   return first >= 224;
 };
 
+const parseIpv4 = (value: string): number[] | null => {
+  const parts = value.split('.');
+  if (parts.length !== 4 || !parts.every(part => /^\d{1,3}$/.test(part))) {
+    return null;
+  }
+  const bytes = parts.map(Number);
+  return bytes.every(byte => byte <= 255) ? bytes : null;
+};
+
+/**
+ * The 16 bytes of an IPv6 literal (no brackets), or null when it is not one.
+ * Handles `::` compression, a zone id and a dotted IPv4 tail
+ * (`::ffff:127.0.0.1`), since URL parsers differ in how they normalise these.
+ */
+export const parseIpv6 = (value: string): number[] | null => {
+  const address = value.split('%')[0];
+  if (!address.includes(':') || !/^[0-9a-f:.]+$/i.test(address)) {
+    return null;
+  }
+  const halves = address.split('::');
+  if (halves.length > 2) {
+    return null;
+  }
+  const toWords = (part: string): number[] | null => {
+    if (part === '') {
+      return [];
+    }
+    const words: number[] = [];
+    const groups = part.split(':');
+    for (let i = 0; i < groups.length; i++) {
+      const group = groups[i];
+      if (i === groups.length - 1 && group.includes('.')) {
+        const ipv4 = parseIpv4(group);
+        if (!ipv4) {
+          return null;
+        }
+        words.push((ipv4[0] << 8) | ipv4[1], (ipv4[2] << 8) | ipv4[3]);
+      } else if (/^[0-9a-f]{1,4}$/i.test(group)) {
+        words.push(parseInt(group, 16));
+      } else {
+        return null;
+      }
+    }
+    return words;
+  };
+  const head = toWords(halves[0]);
+  const tail = halves.length === 2 ? toWords(halves[1]) : [];
+  if (!head || !tail) {
+    return null;
+  }
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 2 ? missing < 1 : missing !== 0) {
+    return null;
+  }
+  const words = [...head, ...new Array<number>(missing).fill(0), ...tail];
+  return words.flatMap(word => [word >> 8, word & 0xff]);
+};
+
+const isPrivateIpv6 = (bytes: number[]): boolean => {
+  const zeros = (from: number, to: number) =>
+    bytes.slice(from, to).every(byte => byte === 0);
+  // ::/96 (with :: and ::1) and ::ffff:0:0/96 carry an IPv4 address.
+  if (
+    zeros(0, 10) &&
+    ((bytes[10] === 0 && bytes[11] === 0) ||
+      (bytes[10] === 0xff && bytes[11] === 0xff))
+  ) {
+    return isPrivateIpv4(bytes.slice(12));
+  }
+  // 64:ff9b::/96, NAT64 into IPv4.
+  if (
+    bytes[0] === 0x00 &&
+    bytes[1] === 0x64 &&
+    bytes[2] === 0xff &&
+    bytes[3] === 0x9b &&
+    zeros(4, 12)
+  ) {
+    return true;
+  }
+  // 2002::/16, 6to4 with the IPv4 address in bytes 2-5.
+  if (bytes[0] === 0x20 && bytes[1] === 0x02) {
+    return isPrivateIpv4(bytes.slice(2, 6));
+  }
+  return (
+    (bytes[0] & 0xfe) === 0xfc || // fc00::/7 unique local
+    (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0x80) || // fe80::/10 link local
+    (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0xc0) || // fec0::/10 site local
+    bytes[0] === 0xff // ff00::/8 multicast
+  );
+};
+
 export const isPrivateHostname = (hostname: string): boolean => {
-  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  // A trailing dot names the same host ("localhost." is localhost).
+  const normalized = hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.+$/, '');
 
   if (
     normalized === '' ||
@@ -57,14 +152,9 @@ export const isPrivateHostname = (hostname: string): boolean => {
   }
 
   if (normalized.includes(':')) {
-    return (
-      normalized.startsWith('fc') ||
-      normalized.startsWith('fd') ||
-      normalized.startsWith('fe8') ||
-      normalized.startsWith('fe9') ||
-      normalized.startsWith('fea') ||
-      normalized.startsWith('feb')
-    );
+    const bytes = parseIpv6(normalized);
+    // Something with a colon that is not an IPv6 address is no valid host.
+    return bytes === null || isPrivateIpv6(bytes);
   }
 
   return false;

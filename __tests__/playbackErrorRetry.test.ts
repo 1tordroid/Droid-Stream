@@ -2,8 +2,11 @@ import {describe, expect, it} from '@jest/globals';
 import {
   NO_PLAYBACK_RETRY,
   PLAYBACK_RETRY_RESET_MS,
+  VLC_DECODER_HINT,
   decidePlaybackError,
+  getDecoderFallbackHint,
   getPlaybackErrorCode,
+  isDecoderFormatError,
   getReloadStartMs,
   markPlaybackLoaded,
 } from '../src/lib/player/playbackErrorRetry';
@@ -183,6 +186,23 @@ describe('getReloadStartMs', () => {
     expect(getReloadStartMs(125.4, 125400)).toBe(125401);
     expect(getReloadStartMs(0, undefined)).toBe(1);
     expect(getReloadStartMs(Number.NaN, 1)).toBe(2);
+  });
+});
+
+describe('decoder fallback hint', () => {
+  it('treats Media3 4001-4005 as missing decoders', () => {
+    expect(isDecoderFormatError(errorEvent(4001))).toBe(true);
+    expect(isDecoderFormatError(errorEvent(4003))).toBe(true);
+    expect(isDecoderFormatError(errorEvent(4005))).toBe(true);
+    // Reclaimed resources and network errors are not format gaps.
+    expect(isDecoderFormatError(errorEvent(4006))).toBe(false);
+    expect(isDecoderFormatError(CONNECTION_FAILED)).toBe(false);
+  });
+
+  it('points at VLC only for videos the VLC engine opens', () => {
+    expect(getDecoderFallbackHint(errorEvent(4001), true)).toBe(VLC_DECODER_HINT);
+    expect(getDecoderFallbackHint(errorEvent(4001), false)).toBeNull();
+    expect(getDecoderFallbackHint(CONNECTION_FAILED, true)).toBeNull();
   });
 });
 

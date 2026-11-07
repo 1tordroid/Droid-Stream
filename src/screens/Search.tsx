@@ -18,6 +18,7 @@ import SearchHistory from '../components/search/SearchHistory';
 import IconButton from '../components/ui/IconButton';
 import AppText from '../components/ui/Text';
 import FeatureSearchPanel from '../components/FeatureSearchPanel';
+import GenreChips from '../components/GenreChips';
 import SearchField, {type SearchFieldRef} from '../components/ui/SearchField';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../components/tv';
@@ -107,6 +108,7 @@ const Search = () => {
   const [searchFieldNode, setSearchFieldNode] = useState<number | null>(null);
   const [clearBtnNode, setClearBtnNode] = useState<number | null>(null);
   const [firstItemNode, setFirstItemNode] = useState<number | null>(null);
+  const [firstGenreNode, setFirstGenreNode] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<IMDbSuggestion[]>([]);
   const [searchHistory, setSearchHistory] = useState<string[]>(
     MMKV.getArray<string>('searchHistory') || [],
@@ -361,7 +363,7 @@ const Search = () => {
               onSubmit={handleSearch}
               onClear={handleClear}
               placeholder="Search movies, shows, anime"
-              nextFocusDown={firstItemNode}
+              nextFocusDown={firstGenreNode ?? firstItemNode}
               nextFocusRight={isTV && searchText.length > 0 ? clearBtnNode : undefined}
               onNodeHandle={setSearchFieldNode}
             />
@@ -387,6 +389,12 @@ const Search = () => {
       ) : null}
       {/* Search Content */}
       <View className="flex-1" style={searchMode === 'features' ? {display: 'none'} : undefined}>
+        {searchMode === 'content' && searchText.length === 0 ? (
+          <GenreChips
+            nextFocusUp={searchFieldNode}
+            onFirstNodeHandle={setFirstGenreNode}
+          />
+        ) : null}
         <View className="flex-1">
           {showSuggestions ? (
             <View style={{flex: 1}}>
@@ -421,7 +429,7 @@ const Search = () => {
                 onSelectSearch={handleSearch}
                 onRemoveSearch={removeHistoryItem}
                 onClearHistory={clearHistory}
-                searchFieldNodeHandle={searchFieldNode}
+                searchFieldNodeHandle={firstGenreNode ?? searchFieldNode}
                 onFirstItemNodeHandle={setFirstItemNode}
               />
             </View>

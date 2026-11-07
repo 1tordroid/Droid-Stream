@@ -33,6 +33,22 @@ const createStore = () => {
 
 const stores = new Map();
 
+class KeyUnavailableError extends Error {
+  constructor(instanceID) {
+    super(`Encryption key for storage "${instanceID}" could not be read.`);
+    this.name = 'KeyUnavailableError';
+    this.instanceID = instanceID;
+  }
+}
+
+class InitializationError extends Error {
+  constructor(instanceID) {
+    super(`Storage "${instanceID}" could not be opened.`);
+    this.name = 'InitializationError';
+    this.instanceID = instanceID;
+  }
+}
+
 class MMKVLoader {
   constructor() {
     this.id = 'default';
@@ -42,6 +58,12 @@ class MMKVLoader {
     return this;
   }
   withEncryption() {
+    return this;
+  }
+  recoverOnKeyLoss() {
+    return this;
+  }
+  withSynchronizableKey() {
     return this;
   }
   setProcessingMode() {
@@ -74,5 +96,7 @@ module.exports = {
   ProcessingModes: {SINGLE_PROCESS: 1, MULTI_PROCESS: 2},
   IOSAccessibleStates: {},
   useMMKVStorage,
+  KeyUnavailableError,
+  InitializationError,
   create: () => () => [undefined, () => undefined],
 };

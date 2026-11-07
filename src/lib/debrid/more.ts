@@ -1,10 +1,14 @@
 import {readPikPakAccount} from '../sources/vault';
+import {isPikPakAuthError, withPikPak} from '../pikpak/session';
+import {authFailureInBody, DebridAuthError, keyedFetch} from './auth';
 import {debridFetch} from './http';
 import type {DebridFile, DebridService, DebridTransfer} from './types';
 
 // ---------------------------------------------------------------- Offcloud
 const OC = 'https://offcloud.com/api';
+// Offcloud's API README asks for the key as ?key=. https://github.com/offcloud/offcloud-api
 const ocKey = (key: string) => `key=${encodeURIComponent(key)}`;
+const ocFetch = keyedFetch('offcloud', 'Offcloud');
 const JSON_HEADERS = {'Content-Type': 'application/json'};
 
 export const offcloud: DebridService = {
@@ -14,26 +18,26 @@ export const offcloud: DebridService = {
   keyHelp: 'offcloud.com → Account → API key',
   canCheckCache: true,
   async account(key) {
-    const data = await debridFetch(`${OC}/account/stats?${ocKey(key)}`);
+    const data = await ocFetch(key, `${OC}/account/stats?${ocKey(key)}`);
     return {username: data.email || data.userId || 'Offcloud', premium: Boolean(data.isPremium ?? data.premium ?? true), expiresAt: data.expirationDate ? Date.parse(data.expirationDate) : undefined};
   },
   async checkCached(key, hashes) {
-    const data = await debridFetch(`${OC}/cache?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({hashes})});
+    const data = await ocFetch(key, `${OC}/cache?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({hashes})});
     const cached = new Set<string>((data.cachedItems || []).map((hash: string) => hash.toLowerCase()));
     return Object.fromEntries(hashes.map(hash => [hash, cached.has(hash)]));
   },
   async addMagnet(key, magnet) {
-    const data = await debridFetch(`${OC}/cloud?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({url: magnet})});
+    const data = await ocFetch(key, `${OC}/cloud?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({url: magnet})});
     if (data.error || !data.requestId) throw new Error(data.error || 'Offcloud did not accept the magnet');
     return {id: String(data.requestId)};
   },
   async status(key, id) {
-    const data = await debridFetch(`${OC}/cloud/status?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({requestIds: [id]})});
+    const data = await ocFetch(key, `${OC}/cloud/status?${ocKey(key)}`, {method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({requestIds: [id]})});
     const request = data.requests?.[0] || data.status || {};
     const ready = request.status === 'downloaded';
     let files: DebridFile[] = [];
     if (ready) {
-      const listing = await debridFetch<any>(`${OC}/cloud/explore/${id}?${ocKey(key)}`).catch(() => null);
+      const listing = await ocFetch<any>(key, `${OC}/cloud/explore/${id}?${ocKey(key)}`).catch(() => null);
       const urls: string[] = Array.isArray(listing) ? listing : [];
       files = urls.length
         ? urls.map(url => ({id: url, name: decodeURIComponent(url.split('/').pop() || 'file'), size: 0, link: url}))
@@ -50,8 +54,14 @@ export const offcloud: DebridService = {
 // ---------------------------------------------------------------- Debrid-Link
 const DL = 'https://debrid-link.com/api/v2';
 const dlAuth = (key: string) => ({Authorization: `Bearer ${key}`});
+const dlFetch = keyedFetch('debridlink', 'Debrid-Link');
 const dlValue = (data: any) => {
-  if (data?.success === false) throw new Error(data.error || 'Debrid-Link error');
+  if (data?.success === false) {
+    // A revoked or replaced key comes back as success:false, not always as an HTTP error.
+    const state = authFailureInBody('debridlink', data);
+    if (state) throw new DebridAuthError(data.error, 'debridlink', state, data.error);
+    throw new Error(data.error || 'Debrid-Link error');
+  }
   return data.value;
 };
 
@@ -71,20 +81,20 @@ export const debridLink: DebridService = {
   keyHelp: 'debrid-link.com → Web app → API key',
   canCheckCache: true,
   async account(key) {
-    const value = dlValue(await debridFetch(`${DL}/account/infos`, {headers: dlAuth(key)}));
+    const value = await dlFetch(key, `${DL}/account/infos`, {headers: dlAuth(key)}, dlValue);
     return {username: value.pseudo || value.email, premium: Number(value.accountType) >= 1, expiresAt: value.premiumLeft ? Date.now() + Number(value.premiumLeft) * 1000 : undefined};
   },
   async checkCached(key, hashes) {
-    const value = dlValue(await debridFetch(`${DL}/seedbox/cached?url=${hashes.join(',')}`, {headers: dlAuth(key)})) || {};
+    const value = (await dlFetch(key, `${DL}/seedbox/cached?url=${hashes.join(',')}`, {headers: dlAuth(key)}, dlValue)) || {};
     const cached = new Set(Object.keys(value).map(hash => hash.toLowerCase()));
     return Object.fromEntries(hashes.map(hash => [hash, cached.has(hash)]));
   },
   async addMagnet(key, magnet) {
-    const value = dlValue(await debridFetch(`${DL}/seedbox/add`, {method: 'POST', headers: {...dlAuth(key), 'Content-Type': 'application/json'}, body: JSON.stringify({url: magnet, async: true})}));
+    const value = await dlFetch(key, `${DL}/seedbox/add`, {method: 'POST', headers: {...dlAuth(key), 'Content-Type': 'application/json'}, body: JSON.stringify({url: magnet, async: true})}, dlValue);
     return {id: String(value.id)};
   },
   async status(key, id) {
-    const value = dlValue(await debridFetch(`${DL}/seedbox/list?ids=${id}`, {headers: dlAuth(key)}));
+    const value = await dlFetch(key, `${DL}/seedbox/list?ids=${id}`, {headers: dlAuth(key)}, dlValue);
     return dlTransfer(Array.isArray(value) ? value[0] || {id} : value);
   },
   async fileLink(_key, _transfer, file) {
@@ -92,7 +102,7 @@ export const debridLink: DebridService = {
     return file.link;
   },
   async remove(key, id) {
-    await debridFetch(`${DL}/seedbox/${id}/remove`, {method: 'DELETE', headers: dlAuth(key)});
+    await dlFetch(key, `${DL}/seedbox/${id}/remove`, {method: 'DELETE', headers: dlAuth(key)});
   },
 };
 
@@ -121,51 +131,63 @@ export const pikpak: DebridService = {
   keyHelp: 'Sign in under Library → PikPak, or paste an access token',
   // PikPak finishes popular torrents at once but has no public cache check.
   canCheckCache: false,
-  async account(token) {
-    const data = await debridFetch('https://user.mypikpak.com/v1/user/me', {headers: ppAuth(token)});
+  // Every request goes through withPikPak, which renews an expiring or
+  // rejected sign-in token and retries once.
+  async account(passed) {
+    const data = await withPikPak(passed, token => debridFetch('https://user.mypikpak.com/v1/user/me', {headers: ppAuth(token)}));
     return {username: data.name || data.email || 'PikPak', premium: true};
   },
   async checkCached() {
     return {};
   },
-  async addMagnet(token, magnet) {
-    const data = await debridFetch(`${PP}/files`, {method: 'POST', headers: ppAuth(token), body: JSON.stringify({kind: 'drive#file', parent_id: '', upload_type: 'UPLOAD_TYPE_URL', url: {url: magnet}, folder_type: 'DOWNLOAD'})});
+  async addMagnet(passed, magnet) {
+    const data = await withPikPak(passed, token => debridFetch(`${PP}/files`, {method: 'POST', headers: ppAuth(token), body: JSON.stringify({kind: 'drive#file', parent_id: '', upload_type: 'UPLOAD_TYPE_URL', url: {url: magnet}, folder_type: 'DOWNLOAD'})}));
     const id = data.task?.id;
     if (!id) throw new Error('PikPak did not accept the magnet');
     return {id: `${id}|${data.task?.file_id || data.file?.id || ''}`};
   },
-  async status(token, id) {
-    const [taskId, knownFile] = id.split('|');
-    // Items from the file list have no task, only a file id.
-    const task = taskId ? await debridFetch(`${PP}/tasks/${taskId}`, {headers: ppAuth(token)}).catch(() => ({}) as any) : ({} as any);
-    const fileId = task.file_id || knownFile;
-    const ready = task.phase === 'PHASE_TYPE_COMPLETE' || (!task.phase && Boolean(fileId));
-    let files: DebridFile[] = [];
-    if (ready && fileId) {
-      const file = await debridFetch(`${PP}/files/${fileId}`, {headers: ppAuth(token)});
-      files = file.kind === 'drive#folder' ? await ppFiles(token, fileId) : [{id: file.id, name: file.name, size: Number(file.size) || 0}];
-    }
-    return {id, name: task.name || task.file_name || 'PikPak', progress: ready ? 1 : (Number(task.progress) || 0) / 100, ready, status: task.phase || 'unknown', error: task.phase === 'PHASE_TYPE_ERROR' ? task.message : undefined, files};
+  async status(passed, id) {
+    return withPikPak(passed, async token => {
+      const [taskId, knownFile] = id.split('|');
+      // Items from the file list have no task, only a file id. Auth errors
+      // must reach withPikPak so it can renew the token and retry.
+      const task = taskId
+        ? await debridFetch(`${PP}/tasks/${taskId}`, {headers: ppAuth(token)}).catch(error => {
+            if (isPikPakAuthError(error)) throw error;
+            return {} as any;
+          })
+        : ({} as any);
+      const fileId = task.file_id || knownFile;
+      const ready = task.phase === 'PHASE_TYPE_COMPLETE' || (!task.phase && Boolean(fileId));
+      let files: DebridFile[] = [];
+      if (ready && fileId) {
+        const file = await debridFetch(`${PP}/files/${fileId}`, {headers: ppAuth(token)});
+        files = file.kind === 'drive#folder' ? await ppFiles(token, fileId) : [{id: file.id, name: file.name, size: Number(file.size) || 0}];
+      }
+      return {id, name: task.name || task.file_name || 'PikPak', progress: ready ? 1 : (Number(task.progress) || 0) / 100, ready, status: task.phase || 'unknown', error: task.phase === 'PHASE_TYPE_ERROR' ? task.message : undefined, files};
+    });
   },
-  async list(token) {
-    const filters = encodeURIComponent(JSON.stringify({trashed: {eq: false}, phase: {eq: 'PHASE_TYPE_COMPLETE'}}));
-    const page = (parent: string) =>
-      debridFetch(`${PP}/files?parent_id=${parent}&limit=100&filters=${filters}`, {headers: ppAuth(token)}).then((data: any) => (data?.files || []) as any[]);
-    const top = await page('');
-    // Downloads land in PikPak's download folder, so its contents list at the top.
-    const packs = top.filter(file => file.kind === 'drive#folder' && file.folder_type === 'DOWNLOAD');
-    const inner = (await Promise.all(packs.map(folder => page(folder.id).catch(() => [])))).flat();
-    return [...top.filter(file => !packs.includes(file)), ...inner].map(file => ({
-      id: `|${file.id}`,
-      name: file.name,
-      progress: 1,
-      ready: true,
-      status: 'ready',
-      files: file.kind === 'drive#file' ? [{id: file.id, name: file.name, size: Number(file.size) || 0}] : [],
-    }));
+  async list(passed) {
+    return withPikPak(passed, async token => {
+      const filters = encodeURIComponent(JSON.stringify({trashed: {eq: false}, phase: {eq: 'PHASE_TYPE_COMPLETE'}}));
+      const page = (parent: string) =>
+        debridFetch(`${PP}/files?parent_id=${parent}&limit=100&filters=${filters}`, {headers: ppAuth(token)}).then((data: any) => (data?.files || []) as any[]);
+      const top = await page('');
+      // Downloads land in PikPak's download folder, so its contents list at the top.
+      const packs = top.filter(file => file.kind === 'drive#folder' && file.folder_type === 'DOWNLOAD');
+      const inner = (await Promise.all(packs.map(folder => page(folder.id).catch(() => [])))).flat();
+      return [...top.filter(file => !packs.includes(file)), ...inner].map(file => ({
+        id: `|${file.id}`,
+        name: file.name,
+        progress: 1,
+        ready: true,
+        status: 'ready',
+        files: file.kind === 'drive#file' ? [{id: file.id, name: file.name, size: Number(file.size) || 0}] : [],
+      }));
+    });
   },
-  async fileLink(token, _transfer, file) {
-    const data = await debridFetch(`${PP}/files/${file.id}?thumbnail_size=SIZE_MEDIUM`, {headers: ppAuth(token)});
+  async fileLink(passed, _transfer, file) {
+    const data = await withPikPak(passed, token => debridFetch(`${PP}/files/${file.id}?thumbnail_size=SIZE_MEDIUM`, {headers: ppAuth(token)}));
     const media = (data.medias || []).find((item: any) => item.link?.url);
     const link = data.web_content_link || data.links?.['application/octet-stream']?.url || media?.link?.url;
     if (!link) throw new Error('PikPak has no link for this file yet');

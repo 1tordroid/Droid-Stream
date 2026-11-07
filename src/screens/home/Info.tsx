@@ -25,6 +25,10 @@ import {QueryErrorBoundary} from '../../components/ErrorBoundary';
 import SeasonList from '../../components/SeasonList';
 import ScreenOverlayHost from '../../components/ScreenOverlayHost';
 import LocalEpisodeList from '../../components/local-content/LocalEpisodeList';
+import NetlibEpisodeList from '../../components/netlib/NetlibEpisodeList';
+import FixMatch from '../../components/netlib/FixMatch';
+import {NETLIB_PROVIDER} from '../../lib/netlib/ids';
+import {findNetlibSource} from '../../lib/netlib/resolve';
 import SkeletonLoader from '../../components/Skeleton';
 import {useContentDetails} from '../../lib/hooks/useContentInfo';
 import {useArtworkShape} from '../../lib/hooks/useHomePageData';
@@ -73,6 +77,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     error,
     refetch,
     localTitle,
+    netlibItem,
   } = useContentDetails(route.params.link, providerValue);
   const remoteInLibrary = useWatchListStore(state =>
     state.watchList.some(item => item.link === route.params.link),
@@ -131,9 +136,11 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
   });
   const contentProviderName = useMemo(
     () =>
-      providerValue === 'local' ? 'Local content' : installedProviders.find(item => item.value === providerValue)
+      providerValue === 'local' ? 'Local content'
+        : providerValue === NETLIB_PROVIDER ? (netlibItem && findNetlibSource(netlibItem.sourceId)?.name) || 'Library'
+        : installedProviders.find(item => item.value === providerValue)
         ?.display_name || providerValue,
-    [installedProviders, providerValue],
+    [installedProviders, providerValue, netlibItem],
   );
 
   const displayTitle = meta?.name || info?.title;
@@ -398,7 +405,7 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   onOpenWeb={webUrl ? handleOpenWeb : undefined}
                   onSearchTitle={searchTitle}
                   onFindStreams={findStreams}
-                  onPlay={localTitle ? undefined : playMain}
+                  onPlay={localTitle || netlibItem ? undefined : playMain}
                   onToggleLibrary={toggleLibrary}
                   onToggleSynopsis={() => setReadMore(value => !value)}
                   providerName={contentProviderName}
@@ -423,6 +430,8 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                       <SkeletonLoader show height={28} width={120} />
                       <SkeletonLoader show height={72} width="100%" />
                     </View>
+                  ) : netlibItem ? (
+                    <NetlibEpisodeList item={netlibItem} />
                   ) : localTitle ? (
                     <LocalEpisodeList title={localTitle} />
                   ) : (
@@ -496,7 +505,11 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
             onClose={() => setMetadataMenuVisible(false)}
             title={localTitle}
           />}
-          {info && !localTitle && <ProviderMetadataDialog
+          {netlibItem && <FixMatch
+            item={metadataMenuVisible ? netlibItem : undefined}
+            onClose={() => setMetadataMenuVisible(false)}
+          />}
+          {info && !localTitle && !netlibItem && <ProviderMetadataDialog
             visible={metadataMenuVisible}
             onClose={() => setMetadataMenuVisible(false)}
             info={info}

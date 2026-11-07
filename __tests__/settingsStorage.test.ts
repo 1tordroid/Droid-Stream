@@ -52,7 +52,6 @@ describe('settings defaults', () => {
   });
 
   it('keeps intentional default-off preferences disabled', () => {
-    expect(settingsStorage.hideDownloadsTab()).toBe(false);
     expect(settingsStorage.isAutoDownloadEnabled()).toBe(false);
     expect(settingsStorage.hideSeekButtons()).toBe(false);
     expect(settingsStorage.isEnable2xGestureEnabled()).toBe(false);
@@ -209,11 +208,11 @@ describe('settings defaults', () => {
     expect(settingsStorage.getPlaybackSpeed()).toBe(1);
   });
 
-  it('persists the Downloads tab preference', () => {
-    settingsStorage.setHideDownloadsTab(true);
-
-    expect(settingsStorage.hideDownloadsTab()).toBe(true);
-    expect(mockBooleanValues.get(SettingsKeys.HIDE_DOWNLOADS_TAB)).toBe(true);
+  it('no longer exposes the removed Downloads tab preference', () => {
+    // Old installs may still hold the key; nothing reads or writes it now.
+    mockBooleanValues.set(SettingsKeys.HIDE_DOWNLOADS_TAB, true);
+    expect((settingsStorage as any).hideDownloadsTab).toBeUndefined();
+    expect((settingsStorage as any).setHideDownloadsTab).toBeUndefined();
   });
 
   it('persists the auto play next episode preference', () => {

@@ -41,6 +41,8 @@ import {isTV} from '../lib/tv';
 import {TVFocusable, TVFocusGuide} from '../components/tv';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 import useTVNavigationStore from '../lib/zustand/tvNavigationStore';
+import useNavigationPreferencesStore from '../lib/zustand/navigationPreferencesStore';
+import {useWatchStateMap, withoutWatched} from '../lib/watchState';
 
 /** Chip id for every saved title, across categories. */
 const ALL_FILTER = '__all__';
@@ -61,6 +63,11 @@ const Library = () => {
     useNavigation<NativeStackNavigationProp<WatchListStackParamList>>();
   const remoteWatchList = useWatchListStore(state => state.watchList);
   const localTitles = useLocalContentStore(state => state.titles);
+  const watchStates = useWatchStateMap();
+  const hideWatched = useNavigationPreferencesStore(state => state.hideWatched);
+  const setHideWatched = useNavigationPreferencesStore(
+    state => state.setHideWatched,
+  );
   const watchList = useMemo(() => [...remoteWatchList, ...localTitles.filter(title => title.inLibrary !== false).map(localLibraryItem)], [remoteWatchList, localTitles]);
   const collections = useWatchListStore(state => state.collections);
   const removeItem = useWatchListStore(state => state.removeItem);
@@ -140,8 +147,10 @@ const Library = () => {
           getItemCollectionIds(item, existingIds).includes(activeCollection.id),
         )
       : watchList;
-    return [...items].reverse();
-  }, [watchList, activeCollection, existingIds]);
+    return [
+      ...withoutWatched(items, watchStates, hideWatched, item => item.link),
+    ].reverse();
+  }, [watchList, activeCollection, existingIds, watchStates, hideWatched]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -465,6 +474,41 @@ const Library = () => {
           New
         </AppText>
       </TVFocusable>
+      <TVFocusable
+        accessibilityRole="switch"
+        accessibilityState={{checked: hideWatched}}
+        accessibilityLabel="Hide watched"
+        onPress={() => setHideWatched(!hideWatched)}
+        nextFocusDown={firstCardNode ?? undefined}
+        borderRadius={18}
+        focusScale={1.06}
+        focusBorderColor={focusBorderColor}
+        style={{
+          alignItems: 'center',
+          backgroundColor: hideWatched
+            ? colors.secondaryContainer
+            : colors.surfaceContainerHigh,
+          borderColor: hideWatched ? colors.secondary : colors.outlineVariant,
+          borderRadius: 18,
+          borderWidth: 1,
+          flexDirection: 'row',
+          gap: 6,
+          height: isTV ? 44 : 38,
+          paddingHorizontal: 12,
+        }}>
+        <MaterialCommunityIcons
+          name={hideWatched ? 'eye-off-outline' : 'eye-outline'}
+          size={18}
+          color={hideWatched ? colors.onSecondaryContainer : colors.primary}
+        />
+        <AppText
+          role="labelLargeEmphasized"
+          style={{
+            color: hideWatched ? colors.onSecondaryContainer : colors.onSurface,
+          }}>
+          Hide watched
+        </AppText>
+      </TVFocusable>
     </ScrollView>
   );
 
@@ -479,6 +523,8 @@ const Library = () => {
         width={itemWidth}
         selected={selectedLinks.has(item.link)}
         selectionMode={isSelectionMode}
+        progress={watchStates.get(item.link)?.progress}
+        watched={watchStates.get(item.link)?.watched}
         hasTVPreferredFocus={
           isTV &&
           !isSelectionMode &&

@@ -12,6 +12,7 @@ jest.mock('../src/lib/performance/idleWork', () => ({
 }));
 
 jest.mock('../src/lib/tv', () => ({isTV: false}));
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@react-navigation/native', () => ({useFocusEffect: (effect: any) => require('react').useEffect(effect, [effect])}));
 jest.mock('../src/lib/storage', () => ({settingsStorage: {getTmdbApiKey: () => '', setTmdbApiKey: jest.fn()}}));
 jest.mock('../src/theme/M3PaletteContext', () => ({useM3Colors: () => ({})}));

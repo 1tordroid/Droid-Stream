@@ -3,10 +3,27 @@
  * This client is original TypeScript. It does not include code from GPL projects.
  */
 
+import {readPikPakDeviceId, savePikPakDeviceId} from '../sources/vault';
+
 export interface PikPakSession {
   accessToken: string;
   userId?: string;
+  refreshToken?: string;
+  /** Epoch ms when the access token stops working. */
+  expiresAt?: number;
 }
+
+/** PikPak rejected the token or the sign-in itself; the user has to sign in again. */
+export class PikPakAuthError extends Error {
+  constructor(message = 'Your PikPak sign-in has ended. Sign in again under Library > PikPak.') {
+    super(message);
+    this.name = 'PikPakAuthError';
+  }
+}
+
+/** 16: token expired or invalid. 4126: refresh token rejected. */
+const isAuthRejection = (status: number, data: any): boolean =>
+  status === 401 || data?.error === 'invalid_grant' || data?.error === 'unauthenticated' || [16, 4126].includes(Number(data?.error_code));
 
 export interface MagnetTask {
   id?: string;
@@ -35,13 +52,23 @@ const bearer = (session: PikPakSession) => ({
 });
 
 const deviceId = (): string => {
-  // A stable random id per install; PikPak ties captcha tokens to it.
-  const g = globalThis as {__pikpakDevice?: string};
-  if (!g.__pikpakDevice) {
-    g.__pikpakDevice = Array.from({length: 32}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  // A stable random id per install, kept across launches: PikPak ties captcha
+  // and refresh tokens to it.
+  let id = readPikPakDeviceId();
+  if (!id) {
+    id = Array.from({length: 32}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    savePikPakDeviceId(id);
   }
-  return g.__pikpakDevice;
+  return id;
 };
+
+/** Access tokens last about two hours; the refresh token keeps the sign-in going. */
+const toSession = (data: any, previousRefreshToken?: string): PikPakSession => ({
+  accessToken: data.access_token,
+  refreshToken: data.refresh_token || previousRefreshToken,
+  expiresAt: Date.now() + (Number(data.expires_in) || 7200) * 1000,
+  userId: data.sub,
+});
 
 /** PikPak asks for a captcha token before a password sign-in. */
 const captchaToken = async (username: string): Promise<string | undefined> => {
@@ -74,7 +101,26 @@ export const signInToPikPak = async (username: string, password: string): Promis
   if (!response.ok || !data.access_token) {
     throw new Error(data.error_description || data.error || `PikPak sign-in failed (${response.status}). You can paste an access token instead.`);
   }
-  return {accessToken: data.access_token, userId: data.sub};
+  return toSession(data);
+};
+
+/**
+ * Trades the refresh token for a new access token (and usually a new refresh
+ * token). Throws PikPakAuthError when PikPak ended the sign-in; network and
+ * server errors throw a plain Error so the saved tokens are kept.
+ */
+export const refreshPikPakSession = async (refreshToken: string): Promise<PikPakSession> => {
+  const response = await fetch('https://user.mypikpak.com/v1/auth/token', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-Device-Id': deviceId()},
+    body: JSON.stringify({client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: refreshToken}),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.access_token) {
+    if (isAuthRejection(response.status, data) || response.status === 400) throw new PikPakAuthError();
+    throw new Error(data.error_description || data.error || `PikPak could not renew the sign-in (${response.status})`);
+  }
+  return toSession(data, refreshToken);
 };
 
 export const sessionFromToken = (accessToken: string): PikPakSession => ({accessToken: accessToken.trim()});
@@ -92,6 +138,7 @@ export const addMagnetTask = async (session: PikPakSession, magnet: string): Pro
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (isAuthRejection(response.status, data)) throw new PikPakAuthError();
     throw new Error(data.error_description || data.error || `PikPak did not accept the magnet (${response.status})`);
   }
   return {
@@ -108,7 +155,10 @@ export const readMagnetTask = async (session: PikPakSession, task: MagnetTask): 
   if (!task.id) return task;
   const response = await fetch(`${DRIVE}/tasks/${task.id}`, {headers: bearer(session)});
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) return {...task, message: data.error || `Status ${response.status}`};
+  if (!response.ok) {
+    if (isAuthRejection(response.status, data)) throw new PikPakAuthError();
+    return {...task, message: data.error || `Status ${response.status}`};
+  }
   const fileId = data.file_id || task.fileId;
   let playUrl = task.playUrl;
   if (data.phase === 'PHASE_TYPE_COMPLETE' && fileId) {

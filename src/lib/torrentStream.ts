@@ -7,6 +7,22 @@ const DUMMY_TORRENT_HASHES = [
 export const isTorrentStream = (stream?: {link?: string; type?: string}) =>
   stream?.type === 'torrent' || Boolean(stream?.link?.startsWith('magnet:'));
 
+// Set when the native engine fails to load (for example a missing ABI
+// library), so torrent streams stop being offered until the app restarts.
+let torrentEngineUnavailable = false;
+
+export const markTorrentEngineUnavailable = () => {
+  torrentEngineUnavailable = true;
+};
+
+export const isTorrentEngineUnavailable = () => torrentEngineUnavailable;
+
+/** Drops torrent streams once the engine is known not to start. */
+export const withoutUnplayableTorrents = <T extends {link?: string; type?: string}>(
+  streams: T[],
+): T[] =>
+  torrentEngineUnavailable ? streams.filter(stream => !isTorrentStream(stream)) : streams;
+
 export const isDummyTorrentLink = (link: string) =>
   !link || DUMMY_TORRENT_HASHES.some(hash => link.includes(hash));
 

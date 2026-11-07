@@ -32,6 +32,19 @@ const withAndroidNativeConfig = config => {
       application.$['android:largeHeap'] = 'true';
     }
 
+    // Vega Cast uses WebRTC data channels only, never screen capture, so drop
+    // react-native-webrtc's mediaProjection foreground service.
+    manifest.$['xmlns:tools'] = manifest.$['xmlns:tools'] || 'http://schemas.android.com/tools';
+    if (application) {
+      const projectionService = 'com.oney.WebRTCModule.MediaProjectionService';
+      application.service = (application.service || []).filter(
+        service => service?.$?.['android:name'] !== projectionService,
+      );
+      application.service.push({
+        $: {'android:name': projectionService, 'tools:node': 'remove'},
+      });
+    }
+
     // Custom "add provider source" intent (action + "url" extra, no data URI).
     // BROWSABLE lets web pages fire it through a Chrome intent: URI.
     const mainActivity = application?.activity?.find(

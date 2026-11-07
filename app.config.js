@@ -44,6 +44,9 @@ module.exports = () => {
     './plugins/with-native-scroll-performance.js',
     './plugins/with-android-signing.js',
     './plugins/with-android-okhttp.js',
+    // Keeps the encrypted sign-in stores out of Auto Backup and device
+    // transfer; their Keystore keys never leave the phone.
+    './plugins/with-backup-rules.js',
     'react-native-vlc-media-player',
     [
       'react-native-video',
@@ -73,10 +76,12 @@ module.exports = () => {
     [
       'react-native-bootsplash',
       {
-        assetsDir: 'assets/bootsplash',
-        android: {
-          parentTheme: 'EdgeToEdge',
-        },
+        // v7 generates the splash at prebuild from this logo. Edge-to-edge is
+        // the default, so there is no parentTheme any more.
+        logo: './assets/bootsplash/logo@4x.png',
+        logoWidth: 200,
+        background: '#000000',
+        assetsOutput: 'assets/bootsplash',
       },
     ],
     [
@@ -162,14 +167,14 @@ module.exports = () => {
       plugins,
       slug: 'droid-stream',
       icon: './assets/icon.png',
-      version: '5.4.0',
+      version: '5.5.0',
       userInterfaceStyle: 'dark',
       experiments: {
         reactCompiler: true,
       },
       android: {
         package: PACKAGE_NAME,
-        versionCode: 220,
+        versionCode: 221,
         permissions: [
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',
@@ -178,7 +183,6 @@ module.exports = () => {
           'ACCESS_WIFI_STATE',
           'CHANGE_WIFI_MULTICAST_STATE',
           'INTERNET',
-          'WRITE_SETTINGS',
           'WAKE_LOCK',
           'POST_NOTIFICATIONS',
           'RECEIVE_BOOT_COMPLETED',
@@ -186,6 +190,10 @@ module.exports = () => {
         blockedPermissions: [
           // Casting uses WebRTC data channels, not microphone capture.
           'android.permission.RECORD_AUDIO',
+          // No overlay windows: picture-in-picture does not need this.
+          'android.permission.SYSTEM_ALERT_WINDOW',
+          // Not used; blocked so older generated projects drop it too.
+          'android.permission.WRITE_SETTINGS',
           'android.permission.MANAGE_EXTERNAL_STORAGE',
           'android.permission.READ_EXTERNAL_STORAGE',
           'android.permission.READ_MEDIA_VIDEO',

@@ -9,11 +9,14 @@ import {
 interface UsePlayerProgressOptions {
   activeEpisode: any;
   onProgressSaved?: (position: number, duration: number) => void;
+  /** False for live streams: the position is tracked but never saved. */
+  saveEnabled?: boolean;
 }
 
 export const usePlayerProgress = ({
   activeEpisode,
   onProgressSaved,
+  saveEnabled = true,
 }: UsePlayerProgressOptions) => {
   const videoPositionRef = useRef({position: 0, duration: 0});
   const lastSavedPositionRef = useRef(0);
@@ -52,6 +55,7 @@ export const usePlayerProgress = ({
         position: currentTime,
         duration: seekableDuration,
       };
+      if (!saveEnabled) return;
       pendingProgressRef.current = {
         link: activeEpisode.link,
         position: currentTime,
@@ -67,7 +71,7 @@ export const usePlayerProgress = ({
         flushProgress();
       }
     },
-    [activeEpisode.link, onProgressSaved, flushProgress],
+    [activeEpisode.link, onProgressSaved, flushProgress, saveEnabled],
   );
 
   return {

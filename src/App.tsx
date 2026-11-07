@@ -24,6 +24,8 @@ import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
+import SourceLibrary from './screens/library/SourceLibrary';
+import LiveTV from './screens/livetv/LiveTV';
 import Torrents from './screens/torrents/Torrents';
 import TorrentDetails from './screens/torrents/TorrentDetails';
 import TorrentOptions from './screens/torrents/TorrentOptions';
@@ -75,6 +77,7 @@ import SubtitlePreference from './screens/settings/SubtitleSettings';
 import Extensions from './screens/settings/Extensions';
 import Constants from 'expo-constants';
 import {settingsStorage, migrateWatchProgressFromCacheStorage} from './lib/storage';
+import {ensureFreshAll} from './lib/watchSync';
 import {syncParallelStreaming} from './lib/parallelStreaming';
 import {updateProvidersService} from './lib/services/UpdateProviders';
 import {QueryClientProvider} from '@tanstack/react-query';
@@ -121,6 +124,7 @@ export type HomeStackParamList = {
     isSearch: boolean;
   };
   Webview: {link: string};
+  LiveTV: undefined;
 };
 
 export type RootStackParamList = {
@@ -156,6 +160,10 @@ export type RootStackParamList = {
     initialStream?: Stream;
     /** What is playing, when known: used for Trakt/Simkl/AniList, AniSkip, and subtitles. */
     meta?: import('./lib/watchMeta').WatchMeta;
+    /** A live TV channel: no watch progress or resume point is saved. */
+    live?: boolean;
+    /** A network library file: episode links are version keys, history stays in the netlib store. */
+    netlib?: boolean;
   };
 };
 
@@ -175,10 +183,12 @@ export type WatchListStackParamList = {
   LibraryHome: undefined;
   DebridSettings: undefined;
   CloudFiles: undefined;
+  LiveTV: undefined;
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
-  Sources: {kind?: string; openId?: string} | undefined;
+  SourceLibrary: {sourceId: string};
+  Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}} | undefined;
   Info: {link: string; provider?: string; poster?: string};
 };
 
@@ -393,6 +403,8 @@ const renderTabBar = (props: React.ComponentProps<typeof StreamingTabBar>) => (
 );
 
 function HomeStackScreen() {
+  const subpageOptions = useTopInsetOptions();
+
   return (
     <HomeStack.Navigator
       screenListeners={navigationWorkListeners}
@@ -401,6 +413,7 @@ function HomeStackScreen() {
       <HomeStack.Screen name="Info" component={Info} />
       <HomeStack.Screen name="ScrollList" component={ScrollList} />
       <HomeStack.Screen name="Webview" component={WebView} />
+      <HomeStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
     </HomeStack.Navigator>
   );
 }
@@ -429,8 +442,10 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="LibraryHome" component={LibraryHub} options={subpageOptions} />
       <WatchListStack.Screen name="DebridSettings" component={DebridSettings} options={subpageOptions} />
       <WatchListStack.Screen name="CloudFiles" component={CloudFiles} options={subpageOptions} />
+      <WatchListStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
       <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
+      <WatchListStack.Screen name="SourceLibrary" component={SourceLibrary} options={subpageOptions} />
       <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />
       <WatchListStack.Screen name="LocalContent" component={LocalContent} />
       <WatchListStack.Screen name="Info" component={Info} />
@@ -638,12 +653,18 @@ const App = () => {
   // One AppState listener and one timer. They were registered twice, so every
   // foreground, background and 30 s tick ran the sync twice.
   useEffect(() => {
+    // Keeps watch-sync sign-ins renewed at start and on every return to the
+    // app. ensureFreshAll itself runs at most once every 6 h.
+    const renewWatchSync = () => {
+      ensureFreshAll().catch(() => undefined);
+    };
     // Android can recreate the activity (for example after a launcher icon
     // change) and report "active" before this listener exists. A stale
     // 'app-background' hold would then block idle work, and settings pages
     // would stay half rendered, until the process restarts.
     if (AppState.currentState === 'active') {
       endUIInteraction('app-background');
+      renewWatchSync();
     }
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') {
@@ -651,6 +672,7 @@ const App = () => {
         reconcileCompletedDownloadOutputs().catch(error =>
           console.warn('Download foreground reconciliation failed:', error),
         );
+        renewWatchSync();
         if (settingsStorage.isSyncEnabled()) {
           syncFromSharedFolder().catch(error =>
             console.warn('[VegaSync] Foreground sync failed:', error),
