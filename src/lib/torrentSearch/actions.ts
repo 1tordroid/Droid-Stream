@@ -111,7 +111,13 @@ export const downloadDebridFiles = async (resolution: DebridResolution, files: D
   let queued = 0;
   for (const file of files) {
     const url = await directLink(resolution, file);
-    if ((await queueLink(url, file.name)) === 'queued') queued += 1;
+    // Kept so an expired link can be made again for the same file.
+    const debrid = {
+      service: resolution.service.id,
+      transfer: {id: resolution.transfer.id, name: resolution.transfer.name, status: resolution.transfer.status},
+      file: {id: file.id, name: file.name, size: file.size, link: file.link},
+    };
+    if ((await queueLink(url, file.name, {debrid})) === 'queued') queued += 1;
   }
   return queued;
 };

@@ -30,7 +30,7 @@ export type DownloadStatus =
   | 'missing'
   | 'canceling';
 
-export type DownloadSourceType = 'http' | 'hls' | 'torrent';
+export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'dash' | 'live' | 'ftp';
 
 export interface DownloadSubtitle {
   url: string;

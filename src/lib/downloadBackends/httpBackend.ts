@@ -23,6 +23,7 @@ import {
   createDownloadSeasonDirectoryName,
 } from '../downloadId';
 import type {DownloadItem} from '../zustand/downloadsStore';
+import {bindLinkForResume, mirrorFor} from '../downloadEngine/httpLink';
 
 interface ActiveHttpDownload {
   task: DownloadTask;
@@ -209,30 +210,46 @@ const startNativeDownload = async ({
   });
 
   const destinationUri = destination.directFinalDocumentUri;
-  const start = () =>
+  const headers = record.headers || {};
+  const start = (url: string) =>
     nativeHttpModule.start(
       record.id,
-      record.url,
+      url,
       destinationUri,
-      record.headers || {},
+      headers,
       settingsStorage.getDownloadConnections(),
     );
 
   try {
+    // A mirror rule (Advanced downloads) sends GitHub and Hugging Face
+    // downloads through the user's mirror; the original link is the fallback.
+    let url = record.url;
+    const mirrored = await mirrorFor(record.url, headers);
+    if (mirrored) {
+      url = await bindLinkForResume(record.id, mirrored, headers, record.totalBytes)
+        .then(() => mirrored)
+        .catch(() => record.url);
+    }
+    // The saved part may belong to another address (an earlier mirror).
+    if (url === record.url) await bindLinkForResume(record.id, url, headers, record.totalBytes);
     let result;
     try {
-      result = await start();
+      result = await start(url);
     } catch (error) {
-      if (
-        ownedByThisSession ||
-        (error as {code?: unknown} | null)?.code !== 'DOWNLOAD_ACTIVE'
-      ) {
+      const code = (error as {code?: unknown} | null)?.code;
+      if (url !== record.url && code === 'DOWNLOAD_FAILED') {
+        // The mirror failed: continue from the original link.
+        url = record.url;
+        await bindLinkForResume(record.id, url, headers, record.totalBytes);
+        result = await start(url);
+      } else if (ownedByThisSession || code !== 'DOWNLOAD_ACTIVE') {
         throw error;
+      } else {
+        // The native job outlived a JS reload. Stop it, keeping the partial
+        // file, and start again so the transfer resumes from where it stopped.
+        await nativeHttpModule.cancel(record.id, false);
+        result = await start(url);
       }
-      // The native job outlived a JS reload. Stop it, keeping the partial
-      // file, and start again so the transfer resumes from where it stopped.
-      await nativeHttpModule.cancel(record.id, false);
-      result = await start();
     }
     useDownloadsStore
       .getState()
@@ -385,5 +402,21 @@ export const httpDownloadBackend: DownloadBackend = {
       }).catch(() => undefined);
     }
     await cleanupDownloadStaging(downloadId);
+  },
+
+  async stopKeepingData(downloadId: string): Promise<void> {
+    if (activeNativeDownloads.has(downloadId) && nativeHttpModule) {
+      await nativeHttpModule.cancel(downloadId, false);
+    }
+  },
+
+  async relink(record: DownloadItem, url: string, headers?: Record<string, string>): Promise<boolean> {
+    if (!hasNativeHttpDownloader) return false;
+    try {
+      await bindLinkForResume(record.id, url, headers, record.totalBytes);
+      return true;
+    } catch {
+      return false;
+    }
   },
 };

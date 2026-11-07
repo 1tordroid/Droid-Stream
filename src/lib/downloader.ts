@@ -4,6 +4,7 @@ import {
   getDownloadFileName,
 } from './downloadLocation';
 import {scheduleQueuedDownloads} from './downloadManager';
+import {storeFtpPassword} from './downloadEngine/engineStore';
 import {settingsStorage} from './storage';
 import useDownloadsStore, {
   DownloadMediaInput,
@@ -19,6 +20,12 @@ const getSourceType = (url: string, fileType: string): DownloadSourceType => {
   }
   if (fileType === 'm3u8') {
     return 'hls';
+  }
+  if (fileType === 'mpd' || fileType === 'dash' || /\.mpd(\?|$)/i.test(url)) {
+    return 'dash';
+  }
+  if (/^ftp(e?s)?:\/\//i.test(url)) {
+    return 'ftp';
   }
   return 'http';
 };
@@ -86,7 +93,12 @@ export const downloadManager = async ({
   }
   settingsStorage.setDownloadLocation(downloadLocation);
 
-  const outputFileType = fileType === 'm3u8' ? 'mp4' : fileType;
+  // HLS and DASH streams are saved as one MP4.
+  // An FTP password moves to encrypted storage; the download keeps only the user name.
+  if (/^ftp(e?s)?:\/\//i.test(url)) {
+    url = storeFtpPassword(url);
+  }
+  const outputFileType = fileType === 'm3u8' || getSourceType(url, fileType) === 'dash' ? 'mp4' : fileType;
   const media: DownloadMediaInput = {
     id: downloadId,
     title,
