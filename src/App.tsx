@@ -95,6 +95,7 @@ import {startBackupSync} from './lib/backupSync/service';
 import {startWatchNextSync} from './lib/tv/watchNext/service';
 import {parseWatchNextLink} from './lib/tv/watchNext/plan';
 import {getActiveProfileId} from './lib/profiles/scope';
+import TvScreensaver from './components/tv/TvScreensaver';
 import {AppState, Linking, LogBox, useWindowDimensions} from 'react-native';
 import {vegaCastService} from './lib/remote/vegaCastService';
 import {EpisodeLink, Stream} from './lib/providers/types';
@@ -382,6 +383,7 @@ const openWatchNextLink = (url: string): void => {
     params: {screen: 'Info', params: {link: target.link, provider: target.provider}},
   });
 };
+const currentRouteName = () => (navigationRef.isReady() ? navigationRef.getCurrentRoute()?.name : undefined);
 
 const openProfilesScreen = (): void => {
   if (!navigationRef.isReady()) return;
@@ -1006,6 +1008,7 @@ const App = () => {
               <FirstRunTips />
               <TorrentVpnTip onOpenSetting={openTorrentVpnSetting} />
               <ProfileGate onManage={openProfilesScreen} />
+              {isTV ? <TvScreensaver getRouteName={currentRouteName} /> : null}
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched
                 into it. */}

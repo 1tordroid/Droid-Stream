@@ -15,6 +15,7 @@ import useNavigationPreferencesStore from '../../lib/zustand/navigationPreferenc
 import DownloadConcurrencyPreference from './components/DownloadConcurrencyPreference';
 import VerificationWindowPreference from './components/VerificationWindowPreference';
 import TmdbApiKeyPreference from './components/TmdbApiKeyPreference';
+import TvHomePreference from './components/TvHomePreference';
 import AppText from '../../components/ui/Text';
 import MoreOptions from '../../components/MoreOptions';
 import SettingsSection from '../../components/ui/SettingsSection';
@@ -22,7 +23,7 @@ import SettingsPage from '../../components/ui/SettingsPage';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
-import {isTV} from '../../lib/tv';
+import {isAndroidTV, isTV} from '../../lib/tv';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 const Preferences = ({navigation}: any) => {
   const colors = useM3Colors();
@@ -213,6 +214,7 @@ const Preferences = ({navigation}: any) => {
               }}
             />
           </SettingsSection>
+          {isAndroidTV ? <TvHomePreference /> : null}
 
           <View className="mb-6">
             <AppText

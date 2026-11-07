@@ -187,6 +187,11 @@ import SidebarEpisodeRow from './player/SidebarEpisodeRow';
 import {getValidImageUri} from '../../components/EpisodeRowContent';
 import {isTV, usePlayerTVControls} from '../../lib/tv';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
+import PauseScreen from '../../components/tv/PauseScreen';
+import {usePauseScreen} from '../../lib/tv/usePauseScreen';
+import {tvHomeSettings} from '../../lib/tv/tvHomeSettings';
+import {setScreenOnWhilePlaying} from '../../lib/tv/watchNext/native';
+import {flushWatchNext} from '../../lib/tv/watchNext/service';
 import AutoNextOverlay from '../../components/AutoNextOverlay';
 import {
   AUTO_NEXT_COUNTDOWN_SECONDS,
@@ -932,6 +937,23 @@ const Player = ({route}: Props): React.JSX.Element => {
     [setToast],
   );
 
+  // TV: a pause screen after a few minutes paused, and the screen may sleep
+  // (system screensaver) only while paused.
+  const [pauseScreenMinutes] = useState(() => tvHomeSettings.getPauseScreenMinutes());
+  const pauseScreen = usePauseScreen({paused: isPaused, minutes: pauseScreenMinutes});
+  useEffect(() => {
+    if (isTV) setScreenOnWhilePlaying(!isPaused);
+  }, [isPaused]);
+  useEffect(
+    () => () => {
+      if (!isTV) return;
+      setScreenOnWhilePlaying(false);
+      // Play Next gets the last position without waiting.
+      flushWatchNext();
+    },
+    [],
+  );
+
   const {
     getTVFocusProps,
     showTVControls,
@@ -951,7 +973,7 @@ const Player = ({route}: Props): React.JSX.Element => {
     primaryColor: primary,
     onTogglePlayPause: handleTogglePlayPause,
     onSeekNotification: handleSeekNotification,
-    remoteSuspended: autoNextVisible || editingControls || showMoreControls || showMarksMenu,
+    remoteSuspended: autoNextVisible || editingControls || showMoreControls || showMarksMenu || pauseScreen.visible,
   });
 
   const [showTimeRemaining, setShowTimeRemaining] = useState<boolean>(() =>
@@ -3131,6 +3153,8 @@ const Player = ({route}: Props): React.JSX.Element => {
       ...(isTV
         ? {
             paused: isPaused,
+            // Paused: let the TV sleep or start its screensaver.
+            preventsDisplaySleepDuringVideoPlayback: !isPaused,
           }
         : {}),
     }),
@@ -4642,6 +4666,15 @@ const Player = ({route}: Props): React.JSX.Element => {
             </Animated.View>
           </>
         )}
+      {isTV ? (
+        <PauseScreen
+          visible={pauseScreen.visible}
+          onDismiss={pauseScreen.dismiss}
+          title={route.params?.primaryTitle}
+          subtitle={activeEpisode?.title}
+          artwork={route.params?.poster?.background || route.params?.poster?.poster}
+        />
+      ) : null}
     </SafeAreaView>
   );
 };
