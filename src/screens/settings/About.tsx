@@ -22,7 +22,7 @@ import {
 import {useRemoteStore} from '../../lib/remote/remoteStore';
 import {socialLinks} from '../../lib/constants';
 import BrandLinkButtons from './components/BrandLinkButtons';
-import {checkForUpdate} from '../../lib/updates/checkForUpdate';
+import {checkForUpdate, currentBuild, LEAVE_BETA_MESSAGE} from '../../lib/updates/checkForUpdate';
 import {editionName, versionLabel} from '../../lib/appVersion';
 
 export {checkForUpdate};
@@ -38,6 +38,9 @@ const About = ({navigation}: any) => {
   );
   const [autoCheckUpdate, setAutoCheckUpdate] = useState<boolean>(
     settingsStorage.isAutoCheckUpdateEnabled(),
+  );
+  const [betaUpdates, setBetaUpdates] = useState(
+    settingsStorage.isBetaUpdatesEnabled(),
   );
   const [detailedLogging, setDetailedLoggingState] = useState(
     isDetailedLoggingEnabled,
@@ -176,6 +179,18 @@ const About = ({navigation}: any) => {
                 onValueChange={next => {
                   setAutoCheckUpdate(next);
                   settingsStorage.setAutoCheckUpdateEnabled(next);
+                }}
+              />
+              <SettingsSwitchRow
+                title="Get beta builds"
+                description="Nightly builds come first and may have bugs. Turn this off to go back to stable updates; you'll get the next stable release when it is newer."
+                value={betaUpdates}
+                onValueChange={next => {
+                  setBetaUpdates(next);
+                  settingsStorage.setBetaUpdatesEnabled(next);
+                  if (!next && currentBuild().channel === 'nightly') {
+                    ToastAndroid.show(LEAVE_BETA_MESSAGE, ToastAndroid.LONG);
+                  }
                 }}
               />
               <SettingsRow

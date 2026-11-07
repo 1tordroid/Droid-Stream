@@ -202,6 +202,15 @@ describe('backup', () => {
     Object.entries(saved).forEach(([key, value]) => expect(mockValues.get(key)).toEqual(value));
   });
 
+  it('backs up and restores the beta builds switch', () => {
+    mockValues.set('betaUpdates', true);
+    const backup = parseBackup(JSON.stringify(createBackup()));
+    expect(backup.settings).toEqual({betaUpdates: true});
+    mockValues.clear();
+    restoreBackup(backup);
+    expect(mockValues.get('betaUpdates')).toBe(true);
+  });
+
   it('restores settings, providers and the selected provider', () => {
     mockValues.set('hapticFeedback', false);
     mockValues.set('installedProviders', [provider]);
