@@ -128,3 +128,39 @@ export const readPikPakDeviceId = (): string | undefined => storage.getString(PI
 export const savePikPakDeviceId = (id: string): void => {
   storage.setString(PIKPAK_DEVICE_KEY, id);
 };
+
+export interface StoredTordroidPlusAccount {
+  /** The portal address, e.g. https://plus.tordroid.com. */
+  server: string;
+  email: string;
+  /** Kept so an ended sign-in can be renewed without asking. */
+  password: string;
+  /** The portal's sign-in token (a JWT). */
+  token: string;
+  /** Epoch ms when the token stops working, read from the token. */
+  expiresAt?: number;
+  /** Set once the portal refused the saved password; the user signs in again. */
+  signedOut?: boolean;
+}
+
+const TORDROID_PLUS_KEY = 'tordroid-plus-account';
+
+/** One Tordroid Plus sign-in per install, in the encrypted source store. */
+export const readTordroidPlusAccount = (): StoredTordroidPlusAccount | undefined => {
+  const raw = storage.getString(TORDROID_PLUS_KEY);
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as StoredTordroidPlusAccount;
+    return parsed.server && parsed.email ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export const saveTordroidPlusAccount = (account: StoredTordroidPlusAccount): void => {
+  storage.setString(TORDROID_PLUS_KEY, JSON.stringify(account));
+};
+
+export const clearTordroidPlusAccount = (): void => {
+  storage.removeItem(TORDROID_PLUS_KEY);
+};
