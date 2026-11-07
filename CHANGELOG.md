@@ -28,6 +28,12 @@ Not released yet. Built and being tested:
   playlists, a queue with start times, site sign-in for cookies, and
   yt-dlp updates inside the app.
 - Update download notifications no longer vibrate every second.
+- A built-in browser (globe icon on Home, and in Search and Downloads):
+  tabs, private tabs, bookmarks, history, desktop or mobile layout,
+  dark pages, a download button on videos and a list of the media on
+  each page, an ad and tracker blocker, userscripts, saved passwords
+  and passkeys. File links from other browsers can be sent to the
+  downloader.
 
 Being built:
 
