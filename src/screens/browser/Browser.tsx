@@ -644,6 +644,20 @@ const Browser = () => {
       <SheetRow icon="magnify" label="Find in page" disabled={!active.url} onPress={() => { closeSheet(); setFind({open: true, text: '', count: 0, index: 0}); }} />
       <SheetRow icon="monitor" label="Desktop site" toggle={active.desktop} onPress={() => { closeSheet(); setDesktop(!active.desktop); }} />
       <SheetRow icon="theme-light-dark" label="Dark pages" toggle={settings.darkPages} onPress={() => { updateSettings({darkPages: !settings.darkPages}); webViews.current.get(active.id)?.reload(); }} />
+      <SheetRow
+        icon={settings.blockAds ? 'shield-check' : 'shield-off-outline'}
+        label="Ad and tracker blocker"
+        detail={settings.blockAds ? 'On for all sites' : 'Off for all sites'}
+        toggle={settings.blockAds}
+        onPress={() => {
+          const blockAds = !settings.blockAds;
+          updateSettings({blockAds});
+          engine.blocking.configure(blockAds, settings.allowedSites);
+          if (blockAds) ensureFilters().catch(() => undefined);
+          toast(blockAds ? 'Ad blocker on' : 'Ad blocker off');
+          webViews.current.get(active.id)?.reload();
+        }}
+      />
       {settings.blockAds && active.url ? (
         <SheetRow icon="shield-check-outline" label="Block ads on this site" detail={active.blocked ? `${active.blocked} blocked on this page` : undefined} toggle={!blockingOff} onPress={toggleSiteBlocking} />
       ) : null}
