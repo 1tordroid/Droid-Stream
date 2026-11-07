@@ -11,6 +11,7 @@
  * - #KODIPROP and other unknown # lines are skipped.
  * - BOM, CRLF / CR line endings, blank lines, missing attributes.
  */
+import {parseResolution} from './filters';
 
 import {isDrmOption} from '../downloadEngine/recordable';
 
@@ -23,6 +24,8 @@ export interface LiveChannel {
   group?: string;
   tvgId?: string;
   tvgName?: string;
+  /** Picture quality from the name or attributes ("1080p", "4K", "HD"); the name is kept as is. */
+  resolution?: string;
   /** Request headers the stream needs (User-Agent, Referer, Origin). */
   headers?: Record<string, string>;
   /** All attributes from the #EXTINF line, lower-cased keys. */
@@ -175,6 +178,7 @@ export const parseM3U = (input: string): ParsedPlaylist => {
       group: attrs['group-title'] || pending?.group || undefined,
       tvgId,
       tvgName,
+      resolution: parseResolution(name, attrs, tvgId),
       headers: Object.keys(headers).length ? headers : undefined,
       attrs,
       ...(pending?.drm ? {drm: true} : {}),

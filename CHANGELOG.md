@@ -21,6 +21,8 @@ Not released yet. Built and being tested:
   scrobbling that keeps working offline.
 - Live TV guide grid, catch-up, programme reminders, and pause and
   rewind on live channels.
+- Live TV and guide filters for quality and language, with channel
+  counts, quality badges and Reset filters. Kept per source and profile.
 - Profiles with their own history and library, a kids mode and PIN
   locks. Your current data becomes the first profile.
 - A yt-dlp video and audio downloader: share a link from any app, pick

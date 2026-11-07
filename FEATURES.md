@@ -55,6 +55,7 @@ It runs on Android phones, tablets and Android TV.
 - 🧪 Catch-up: replay past programmes where the channel allows it.
 - 🧪 Pause and rewind live channels that keep a buffer, with a "Go live" button.
 - 🧪 Programme reminders.
+- 🧪 Filter channels by quality (4K, 1080p, 720p, SD) and language, with counts; kept per source and profile.
 - 🧪 Record live channels and programmes.
 - 📋 Watch 2 to 4 channels at once.
 
