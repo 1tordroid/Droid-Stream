@@ -284,6 +284,9 @@ const Home = ({navigation}: Props) => {
   const openLiveTV = useCallback(() => {
     (navigation as any).navigate('LiveTV');
   }, [navigation]);
+  const openCalendar = useCallback(() => {
+    (navigation as any).navigate('Calendar');
+  }, [navigation]);
 
   const openAvailableProviders = useCallback(() => {
     (navigation.getParent<any>() ?? (navigation as any)).navigate('SettingsStack', {screen: 'Extensions', initial: false});
@@ -344,6 +347,7 @@ const Home = ({navigation}: Props) => {
                   onClose={closeDrawer}
                   onBrowseProviders={openAvailableProviders}
                   onOpenLiveTV={openLiveTV}
+                  onOpenCalendar={openCalendar}
                 />
               ) : null
             }>
@@ -421,7 +425,7 @@ const Home = ({navigation}: Props) => {
                     height: '100%',
                     backgroundColor: '#121214',
                   }}>
-                  <ProviderDrawer onClose={() => setIsDrawerOpen(false)} onBrowseProviders={openAvailableProviders} onOpenLiveTV={openLiveTV} />
+                  <ProviderDrawer onClose={() => setIsDrawerOpen(false)} onBrowseProviders={openAvailableProviders} onOpenLiveTV={openLiveTV} onOpenCalendar={openCalendar} />
                 </View>
                 <Pressable
                   style={{flex: 1}}

@@ -355,6 +355,12 @@ const Settings = ({navigation}: Props) => {
                   onPress={() => navigation.navigate('Languages')}
                 />
                 <SettingsRow
+                  title="Notifications"
+                  description="New-episode alerts"
+                  icon="bell-outline"
+                  onPress={() => navigation.navigate('NotificationSettings')}
+                />
+                <SettingsRow
                   title="Watch sync"
                   description="Trakt, Simkl, AniList, and AniSkip"
                   icon="sync"

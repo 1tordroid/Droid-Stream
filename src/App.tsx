@@ -17,7 +17,10 @@ import Player from './screens/home/Player';
 import {getInitialVideoIntent, subscribeVideoIntent, setVideoIntentsEnabled, supportsVideoIntents, videoIntentPlayerParams, type VideoIntentPayload} from './lib/services/videoIntent';
 import Settings from './screens/settings/Settings';
 import Library from './screens/Library';
+import Calendar from './screens/Calendar';
+import NotificationSettings from './screens/settings/NotificationSettings';
 import {startSeriesDownloads} from './lib/seriesDownloads/runner';
+import {startCalendarChecks} from './lib/calendar/service';
 import LocalContent from './screens/LocalContent';
 import LocalLibrary from './screens/LocalLibrary';
 import OpenSourceLicenses from './screens/settings/OpenSourceLicenses';
@@ -146,6 +149,7 @@ export type HomeStackParamList = {
   Webview: {link: string};
   LiveTV: undefined;
   LiveGuide: {sourceId: string; group?: string};
+  Calendar: undefined;
 };
 
 export type RootStackParamList = {
@@ -225,6 +229,7 @@ export type WatchListStackParamList = {
   SourceLibrary: {sourceId: string};
   Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}; prefill?: import('./screens/Sources').SourcesParams['prefill']} | undefined;
   Info: {link: string; provider?: string; poster?: string};
+  Calendar: undefined;
 };
 
 export type TorrentsStackParamList = {
@@ -261,6 +266,7 @@ export type SettingsStackParamList = {
   ProfileEdit: {id?: string};
   YtdlSettings: undefined;
   YtdlCookies: undefined;
+  NotificationSettings: undefined;
 };
 
 export type DownloadsStackParamList = {
@@ -322,6 +328,17 @@ export const openDownloadsScreen = (): void => {
     screen: 'SettingsStack',
     params: {screen: 'DownloadsStack'},
   });
+};
+
+let pendingCalendarNavigation = false;
+/** A new-episode alert opens the Calendar. */
+export const openCalendarScreen = (): void => {
+  if (!navigationRef.isReady()) {
+    pendingCalendarNavigation = true;
+    return;
+  }
+  pendingCalendarNavigation = false;
+  navigationRef.navigate('TabStack', {screen: 'HomeStack', params: {screen: 'Calendar'}});
 };
 
 const openTorrentVpnSetting = (): void => {
@@ -472,6 +489,7 @@ function HomeStackScreen() {
       <HomeStack.Screen name="Webview" component={WebView} />
       <HomeStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
       <HomeStack.Screen name="LiveGuide" component={LiveGuide} options={subpageOptions} />
+      <HomeStack.Screen name="Calendar" component={Calendar} options={subpageOptions} />
     </HomeStack.Navigator>
   );
 }
@@ -509,6 +527,7 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />
       <WatchListStack.Screen name="LocalContent" component={LocalContent} />
       <WatchListStack.Screen name="Info" component={Info} />
+      <WatchListStack.Screen name="Calendar" component={Calendar} options={subpageOptions} />
     </WatchListStack.Navigator>
   );
 }
@@ -600,6 +619,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
       <SettingsStack.Screen name="Profiles" component={Profiles} options={subpageOptions} />
+      <SettingsStack.Screen name="NotificationSettings" component={NotificationSettings} options={subpageOptions} />
       <SettingsStack.Screen name="ProfileEdit" component={ProfileEdit} options={subpageOptions} />
       {/* These two place themselves below the status bar. */}
       <SettingsStack.Screen name="YtdlSettings" component={YtdlSettings} />
@@ -682,8 +702,9 @@ const App = () => {
     startYtdlScheduler();
   }, []);
 
-  // Series downloads that keep the next episodes ready.
+  // Series downloads that keep the next episodes ready, and new-episode alerts.
   useEffect(() => startSeriesDownloads(), []);
+  useEffect(() => startCalendarChecks(), []);
 
   // Magnets and links opened from other apps, and copied magnets.
   useEffect(
@@ -854,6 +875,9 @@ const App = () => {
   const handleNavigationReady = useCallback(async () => {
     if (pendingDownloadsNavigation) {
       openDownloadsScreen();
+    }
+    if (pendingCalendarNavigation) {
+      openCalendarScreen();
     }
     // Hide bootsplash
     await BootSplash.hide({fade: true});

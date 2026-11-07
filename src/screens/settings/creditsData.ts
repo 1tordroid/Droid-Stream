@@ -161,6 +161,7 @@ export const CREDIT_SECTIONS: CreditSection[] = [
         logo: 'tmdb',
         links: [web('https://www.themoviedb.org'), {label: 'Terms', url: 'https://www.themoviedb.org/api-terms-of-use'}, docs('https://developer.themoviedb.org')],
       },
+      {name: 'TVmaze', note: 'Episode air dates for the Calendar and new-episode alerts. TVmaze data is licensed CC BY-SA 4.0.', license: 'CC-BY-SA-4.0', links: [web('https://www.tvmaze.com'), docs('https://www.tvmaze.com/api')]},
       {name: 'OMDb API', note: 'Title search results.', links: [web('https://www.omdbapi.com')]},
       {name: 'Jikan', note: 'Anime details from MyAnimeList.', links: [web('https://jikan.moe'), gh('jikan-me/jikan')]},
       {name: 'AniSkip', note: 'Anime intro and outro skip times.', links: [gh('aniskip/aniskip-api')]},

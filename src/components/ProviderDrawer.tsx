@@ -22,6 +22,8 @@ interface ProviderDrawerProps {
   onBrowseProviders?: () => void;
   /** Opens the Live TV screen. */
   onOpenLiveTV?: () => void;
+  /** Opens the new-episode Calendar. */
+  onOpenCalendar?: () => void;
   /** The mobile drawer renders its content while closed. */
   isOpen?: boolean;
   onSelectProvider?: (
@@ -33,6 +35,7 @@ const ProviderDrawer = ({
   onClose,
   onBrowseProviders,
   onOpenLiveTV,
+  onOpenCalendar,
   isOpen = true,
   onSelectProvider,
 }: ProviderDrawerProps) => {
@@ -195,6 +198,33 @@ const ProviderDrawer = ({
               <MaterialCommunityIcons name="television-classic" size={24} color={primary} />
               <Text style={{color: '#FFFFFF', flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10}}>
                 Live TV
+              </Text>
+            </TVFocusable>
+        ) : null}
+        {onOpenCalendar ? (
+            <TVFocusable
+              accessibilityRole="button"
+              accessibilityLabel="Calendar"
+              onPress={() => {
+                onClose();
+                onOpenCalendar();
+              }}
+              borderRadius={12}
+              focusBorderColor={focusBorderColor}
+              style={{
+                alignItems: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: 12,
+                flexDirection: 'row',
+                marginBottom: 8,
+                marginHorizontal: 8,
+                minHeight: 52,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}>
+              <MaterialCommunityIcons name="calendar-month-outline" size={24} color={primary} />
+              <Text style={{color: '#FFFFFF', flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10}}>
+                Calendar
               </Text>
             </TVFocusable>
         ) : null}
