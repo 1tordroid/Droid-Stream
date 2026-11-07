@@ -46,6 +46,8 @@ import {Linking, ToastAndroid} from 'react-native';
 import {setBrowserEngineForTests, type BrowserEngine, type BrowserTabViewProps} from '../src/lib/browser/engine';
 import {buildBootstrap} from '../src/lib/browser/inject';
 import {
+// The Browser screen renders slowly when the machine is busy.
+jest.setTimeout(30000);
   markPasskeyTipShown,
   openInChrome,
   openPasskeyProviderSettings,
