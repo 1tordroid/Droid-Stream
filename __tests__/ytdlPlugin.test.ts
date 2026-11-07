@@ -33,7 +33,8 @@ describe('with-ytdlp plugin', () => {
     expect(once.indexOf('apply plugin: "com.chaquo.python"')).toBeGreaterThan(once.indexOf('com.android.application'));
     expect(once.indexOf('apply plugin: "com.chaquo.python"')).toBeLessThan(once.indexOf('org.jetbrains.kotlin.android'));
     expect(once).toContain('version = "3.11"');
-    expect(once).toContain("implementation 'androidx.javascriptengine:javascriptengine:1.0.0'");
+    expect(once).toContain("implementation 'androidx.javascriptengine:javascriptengine:1.1.1'");
     expect(addAppGradle(once)).toBe(once);
+    expect(addAppGradle(once.replace('javascriptengine:1.1.1', 'javascriptengine:1.0.0'))).toBe(once);
   });
 });

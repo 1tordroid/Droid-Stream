@@ -1,0 +1,54 @@
+name: Torrent engine (libtorrent4j)
+
+# Builds libtorrent4j.so for each shipped ABI with a newer OpenSSL than the
+# published libtorrent4j release has (scripts/build-libtorrent4j.sh, all
+# sources pinned by commit or SHA-256). Run by hand; download the
+# "libtorrent4j" artifact and follow docs/DEVELOPMENT.md (Torrent client)
+# to put the libraries in the app.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: true
+      matrix:
+        abi: [armeabi-v7a, arm64-v8a, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: bash scripts/build-libtorrent4j.sh ${{ matrix.abi }} "$RUNNER_TEMP/out" "$RUNNER_TEMP/work"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libtorrent4j-${{ matrix.abi }}
+          path: ${{ runner.temp }}/out/${{ matrix.abi }}/libtorrent4j.so
+          retention-days: 14
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: libtorrent4j-*
+          path: ${{ runner.temp }}/out
+      - name: Write build.json
+        run: |
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            mv "$RUNNER_TEMP/out/libtorrent4j-$abi" "$RUNNER_TEMP/out/$abi"
+          done
+          bash scripts/build-libtorrent4j.sh manifest "$RUNNER_TEMP/out"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libtorrent4j
+          path: |
+            ${{ runner.temp }}/out/build.json
+            ${{ runner.temp }}/out/*/libtorrent4j.so
+          retention-days: 30

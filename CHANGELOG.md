@@ -140,6 +140,12 @@ Built and being tested:
   10 minutes.
 - On TV the screen stays on only while a video plays, so the TV's own
   screensaver can start while one is paused.
+- Library upgrades: AndroidX WebKit 1.18.0 (browser, passkeys),
+  JavaScript Engine 1.1.1 (the YouTube challenge sandbox; fixes its
+  check for whether the device supports it) and TV Provider 1.1.0
+  (Play Next).
+- The licences page lists libtorrent4j as MIT, with the OpenSSL version
+  inside it.
 
 ## 5.6.1
 

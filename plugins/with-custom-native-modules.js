@@ -262,12 +262,15 @@ allprojects {
       );
     }
 
-    // Play Next on the Android TV home screen (Apache-2.0).
+    // Play Next on the Android TV home screen (Apache-2.0). A project
+    // generated with 1.0.0 is moved up to 1.1.0.
     if (!contents.includes('androidx.tvprovider:tvprovider')) {
       contents = contents.replace(
         /dependencies\s*\{/,
-        match => `${match}\n    implementation 'androidx.tvprovider:tvprovider:1.0.0'\n`,
+        match => `${match}\n    implementation 'androidx.tvprovider:tvprovider:1.1.0'\n`,
       );
+    } else {
+      contents = contents.replace(/androidx\.tvprovider:tvprovider:[0-9.]+/g, 'androidx.tvprovider:tvprovider:1.1.0');
     }
 
     if (!contents.includes('androidx.documentfile:documentfile')) {
