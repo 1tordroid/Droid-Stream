@@ -21,6 +21,40 @@ import SettingsSliderRow from '../../components/ui/SettingsSliderRow';
 import SettingsRow from '../../components/ui/SettingsRow';
 import BufferPreference from './components/BufferPreference';
 import SkipSegmentPreference from './components/SkipSegmentPreference';
+import {
+  DIALOGUE_BOOST_HINT,
+  DIALOGUE_BOOST_OPTIONS,
+  NIGHT_MODE_HINT,
+  NIGHT_MODE_OPTIONS,
+  type AudioEffectOption,
+} from '../../lib/player/audioEffects';
+
+/** A titled dropdown row, laid out like "Default video fit". */
+const ChoiceRow = <T extends string>({title, description, options, value, onChange}: {
+  title: string;
+  description: string;
+  options: AudioEffectOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+}) => {
+  const colors = useM3Colors();
+  return (
+    <View className="px-4 py-3" style={{borderBottomColor: colors.outlineVariant, borderBottomWidth: 1}}>
+      <AppText role="bodyLarge" style={{color: colors.onSurface}}>{title}</AppText>
+      <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 3}}>{description}</AppText>
+      <View style={{width: '100%', minHeight: 56, marginTop: 12}}>
+        <DropdownField
+          placeholder={title}
+          options={options}
+          value={options.find(option => option.value === value)}
+          getKey={option => option.value}
+          getLabel={option => option.label}
+          onChange={option => onChange(option.value)}
+        />
+      </View>
+    </View>
+  );
+};
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'PlayerSettings'>;
 export default function PlayerSettings({navigation}: Props) {
@@ -75,6 +109,13 @@ export default function PlayerSettings({navigation}: Props) {
   const [enableVolumeBoost, setEnableVolumeBoost] = useState(() =>
     settingsStorage.isVolumeBoostEnabled(),
   );
+  const [nightMode, setNightMode] = useState(() => settingsStorage.getNightMode());
+  const [dialogueBoost, setDialogueBoost] = useState(() => settingsStorage.getDialogueBoost());
+  // The player menu changes these too, so read them again on return.
+  useFocusEffect(useCallback(() => {
+    setNightMode(settingsStorage.getNightMode());
+    setDialogueBoost(settingsStorage.getDialogueBoost());
+  }, []));
 
   const [openVideosFromOtherApps, setOpenVideosFromOtherApps] = useState(() =>
     settingsStorage.isOpenVideosFromOtherAppsEnabled(),
@@ -377,6 +418,14 @@ export default function PlayerSettings({navigation}: Props) {
                 setEnableVolumeBoost(next);
               }}
             />
+            {Platform.OS === 'android' && <>
+              <ChoiceRow title="Night mode" description={`${NIGHT_MODE_HINT}. Built-in player and VLC.`}
+                options={NIGHT_MODE_OPTIONS} value={nightMode}
+                onChange={next => {settingsStorage.setNightMode(next); setNightMode(next);}} />
+              <ChoiceRow title="Dialogue boost" description={`${DIALOGUE_BOOST_HINT}. Built-in player.`}
+                options={DIALOGUE_BOOST_OPTIONS} value={dialogueBoost}
+                onChange={next => {settingsStorage.setDialogueBoost(next); setDialogueBoost(next);}} />
+            </>}
             <SettingsSwitchRow
               title="Download full torrent"
               description={
