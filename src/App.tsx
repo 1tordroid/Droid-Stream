@@ -45,6 +45,7 @@ import useProfilesStore from './lib/profiles/useProfiles';
 import YtdlDownload from './screens/ytdl/YtdlDownload';
 import YtdlSettings from './screens/ytdl/YtdlSettings';
 import YtdlCookies from './screens/ytdl/YtdlCookies';
+import SocialDownload from './screens/social/SocialDownload';
 import {startYtdlScheduler} from './lib/ytdl/queue';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
@@ -184,6 +185,8 @@ export type RootStackParamList = {
   };
   /** The yt-dlp Download sheet, from Share or from Downloads. */
   YtdlDownload: {url?: string} | undefined;
+  /** Photos, carousels, stories and songs from a social post. */
+  SocialDownload: {url: string};
 };
 
 export type SearchStackParamList = {
@@ -881,6 +884,11 @@ const App = () => {
                   <Stack.Screen
                     name="YtdlDownload"
                     component={YtdlDownload}
+                    options={{animation: 'slide_from_bottom'}}
+                  />
+                  <Stack.Screen
+                    name="SocialDownload"
+                    component={SocialDownload}
                     options={{animation: 'slide_from_bottom'}}
                   />
                 </Stack.Navigator>

@@ -41,6 +41,10 @@ Not released yet. Built and being tested:
   through ByeDPI or Cloudflare WARP, only for those sites, and debrid
   stays direct. Always ByeDPI, Always WARP and Off are still there.
 - Update download notifications no longer vibrate every second.
+- Save photos from Instagram, Facebook, X, Threads, Pinterest, Reddit
+  and Tumblr posts: carousels, stories, highlights, profile pictures and
+  a profile's latest posts, and Instagram photos with their song as a
+  photo, a song file or a video.
 
 Being built:
 

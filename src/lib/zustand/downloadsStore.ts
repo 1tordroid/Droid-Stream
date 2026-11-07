@@ -14,6 +14,7 @@ import {
 } from '../storage/DownloadsStorage';
 import type {SkipInterval} from '../providers/types';
 import type {YtdlJobSpec} from '../ytdl/types';
+import type {SocialVideoJob} from '../social/types';
 
 export const DOWNLOADS_STORAGE_KEY = 'vega-downloads-storage';
 export const DOWNLOADS_SCHEMA_VERSION = 1;
@@ -31,7 +32,7 @@ export type DownloadStatus =
   | 'missing'
   | 'canceling';
 
-export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'ytdlp' | 'dash' | 'live' | 'ftp' | 'ed2k';
+export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'ytdlp' | 'dash' | 'live' | 'ftp' | 'ed2k' | 'social';
 
 export interface DownloadSubtitle {
   url: string;
@@ -46,6 +47,8 @@ export interface DownloadItem {
   showName?: string;
   episodeName?: string;
   seasonTitle?: string;
+  /** A folder inside the season folder (social downloads: the author). */
+  subFolder?: string;
   episodeIndex?: number;
   type: 'movie' | 'series';
   imdbId?: string;
@@ -88,6 +91,8 @@ export interface DownloadItem {
   skip?: SkipInterval[];
   /** yt-dlp options and state, for downloads of web pages. */
   ytdl?: YtdlJobSpec;
+  /** Photos and song for a "photo with song" video. */
+  social?: SocialVideoJob;
 }
 
 export type DownloadMediaInput = Pick<

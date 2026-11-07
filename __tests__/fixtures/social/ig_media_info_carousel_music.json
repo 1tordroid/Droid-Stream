@@ -1,0 +1,75 @@
+{
+  "num_results": 1,
+  "status": "ok",
+  "items": [
+    {
+      "pk": "3300000000000000001",
+      "id": "3300000000000000001_123456",
+      "code": "C3xYzAbCdEf",
+      "media_type": 8,
+      "taken_at": 1730000000,
+      "user": {"pk": "123456", "username": "sample.user", "full_name": "Sample User"},
+      "caption": {"text": "Weekend by the sea\nSecond line"},
+      "carousel_media": [
+        {
+          "pk": "3300000000000000011",
+          "media_type": 1,
+          "original_width": 1440,
+          "original_height": 1800,
+          "image_versions2": {
+            "candidates": [
+              {"width": 640, "height": 800, "url": "https://scontent.cdninstagram.com/v/t51/slide1_640.jpg?stp=dst-jpg_e35_p640x640&_nc_ht=x"},
+              {"width": 1440, "height": 1800, "url": "https://scontent.cdninstagram.com/v/t51/slide1_1440.jpg?_nc_ht=x"},
+              {"width": 1080, "height": 1350, "url": "https://scontent.cdninstagram.com/v/t51/slide1_1080.jpg?_nc_ht=x"},
+              {"width": 320, "height": 400, "url": "https://scontent.cdninstagram.com/v/t51/slide1_320.jpg?_nc_ht=x"}
+            ]
+          }
+        },
+        {
+          "pk": "3300000000000000012",
+          "media_type": 2,
+          "image_versions2": {
+            "candidates": [
+              {"width": 1080, "height": 1350, "url": "https://scontent.cdninstagram.com/v/t51/slide2_cover_1080.jpg"},
+              {"width": 480, "height": 600, "url": "https://scontent.cdninstagram.com/v/t51/slide2_cover_480.jpg"}
+            ]
+          },
+          "video_versions": [
+            {"type": 101, "width": 720, "height": 900, "url": "https://scontent.cdninstagram.com/o1/v/t16/slide2_720.mp4"},
+            {"type": 102, "width": 1080, "height": 1350, "url": "https://scontent.cdninstagram.com/o1/v/t16/slide2_1080.mp4"}
+          ]
+        },
+        {
+          "pk": "3300000000000000013",
+          "media_type": 1,
+          "image_versions2": {
+            "candidates": [
+              {"width": 1080, "height": 1350, "url": "https://scontent.cdninstagram.com/v/t51/slide3_1080.webp?_nc_ht=x"},
+              {"width": 640, "height": 800, "url": "https://scontent.cdninstagram.com/v/t51/slide3_640.webp?_nc_ht=x"}
+            ]
+          }
+        }
+      ],
+      "music_metadata": {
+        "music_canonical_id": "18000000000000000",
+        "audio_type": "licensed_music",
+        "music_info": {
+          "music_asset_info": {
+            "id": "555",
+            "title": "Ocean Song",
+            "display_artist": "The Band",
+            "duration_in_ms": 182000,
+            "progressive_download_url": "https://scontent.cdninstagram.com/v/t39/ocean_song.mp4?_nc_ht=x",
+            "fast_start_progressive_download_url": "https://scontent.cdninstagram.com/v/t39/ocean_song_fast.mp4",
+            "highlight_start_times_in_ms": [45000]
+          },
+          "music_consumption_info": {
+            "should_mute_audio": false,
+            "audio_asset_start_time_in_ms": 45000,
+            "overlap_duration_in_ms": 15000
+          }
+        }
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import {liveDownloadBackend} from './liveBackend';
 import {torrentDownloadBackend} from './torrentBackend';
 import type {DownloadBackend} from './types';
 import {ytdlpDownloadBackend} from './ytdlpBackend';
+import {socialDownloadBackend} from '../social/backend';
 
 const backends: Record<DownloadSourceType, DownloadBackend> = {
   http: httpDownloadBackend,
@@ -18,6 +19,7 @@ const backends: Record<DownloadSourceType, DownloadBackend> = {
   live: liveDownloadBackend,
   ftp: ftpDownloadBackend,
   ed2k: ed2kDownloadBackend,
+  social: socialDownloadBackend,
 };
 
 export const getDownloadBackend = (

@@ -1,7 +1,6 @@
 import {deleteDownloadOutput} from '../../../lib/downloadDestination';
 import {
-  createDownloadDirectoryName,
-  createDownloadSeasonDirectoryName,
+  getDownloadDirectoryNames,
 } from '../../../lib/downloadId';
 import type {DownloadedMediaGroup} from '../../../lib/downloadLibrary';
 import useDownloadsStore from '../../../lib/zustand/downloadsStore';
@@ -26,12 +25,7 @@ export const deleteDownloadedMediaGroups = async (
         if (subItem.filePath) {
           await deleteDownloadOutput(subItem.filePath, {
             downloadLocation: subItem.downloadLocation,
-            outputDirectoryNames: [
-              createDownloadDirectoryName(subItem.showName || subItem.title),
-              ...[createDownloadSeasonDirectoryName(subItem.seasonTitle)].filter(
-                (name): name is string => Boolean(name),
-              ),
-            ],
+            outputDirectoryNames: getDownloadDirectoryNames(subItem),
           }).catch(() => undefined);
         }
         removeDownload(subItem.id);
@@ -40,12 +34,7 @@ export const deleteDownloadedMediaGroups = async (
       if (item.filePath) {
         await deleteDownloadOutput(item.filePath, {
           downloadLocation: item.downloadLocation,
-          outputDirectoryNames: [
-            createDownloadDirectoryName(item.showName || item.title),
-            ...[createDownloadSeasonDirectoryName(item.seasonTitle)].filter(
-              (name): name is string => Boolean(name),
-            ),
-          ],
+          outputDirectoryNames: getDownloadDirectoryNames(item),
         }).catch(() => undefined);
       }
       removeDownload(item.id);

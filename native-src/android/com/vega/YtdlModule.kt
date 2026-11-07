@@ -125,7 +125,7 @@ class YtdlModule(private val reactContext: ReactApplicationContext) :
 
 class YtdlPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(YtdlModule(reactContext))
+        listOf(YtdlModule(reactContext), SocialMediaModule(reactContext))
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
         emptyList()

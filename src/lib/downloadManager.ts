@@ -23,8 +23,7 @@ import {
 } from './downloadBackends/types';
 import {settingsStorage} from './storage';
 import {
-  createDownloadDirectoryName,
-  createDownloadSeasonDirectoryName,
+  getDownloadDirectoryNames,
 } from './downloadId';
 import {getCachedImageAccent} from './imageAccent';
 import {mixHex} from '../theme/seeds';
@@ -235,12 +234,8 @@ const getRecord = (downloadId: string): DownloadItem => {
 const getOutputName = (record: DownloadItem): string =>
   record.displayFileName?.replace(/\.[^.]+$/, '') || record.title;
 
-const getOutputDirectoryNames = (record: DownloadItem): string[] => [
-  createDownloadDirectoryName(record.showName || record.title),
-  ...[createDownloadSeasonDirectoryName(record.seasonTitle)].filter(
-    (name): name is string => Boolean(name),
-  ),
-];
+const getOutputDirectoryNames = (record: DownloadItem): string[] =>
+  getDownloadDirectoryNames(record);
 
 const getQueuedDownloads = (now = Date.now()): DownloadItem[] =>
   withoutScheduledLater(

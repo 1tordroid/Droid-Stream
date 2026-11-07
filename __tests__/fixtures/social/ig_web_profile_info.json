@@ -1,0 +1,39 @@
+{
+  "data": {
+    "user": {
+      "id": "123456",
+      "username": "sample.user",
+      "full_name": "Sample User",
+      "is_private": false,
+      "profile_pic_url": "https://scontent.cdninstagram.com/v/t51/profile_150.jpg",
+      "profile_pic_url_hd": "https://scontent.cdninstagram.com/v/t51/profile_320.jpg",
+      "edge_owner_to_timeline_media": {
+        "count": 40,
+        "page_info": {"has_next_page": true, "end_cursor": "QVFB"},
+        "edges": [
+          {
+            "node": {
+              "__typename": "GraphImage",
+              "id": "4001",
+              "shortcode": "GridOne1111",
+              "dimensions": {"height": 1080, "width": 1080},
+              "display_url": "https://scontent.cdninstagram.com/v/t51/grid1.jpg",
+              "is_video": false
+            }
+          },
+          {
+            "node": {
+              "__typename": "GraphVideo",
+              "id": "4002",
+              "shortcode": "GridTwo2222",
+              "dimensions": {"height": 1920, "width": 1080},
+              "display_url": "https://scontent.cdninstagram.com/v/t51/grid2_cover.jpg",
+              "is_video": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "status": "ok"
+}
