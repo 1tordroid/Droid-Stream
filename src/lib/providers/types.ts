@@ -52,6 +52,8 @@ export interface Stream {
   subtitles?: TextTracks;
   headers?: any;
   skip?: SkipInterval[];
+  /** Licence details for a protected stream, passed to the player's standard drm source (Live TV). */
+  drm?: {type?: string; licenseServer?: string; headers?: Record<string, string>};
 }
 
 // getInfo

@@ -75,7 +75,7 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
         <Row label="Saved titles" title="Saved" description="Titles you saved from providers." icon="bookmark-outline" onPress={() => navigation.navigate('WatchList')} />
         <Row label="Videos on this device" title="On this device" description="Poster grid for videos in a folder you pick." icon="cellphone" onPress={() => navigation.navigate('LocalLibrary')} />
         <Row label="Cloud and debrid files" title="Cloud files" description="Play or save files from PikPak, TorBox, Real-Debrid and others." icon="cloud-check-outline" onPress={() => navigation.navigate('CloudFiles')} />
-        <Row label="Live TV" title="Live TV" description="Free Indian channels, JioTV Go and your IPTV playlists." icon="television-classic" onPress={() => navigation.navigate('LiveTV')} />
+        <Row label="Live TV" title="Live TV" description="Free Indian channels, JioTV with your Jio number, JioTV Go and your IPTV playlists." icon="television-classic" onPress={() => navigation.navigate('LiveTV')} />
       </View>
 
       <AppText role="titleMedium" style={{color: colors.onSurface, marginTop: 16, marginBottom: 8}}>Your sources</AppText>

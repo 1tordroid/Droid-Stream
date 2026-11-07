@@ -48,6 +48,7 @@ import {
   ResizeMode,
   SelectedTrackType,
   BufferingStrategyType,
+  type Drm,
 } from 'react-native-video';
 import useContentStore from '../../lib/zustand/contentStore';
 import GoogleCast, {
@@ -1244,8 +1245,10 @@ const Player = ({route}: Props): React.JSX.Element => {
   const canCastStream = useMemo(
     () =>
       !Platform.isTV &&
+      // A licence-protected stream plays only in this player.
+      !selectedStream?.drm &&
       isCastableStreamUrl(processedStreamUrl, selectedStream?.type),
-    [processedStreamUrl, selectedStream?.type],
+    [processedStreamUrl, selectedStream?.type, selectedStream?.drm],
   );
   const isLocalOrDownloadedStream = useMemo(
     () =>
@@ -2815,6 +2818,8 @@ const Player = ({route}: Props): React.JSX.Element => {
         ...(selectedStream?.type === 'm3u8' && {type: 'm3u8'}),
         ...(selectedStream?.type === 'mpd' && {type: 'mpd'}),
         headers: selectedStream?.headers,
+        // Protected Live TV channels: the standard Widevine source, as issued.
+        ...(selectedStream?.drm && {drm: selectedStream.drm as Drm}),
         metadata: {
           title: route.params?.primaryTitle,
           subtitle: activeEpisode?.title,
@@ -2886,6 +2891,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       selectedStream.link,
       selectedStream.type,
       selectedStream.headers,
+      selectedStream.drm,
       activeEpisode?.title,
       handleProgressWithTime,
       combinedSkips,

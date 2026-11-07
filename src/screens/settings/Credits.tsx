@@ -22,6 +22,7 @@ const SECTIONS: {title: string; intro: string; items: Credit[]}[] = [
       {name: 'smbj', note: 'SMB network shares.', url: 'https://github.com/hierynomus/smbj'},
       {name: 'cheerio', note: 'Reads torrent site pages.', url: 'https://github.com/cheeriojs/cheerio'},
       {name: 'Inter by Rasmus Andersson', note: 'App font, SIL Open Font License.', url: 'https://github.com/rsms/inter'},
+      {name: 'JioTV Go by the jiotv-go project', note: 'Parts of its sign-in and channel logic are adapted for the JioTV source in Live TV (Sign in with Jio, token renewal, channel list and stream requests), and Live TV can also load the playlist from your own JioTV Go server. Licensed CC BY 4.0. Not affiliated with Jio.', url: 'https://github.com/jiotv-go/jiotv_go'},
     ],
   },
   {
@@ -34,7 +35,6 @@ const SECTIONS: {title: string; intro: string; items: Credit[]}[] = [
       {name: 'OpenSubtitles', note: 'Subtitle matching.', url: 'https://www.opensubtitles.com'},
       {name: 'Trakt, Simkl and AniList', note: 'Watch history sync.', url: 'https://trakt.tv'},
       {name: 'iptv-org', note: 'Public list of free-to-air channels behind the Free Indian channels source in Live TV.', url: 'https://github.com/iptv-org/iptv'},
-      {name: 'JioTV Go by the jiotv-go project', note: 'Live TV can load the playlist from your own JioTV Go server. Licensed CC BY 4.0. Not affiliated with Jio.', url: 'https://github.com/jiotv-go/jiotv_go'},
     ],
   },
   {

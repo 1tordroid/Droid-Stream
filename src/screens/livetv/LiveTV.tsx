@@ -10,6 +10,8 @@ import AppText, {RawTextInput as TextInput} from '../../components/ui/Text';
 import {isTV} from '../../lib/tv';
 import {canLoadEpg, loadNowNext, type NowNext} from '../../lib/livetv/epg';
 import {channelGroups, filterChannels, type LiveChannel} from '../../lib/livetv/m3u';
+import {JIO_SOURCE_ID, getJioStream, jioChannelId, loadJioChannels} from '../../lib/livetv/jio/channels';
+import {jioSignedInNumber, sendOtp, signOutJio, verifyOtp} from '../../lib/livetv/jio/session';
 import {
   addPlaylist,
   getJioServer,
@@ -36,11 +38,31 @@ type GridChannel = (LiveChannel | SavedChannel) & {sourceId: string};
 
 const IPTV_ORG_NOTE = 'Publicly listed free-to-air channels from iptv-org. Availability varies and some streams may not play.';
 const JIOTV_NOTE = 'jiotv_go runs on your PC or phone (Termux) and signs in with your own Jio number. Enter its address here.';
+const JIO_NOTE = 'Sign in with your Jio mobile number to watch JioTV channels here. Droid Stream is not affiliated with Jio.';
 const QUALITIES: JioQuality[] = ['auto', 'low', 'medium', 'high'];
 
 const streamType = (url: string) => (/\.mp4(\?|$)/i.test(url) ? 'mp4' : 'm3u8');
 
-export const openChannel = (navigation: any, channel: GridChannel, sourceName: string) => {
+/** JioTV addresses expire within hours, so a Jio channel asks for a fresh one each time it opens. */
+const openJioChannel = async (navigation: any, channel: GridChannel, id: string) => {
+  const stream = await getJioStream(id);
+  pushRecent(channel, channel.sourceId);
+  navigation.navigate('Player', {
+    linkIndex: 0,
+    // The placeholder address keeps the short-lived token out of history and logs.
+    episodeList: [{title: channel.name, link: channel.url}],
+    type: 'movie',
+    primaryTitle: channel.name,
+    secondaryTitle: channel.group || 'JioTV',
+    poster: channel.logo ? {logo: channel.logo, poster: channel.logo} : {},
+    initialStream: {server: 'JioTV', link: stream.url, type: stream.type, headers: stream.headers, ...(stream.drm ? {drm: stream.drm} : {})},
+    live: true,
+  });
+};
+
+export const openChannel = (navigation: any, channel: GridChannel, sourceName: string): Promise<void> | void => {
+  const jioId = jioChannelId(channel.url);
+  if (jioId) return openJioChannel(navigation, channel, jioId);
   pushRecent(channel, channel.sourceId);
   navigation.navigate('Player', {
     linkIndex: 0,
@@ -73,12 +95,13 @@ const useNowNext = (epgUrl: string | undefined, channels: GridChannel[]) => {
   return guide;
 };
 
-const ChannelTile = ({channel, width, favourite, now, preferred, onPress, onLongPress}: {
+const ChannelTile = ({channel, width, favourite, now, preferred, busy, onPress, onLongPress}: {
   channel: GridChannel;
   width: number;
   favourite: boolean;
   now?: string;
   preferred: boolean;
+  busy?: boolean;
   onPress: () => void;
   onLongPress: () => void;
 }) => {
@@ -100,6 +123,7 @@ const ChannelTile = ({channel, width, favourite, now, preferred, onPress, onLong
         ) : (
           <MaterialCommunityIcons name="television-classic" size={30} color={colors.onSurfaceVariant} />
         )}
+        {busy ? <ActivityIndicator color={colors.primary} style={{position: 'absolute'}} /> : null}
         {favourite ? (
           <MaterialCommunityIcons name="star" size={16} color={colors.primary} style={{position: 'absolute', top: 4, right: 4}} />
         ) : null}
@@ -133,14 +157,42 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   const [playlistUrl, setPlaylistUrl] = useState('');
   const urlRef = useRef<TextInputInstance>(null);
 
+  // Sign in with Jio.
+  const [jioNumber, setJioNumber] = useState(() => jioSignedInNumber());
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [jioBusy, setJioBusy] = useState(false);
+  const [jioError, setJioError] = useState('');
+  const [opening, setOpening] = useState<string | undefined>();
+  const otpRef = useRef<TextInputInstance>(null);
+
   const source = sources.find(item => item.id === view);
-  const sourceName = (id: string) => sources.find(item => item.id === id)?.name || 'Live TV';
+  const sourceName = (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : sources.find(item => item.id === id)?.name || 'Live TV');
 
   useFocusEffect(useCallback(() => setFavourites(listFavourites()), []));
 
   useEffect(() => {
     setGroup(undefined);
     setError('');
+    if (view === JIO_SOURCE_ID) {
+      setEpgUrl(undefined);
+      setChannels([]);
+      if (!jioNumber) return;
+      let alive = true;
+      setLoading(true);
+      loadJioChannels({force: reload > 0})
+        .then(list => alive && setChannels(list.map(channel => ({...channel, sourceId: JIO_SOURCE_ID}))))
+        .catch(err => {
+          if (!alive) return;
+          if (err?.name === 'JioAuthError') setJioNumber(undefined);
+          setError(err?.message || 'Could not load JioTV channels.');
+        })
+        .finally(() => alive && setLoading(false));
+      return () => {
+        alive = false;
+      };
+    }
     if (view === 'favourites' || view === 'recent') {
       setEpgUrl(undefined);
       setChannels(view === 'favourites' ? listFavourites() : listRecent());
@@ -162,7 +214,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     return () => {
       alive = false;
     };
-  }, [view, source?.id, source?.url, reload]);
+  }, [view, source?.id, source?.url, reload, jioNumber]);
 
   const groups = useMemo(() => channelGroups(channels), [channels]);
   const shown = useMemo(() => filterChannels(channels, query, group), [channels, query, group]);
@@ -177,6 +229,56 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     setFavourites(listFavourites());
     if (view === 'favourites') setChannels(listFavourites());
     ToastAndroid.show(added ? `${channel.name} added to favourites` : `${channel.name} removed from favourites`, ToastAndroid.SHORT);
+  };
+
+  const runJio = async (step: () => Promise<void>) => {
+    if (jioBusy) return;
+    setJioBusy(true);
+    setJioError('');
+    try {
+      await step();
+    } catch (err: any) {
+      setJioError(err?.message || 'Something went wrong. Try again.');
+    } finally {
+      setJioBusy(false);
+    }
+  };
+
+  const onSendOtp = () =>
+    runJio(async () => {
+      await sendOtp(phone);
+      setOtp('');
+      setOtpSent(true);
+      setTimeout(() => otpRef.current?.focus(), 50);
+    });
+
+  const onVerifyOtp = () =>
+    runJio(async () => {
+      const session = await verifyOtp(phone, otp);
+      setOtp('');
+      setPhone('');
+      setOtpSent(false);
+      setJioNumber(session.number);
+    });
+
+  const onSignOutJio = async () => {
+    await signOutJio();
+    setJioNumber(undefined);
+    setChannels([]);
+    setOtpSent(false);
+  };
+
+  const onPlay = (channel: GridChannel) => {
+    if (opening) return;
+    const result = openChannel(navigation, channel, sourceName(channel.sourceId));
+    if (!result) return;
+    setOpening(channel.id);
+    result
+      .catch((err: any) => {
+        if (err?.name === 'JioAuthError') setJioNumber(undefined);
+        ToastAndroid.show(err?.message || 'Could not open this channel.', ToastAndroid.LONG);
+      })
+      .finally(() => setOpening(undefined));
   };
 
   const saveJio = () => {
@@ -223,6 +325,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             onLongPress={item.kind === 'jiotv' ? () => setMode('jiotv') : undefined}
           />
         ))}
+        <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />
         <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />
         <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />
       </ScrollView>
@@ -258,6 +361,77 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             <Button onPress={saveJio} accessibilityLabel="Save server">Save</Button>
             {jio ? <Button variant="outlined" onPress={() => { setAddress(''); setJioServer(''); setSources(listSources()); setMode('grid'); setView('iptv-org'); }} accessibilityLabel="Remove server">Remove</Button> : null}
           </View>
+        </KeyboardForm>
+      </View>
+    );
+  }
+
+  if (mode === 'grid' && view === JIO_SOURCE_ID && !jioNumber) {
+    return (
+      <View style={{flex: 1, backgroundColor: colors.background}}>
+        {header}
+        <KeyboardForm contentContainerStyle={{paddingHorizontal: isTV ? 40 : 12, paddingBottom: 96}}>
+          <AppText role="titleMedium" style={{color: colors.onSurface}}>Sign in with Jio</AppText>
+          <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 4}}>{JIO_NOTE}</AppText>
+          <AppText role="labelLarge" style={{color: colors.onSurface, marginTop: 16}}>Jio mobile number</AppText>
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+            <AppText role="bodyLarge" style={{color: colors.onSurfaceVariant, marginTop: 8}}>+91</AppText>
+            <TextInput
+              value={phone}
+              onChangeText={value => {
+                setPhone(value);
+                if (otpSent) setOtpSent(false);
+              }}
+              placeholder="98765 43210"
+              placeholderTextColor={colors.onSurfaceVariant}
+              accessibilityLabel="Jio mobile number"
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              maxLength={16}
+              returnKeyType={otpSent ? 'next' : 'go'}
+              submitBehavior={otpSent ? 'submit' : undefined}
+              onSubmitEditing={() => (otpSent ? otpRef.current?.focus() : onSendOtp())}
+              editable={!jioBusy}
+              style={[inputStyle, {flex: 1}]}
+            />
+          </View>
+          {otpSent ? (
+            <>
+              <AppText role="labelLarge" style={{color: colors.onSurface, marginTop: 16}}>Code from the SMS</AppText>
+              <TextInput
+                ref={otpRef}
+                value={otp}
+                onChangeText={setOtp}
+                placeholder="6-digit code"
+                placeholderTextColor={colors.onSurfaceVariant}
+                accessibilityLabel="SMS code"
+                keyboardType="number-pad"
+                autoComplete="sms-otp"
+                textContentType="oneTimeCode"
+                maxLength={8}
+                returnKeyType="go"
+                onSubmitEditing={onVerifyOtp}
+                editable={!jioBusy}
+                style={inputStyle}
+              />
+            </>
+          ) : null}
+          {jioError ? <AppText role="bodyMedium" accessibilityLiveRegion="polite" style={{color: colors.error, marginTop: 12}}>{jioError}</AppText> : null}
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20}}>
+            {otpSent ? (
+              <>
+                <Button onPress={onVerifyOtp} accessibilityLabel="Verify code">Verify</Button>
+                <Button variant="outlined" onPress={onSendOtp} accessibilityLabel="Send a new code">Send again</Button>
+              </>
+            ) : (
+              <Button onPress={onSendOtp} accessibilityLabel="Send OTP">Send OTP</Button>
+            )}
+            {jioBusy ? <ActivityIndicator color={colors.primary} /> : null}
+          </View>
+          <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 16}}>
+            JioTV texts a code to this number. The sign-in stays encrypted on this device and is never backed up. Free channels work without signing in.
+          </AppText>
         </KeyboardForm>
       </View>
     );
@@ -313,6 +487,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     );
   }
 
+  const isJio = view === JIO_SOURCE_ID;
   const note = source?.kind === 'iptv-org' ? IPTV_ORG_NOTE : source?.kind === 'jiotv' ? JIOTV_NOTE : undefined;
   const empty = view === 'favourites'
     ? 'No favourites yet. Long-press a channel to add it.'
@@ -338,10 +513,16 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             {header}
             <View style={{paddingHorizontal: isTV ? 40 : 12}}>
               {note ? <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>{note}</AppText> : null}
+              {isJio && jioNumber ? (
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8}}>
+                  <AppText role="bodyMedium" style={{flex: 1, color: colors.onSurfaceVariant}}>Signed in as {jioNumber}</AppText>
+                  <Button variant="outlined" onPress={onSignOutJio} accessibilityLabel="Sign out of Jio">Sign out</Button>
+                </View>
+              ) : null}
               <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 48, paddingHorizontal: 16}}>
                 <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
                 <TextInput value={query} onChangeText={setQuery} placeholder="Search channels" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search channels" returnKeyType="search" style={{flex: 1, color: colors.onSurface, marginLeft: 8, fontSize: 16}} />
-                {source ? (
+                {source || isJio ? (
                   <TVFocusable accessibilityRole="button" accessibilityLabel="Reload playlist" onPress={() => setReload(value => value + 1)} borderRadius={20} style={{padding: 6}}>
                     <MaterialCommunityIcons name="refresh" size={22} color={colors.onSurfaceVariant} />
                   </TVFocusable>
@@ -367,7 +548,8 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             favourite={favouriteKeys.has(`${item.sourceId}|${item.id}`)}
             now={item.tvgId ? guide.get(item.tvgId)?.now?.title : undefined}
             preferred={index === 0}
-            onPress={() => openChannel(navigation, item, sourceName(item.sourceId))}
+            busy={opening === item.id}
+            onPress={() => onPlay(item)}
             onLongPress={() => onToggleFavourite(item)}
           />
         )}
