@@ -216,6 +216,9 @@ const Hero = memo(
     const profileCount = useProfilesStore(state => state.profiles.length);
     const profileName = useProfilesStore(state => state.profiles.find(item => item.id === state.activeId)?.name);
     const openProfilePicker = useProfilesStore(state => state.openPicker);
+    const kidsProfile = useProfilesStore(state => state.kids);
+    // The browser has a phone button here; on TV it opens from Search and Downloads.
+    const showBrowser = !isTV && !kidsProfile;
     const watchNowRef = useRef<HostInstance>(null);
 
     const [hamburgerNode, setHamburgerNode] = useState<number | null>(null);
@@ -605,7 +608,15 @@ const Hero = memo(
               onPress={onOpenDrawer}
             />
             {/* Keeps search and the profile button together on the right. */}
-            {profileCount > 1 ? <View pointerEvents="none" style={{flex: 1}} /> : null}
+            {profileCount > 1 || showBrowser ? <View pointerEvents="none" style={{flex: 1}} /> : null}
+            {showBrowser ? (
+              <HeroTopButton
+                icon="web"
+                iconColor={searchButtonColor}
+                label="Browser"
+                onPress={() => (navigation.navigate as (screen: string) => void)('Browser')}
+              />
+            ) : null}
             <HeroTopButton
               ref={searchRef}
               onLayout={updateSearchNode}

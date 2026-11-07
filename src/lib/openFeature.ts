@@ -8,6 +8,10 @@ export const openFeature = (entry: FeatureEntry): void => {
   if (entry.advanced) revealFeature(entry.id);
   const {navigationRef} = require('../App') as typeof import('../App');
   if (!navigationRef.isReady()) return;
+  if (entry.route.root) {
+    (navigationRef.navigate as (name: string) => void)(entry.route.root);
+    return;
+  }
   const params = {...(entry.route.params || {}), highlight: entry.id};
   navigationRef.navigate('TabStack', {
     screen: entry.route.tab,

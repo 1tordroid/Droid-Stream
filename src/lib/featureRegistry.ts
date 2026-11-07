@@ -2,6 +2,8 @@ export interface FeatureRoute {
   tab: 'HomeStack' | 'SearchStack' | 'TorrentsStack' | 'WatchListStack' | 'SettingsStack';
   screen?: string;
   params?: Record<string, string>;
+  /** A full-screen page outside the tabs (the browser); opened instead of the tab. */
+  root?: string;
 }
 
 export interface FeatureEntry {
@@ -68,6 +70,9 @@ export const FEATURES: FeatureEntry[] = [
   {id: 'support', title: 'Telegram support', keywords: ['telegram support', 'support', 'tordroid', 'help'], category: 'Settings', subtitle: 'Message Tordroid', icon: 'send', route: {tab: 'SettingsStack', screen: 'About'}},
   {id: 'credits', title: 'Credits', keywords: ['credits', 'thanks', 'vega', 'stremio', 'cloudstream', 'nuvio'], category: 'Settings', subtitle: 'Projects behind Droid Stream', icon: 'heart-outline', route: {tab: 'SettingsStack', screen: 'Credits'}},
   {id: 'video-downloader', title: 'Video downloader', keywords: ['yt-dlp', 'ytdlp', 'youtube-dl', 'youtube download', 'download video', 'download from link', 'instagram', 'twitter', 'x.com', 'tiktok', 'mp3', 'audio', 'sponsorblock', 'cookies', 'playlist'], category: 'Settings', subtitle: 'yt-dlp version, updates, formats and cookies', icon: 'youtube', route: {tab: 'SettingsStack', screen: 'YtdlSettings'}},
+  {id: 'browser', title: 'Browser', keywords: ['web', 'browser', 'internet', 'website', 'tabs', 'private tab', 'incognito', 'bookmarks', 'desktop site', 'site shortcuts', 'media on page', 'download from website'], category: 'Browse', subtitle: 'Browse sites and save their videos, audio and images', icon: 'web', route: {tab: 'HomeStack', root: 'Browser'}},
+  {id: 'browser-settings', title: 'Browser settings', keywords: ['ad blocker', 'adblock', 'block ads', 'ublock', 'easylist', 'filter list', 'trackers', 'userscript', 'tampermonkey', 'greasemonkey', 'search engine', 'duckduckgo', 'dark pages', 'desktop mode', 'mobile site'], category: 'Browse', subtitle: 'Search engine, layout, ad blocker and userscripts', icon: 'web-box', route: {tab: 'HomeStack', root: 'BrowserSettings'}},
+  {id: 'browser-passwords', title: 'Browser passwords', keywords: ['passwords', 'saved passwords', 'logins', 'sign in', 'autofill', 'passkeys', 'password manager'], category: 'Browse', subtitle: 'Saved sign-ins, locked with your screen lock', icon: 'key-variant', route: {tab: 'HomeStack', root: 'BrowserPasswords'}},
   {id: 'licenses', title: 'Open-source licenses', keywords: ['license', 'libtorrent', 'vlc', 'notice'], category: 'Settings', subtitle: 'Third-party licenses', icon: 'scale-balance', route: {tab: 'SettingsStack', screen: 'OpenSourceLicenses'}},
   {id: 'data', title: 'Data management', keywords: ['backup', 'cache', 'sync', 'watch progress'], category: 'Settings', subtitle: 'Backups, cache, and sync', icon: 'database', route: {tab: 'SettingsStack', screen: 'DataManagement'}},
 ];

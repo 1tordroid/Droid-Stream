@@ -156,6 +156,20 @@ Written for Droid Stream; nothing comes from the GPL YTDLnis or youtubedl-androi
 - Screens: `screens/ytdl/YtdlDownload.tsx` (the Download sheet: shared links that are web pages open it, and Downloads has "Download from link"), `YtdlSettings.tsx` (version, update, defaults, folder, cookies, templates) and `YtdlCookies.tsx` (sign-in browser; its cookies go to `files/ytdlp/cookies.txt`).
 - Cover art in Opus and "Original" audio needs mutagen (GPL), which the app does not ship, so the sheet turns it off there.
 
+### Browser
+
+Written for Droid Stream; ideas from 1DM, PikPak, SnapTube and Titanium Browser, none of their code.
+
+- `src/screens/browser` is the UI (tabs, new-tab page, menus, Media on this page, settings, passwords). Root routes `Browser` ({url?, private?}), `BrowserSettings` and `BrowserPasswords`; none of them opens in a kids profile.
+- The page engine sits behind `src/lib/browser/engine.ts` (`BrowserEngine`: tab view and handle, request hook, blocking, cookies, site data, user agents, passkeys, events). This build uses `engines/webview.ts` (react-native-webview plus `BrowserModule.kt`). A GeckoView engine for the extension build implements the same interface; tabs, media detection, the ad blocker, userscripts, passwords and layouts stay as they are.
+- `BrowserModule.kt` wraps react-native-webview's `WebViewClient` in `BrowserWebClient.kt` for `shouldInterceptRequest` (the library has no request hook), replaces its download listener so page downloads reach the app's downloader, sets autofill and passkeys (`WebSettingsCompat.setWebAuthenticationSupport`, FOR_BROWSER), flushes cookies on pause, and asks for the screen lock.
+- `inject.ts` is the page script: media in the DOM and in fetch/XHR, the download button on videos, element hiding, sign-in detection and filling, find in page, dark pages, the desktop viewport and the GM functions. Calls that matter (sign-ins, GM requests, filling) carry a per-tab token kept in the script's closure.
+- `filters/` parses Adblock Plus filters (`parse.ts`), matches them (`engine.ts`, mirrored by `BrowserFilters.kt` on the same compiled lines) and handles element hiding (`cosmetic.ts`). `lists.ts` downloads EasyList, EasyPrivacy and IndianList on first use and every week (never bundled) and compiles them under `files/browser/filters`.
+- `userscripts/`: metadata and @match (`meta.ts`), installed scripts and GM values (`store.ts`), GM_xmlhttpRequest behind the provider URL guard (`gm.ts`).
+- `passwords.ts`: saved sign-ins per profile in the encrypted `droid-stream-passwords` store (out of backups). `store.ts`: settings (shared), and history, bookmarks, tabs, shortcuts and site layouts per profile. `privacy.ts`: private tabs clear the cookies and site data of the hosts they visited, since WebView has one cookie store.
+- `handoff.ts`: downloads with the page's cookies, Referer and user agent, HLS quality choice, DASH through yt-dlp, the yt-dlp sheet (cookies written to its cookie file, not from private tabs), Torrents, the player, cast, and the `SocialDownload` route when the build has it.
+- File links from other browsers: the `.LinkDownloader` alias (`plugins/with-browser.js`) takes VIEW intents for http(s) files; `TorrentClientModule.consumeLaunchIntent` passes their Cookie, Referer and User-Agent extras to `linkIntake.ts`.
+
 ### Live TV
 
 - `src/screens/livetv/LiveTV.tsx` is the screen (Home drawer, Home welcome screen and the Library hub open it). Sources: the iptv-org India playlist, the user's own jiotv_go server (`<address>/playlist.m3u`, optional `?q=`; the app never talks to Jio itself) and any M3U URL.

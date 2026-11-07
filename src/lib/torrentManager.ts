@@ -314,7 +314,8 @@ class TorrentManager {
     return {wifi: true, charging: true, vpn: false, powerSave: false, vpnAddress: ''};
   }
 
-  async consumeLaunchIntent(): Promise<{kind: 'magnet' | 'torrent' | 'http' | 'ed2k'; value: string} | null> {
+  /** download, headers (JSON) and mimeType: a file link another browser handed over as a download manager. */
+  async consumeLaunchIntent(): Promise<{kind: 'magnet' | 'torrent' | 'http' | 'ed2k'; value: string; download?: boolean; headers?: string; mimeType?: string} | null> {
     return (await TorrentClientModule?.consumeLaunchIntent?.()) || null;
   }
 

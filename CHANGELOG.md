@@ -45,12 +45,15 @@ Not released yet. Built and being tested:
   and Tumblr posts: carousels, stories, highlights, profile pictures and
   a profile's latest posts, and Instagram photos with their song as a
   photo, a song file or a video.
+- A built-in browser (globe icon on Home, and in Search and Downloads):
+  tabs, private tabs, bookmarks, history, desktop or mobile layout,
+  dark pages, a download button on videos and a list of the media on
+  each page, an ad and tracker blocker, userscripts, saved passwords
+  and passkeys. File links from other browsers can be sent to the
+  downloader.
 
 Being built:
 
-- Social media downloads with a built-in browser (download detection,
-  ad blocker, userscripts), photos and Instagram photos with their song
-  saved as a video.
 - Advanced downloads (off by default): aria2-style remote control,
   command access and a browser-like connection.
 

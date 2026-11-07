@@ -45,6 +45,9 @@ import useProfilesStore from './lib/profiles/useProfiles';
 import YtdlDownload from './screens/ytdl/YtdlDownload';
 import YtdlSettings from './screens/ytdl/YtdlSettings';
 import YtdlCookies from './screens/ytdl/YtdlCookies';
+import Browser from './screens/browser/Browser';
+import BrowserSettings from './screens/browser/BrowserSettings';
+import BrowserPasswords from './screens/browser/BrowserPasswords';
 import SocialDownload from './screens/social/SocialDownload';
 import {startYtdlScheduler} from './lib/ytdl/queue';
 import UndoSnackbar from './components/UndoSnackbar';
@@ -185,6 +188,10 @@ export type RootStackParamList = {
   };
   /** The yt-dlp Download sheet, from Share or from Downloads. */
   YtdlDownload: {url?: string} | undefined;
+  /** The built-in browser (not in a kids profile). */
+  Browser: {url?: string; private?: boolean} | undefined;
+  BrowserSettings: undefined;
+  BrowserPasswords: undefined;
   /** Photos, carousels, stories and songs from a social post. */
   SocialDownload: {url: string};
 };
@@ -886,6 +893,9 @@ const App = () => {
                     component={YtdlDownload}
                     options={{animation: 'slide_from_bottom'}}
                   />
+                  <Stack.Screen name="Browser" component={Browser} />
+                  <Stack.Screen name="BrowserSettings" component={BrowserSettings} />
+                  <Stack.Screen name="BrowserPasswords" component={BrowserPasswords} />
                   <Stack.Screen
                     name="SocialDownload"
                     component={SocialDownload}

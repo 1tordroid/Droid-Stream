@@ -32,6 +32,8 @@ module.exports = () => {
     './plugins/with-custom-native-modules.js',
     // yt-dlp downloader: Chaquopy Python, the bundled yt-dlp release, JS sandbox.
     './plugins/with-ytdlp.js',
+    // Built-in browser: request hook, downloads, passkeys, file links from other browsers.
+    './plugins/with-browser.js',
       [
         'expo-camera',
         {

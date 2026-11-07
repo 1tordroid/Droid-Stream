@@ -43,6 +43,8 @@ const SECTIONS: {title: string; intro: string; items: Credit[]}[] = [
       {name: 'OpenSubtitles', note: 'Subtitle matching.', url: 'https://www.opensubtitles.com'},
       {name: 'Trakt, Simkl and AniList', note: 'Watch history sync.', url: 'https://trakt.tv'},
       {name: 'iptv-org', note: 'Public list of free-to-air channels behind the Free Indian channels source in Live TV.', url: 'https://github.com/iptv-org/iptv'},
+      {name: 'EasyList and EasyPrivacy', note: "Filter lists by the EasyList authors, downloaded by the browser's ad and tracker blocker.", url: 'https://easylist.to'},
+      {name: 'IndianList', note: "Filter list for Indian sites by its maintainers, downloaded by the browser's ad blocker.", url: 'https://easylist.to'},
     ],
   },
   {
@@ -56,6 +58,7 @@ const SECTIONS: {title: string; intro: string; items: Credit[]}[] = [
       {name: 'pikpak-plus', note: 'Cloud download ideas.'},
       {name: 'VidHub, 1DM and IDM', note: 'Library and download manager ideas.'},
       {name: 'YTDLnis and Seal', note: 'Video downloader ideas. The Droid Stream downloader is its own code.'},
+      {name: '1DM, PikPak, SnapTube and Titanium Browser', note: 'Browser and download detection ideas. The Droid Stream browser is its own code.'},
       {name: 'MovieBox, Netflix and Castle', note: 'Browsing and design ideas.'},
     ],
   },

@@ -102,7 +102,7 @@ It runs on Android phones, tablets and Android TV.
   - pick items from a playlist
   - background queue and scheduling
   - update yt-dlp in the app
-- 🔨 Social media downloads:
+- 🧪 Social media downloads:
   - a built-in browser with site shortcuts
   - a download button on videos
   - a list of all media on the page
@@ -124,10 +124,13 @@ It runs on Android phones, tablets and Android TV.
 
 ## Browser
 
-- 🔨 Built-in browser: tabs, private tabs, bookmarks, history, desktop mode and dark pages, opened from a small globe icon.
-- 🔨 Download detection: a download button on videos and a list of every video, audio, image and stream on the page.
-- 🔨 Ad and tracker blocker with common filter lists, and userscripts.
-- 🔨 Send pages, links and media to the downloader, Torrents, the player or cast.
+- 🧪 Built-in browser: tabs that come back after a restart, private tabs, bookmarks, history, site shortcuts, find in page, dark pages and a choice of search engine, opened from a small globe icon.
+- 🧪 Desktop or mobile layout: Desktop by default, a choice for new tabs and pop-ups, and a Desktop site switch remembered for each site.
+- 🧪 Download detection: a download button on videos and a list of every video, audio, image and stream on the page.
+- 🧪 Ad and tracker blocker with EasyList, EasyPrivacy and IndianList, your own lists and rules, and blocking off for chosen sites.
+- 🧪 Userscripts (Greasemonkey and Tampermonkey style).
+- 🧪 Saved passwords locked with your screen lock, your phone's password manager (autofill), and passkeys where the passkey provider allows the app.
+- 🧪 Send pages, links and media to the downloader, yt-dlp, Torrents, the player or cast, and take file links from other browsers.
 - 📋 Droid Stream (with extension support): a second edition of the whole app. It has every Droid Stream feature, and its Browser runs on Firefox's engine (GeckoView) with Firefox add-ons such as uBlock Origin, Dark Reader and Tampermonkey. Install one or the other: the regular Droid Stream stays smaller, this edition is about 60 MB bigger.
 
 ## Profiles and family

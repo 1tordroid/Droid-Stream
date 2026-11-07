@@ -79,6 +79,16 @@ const LICENSES = [
     license: 'CC-BY-4.0',
     note: 'The JioTV source in Live TV adapts its sign-in, token renewal, channel list and stream request logic, rewritten in TypeScript and changed to run inside the app. https://github.com/jiotv-go/jiotv_go. Not affiliated with Jio.',
   },
+  {
+    name: 'EasyList, EasyPrivacy and IndianList',
+    license: 'GPL-3.0 or CC BY-SA 3.0 (dual licensed)',
+    note: "Filter lists for the browser's ad and tracker blocker, by the EasyList authors and the IndianList maintainers. The app downloads them from easylist.to and easylist-downloads.adblockplus.org; they are not shipped with it. The blocker that reads them is Droid Stream's own code.",
+  },
+  {
+    name: 'AndroidX WebKit',
+    license: 'Apache-2.0',
+    note: 'Passkey support in the browser.',
+  },
 ];
 
 const OpenSourceLicenses = () => {
