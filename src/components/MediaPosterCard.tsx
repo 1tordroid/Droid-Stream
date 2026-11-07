@@ -64,6 +64,10 @@ interface MediaPosterCardProps {
   cornerTag?: string;
   selected?: boolean;
   selectionMode?: boolean;
+  /** Share played, 0 to 1. Draws a bar along the bottom of the poster. */
+  progress?: number;
+  /** Draws a watched check on the poster. */
+  watched?: boolean;
   hasTVPreferredFocus?: boolean;
   nextFocusUp?: number | null;
   nextFocusDown?: number | null;
@@ -109,6 +113,8 @@ const MediaPosterCardBase = React.forwardRef<HostInstance, MediaPosterCardProps>
       cornerTag,
       selected = false,
       selectionMode = false,
+      progress,
+      watched = false,
       hasTVPreferredFocus = false,
       nextFocusUp,
       nextFocusDown,
@@ -380,6 +386,52 @@ const MediaPosterCardBase = React.forwardRef<HostInstance, MediaPosterCardProps>
                       </AppText>
                     </View>
                   )}
+                  {watched && !selectionMode ? (
+                    <View
+                      pointerEvents="none"
+                      accessibilityLabel="Watched"
+                      style={{
+                        position: 'absolute',
+                        bottom: 8,
+                        right: 6,
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: colors.primary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 6,
+                      }}>
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={14}
+                        color={colors.onPrimary}
+                      />
+                    </View>
+                  ) : null}
+                  {!watched &&
+                  typeof progress === 'number' &&
+                  progress > 0.01 ? (
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 4,
+                        backgroundColor: 'rgba(0,0,0,0.45)',
+                        zIndex: 6,
+                      }}>
+                      <View
+                        style={{
+                          width: `${Math.round(Math.min(1, progress) * 100)}%`,
+                          height: '100%',
+                          backgroundColor: colors.primary,
+                        }}
+                      />
+                    </View>
+                  ) : null}
                   {activeFocused ? (
                     // Drawn over the poster, so focus does not resize the card.
                     <View

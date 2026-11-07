@@ -22,6 +22,7 @@ export enum SettingsKeys {
   // No longer used. Kept so the key name stays known for values already stored.
   HIDE_DOWNLOADS_TAB = 'hideDownloadsTab',
   SHOW_CONTINUE_WATCHING = 'showContinueWatching',
+  HIDE_WATCHED = 'hideWatched',
   CUSTOM_COLOR = 'customColor',
   ACCENT_SOURCE = 'accentSource',
   LAUNCHER_ICON = 'launcherIcon',
@@ -343,6 +344,15 @@ export class SettingsStorage {
 
   setShowContinueWatching(show: boolean): void {
     mainStorage.setBool(SettingsKeys.SHOW_CONTINUE_WATCHING, show);
+  }
+
+  /** Leave watched movies out of Home rows and the Library. */
+  hideWatched(): boolean {
+    return mainStorage.getBool(SettingsKeys.HIDE_WATCHED, false);
+  }
+
+  setHideWatched(hide: boolean): void {
+    mainStorage.setBool(SettingsKeys.HIDE_WATCHED, hide);
   }
 
   isHapticFeedbackEnabled(): boolean {

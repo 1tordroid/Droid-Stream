@@ -4,6 +4,8 @@ import {settingsStorage} from '../storage';
 interface NavigationPreferencesState {
   showContinueWatching: boolean;
   setShowContinueWatching: (show: boolean) => void;
+  hideWatched: boolean;
+  setHideWatched: (hide: boolean) => void;
 }
 
 const useNavigationPreferencesStore = create<NavigationPreferencesState>(
@@ -12,6 +14,11 @@ const useNavigationPreferencesStore = create<NavigationPreferencesState>(
     setShowContinueWatching: show => {
       settingsStorage.setShowContinueWatching(show);
       set({showContinueWatching: show});
+    },
+    hideWatched: settingsStorage.hideWatched(),
+    setHideWatched: hide => {
+      settingsStorage.setHideWatched(hide);
+      set({hideWatched: hide});
     },
   }),
 );
