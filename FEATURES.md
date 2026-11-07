@@ -173,7 +173,7 @@ It runs on Android phones, tablets and Android TV.
 - 📋 Android TV "Watch Next" row.
 - 📋 Automatic frame-rate matching on TV.
 - 📋 TV screensaver and pause screen.
-- 📋 Send your whole setup from your phone to your TV.
+- 🧪 Send your whole setup from your phone to your TV (or another phone): pick what to send, scan the QR code or type the code the TV shows, confirm on the TV. Encrypted, over your home network only.
 
 ## Network and privacy
 
@@ -200,7 +200,7 @@ It runs on Android phones, tablets and Android TV.
 
 - ✅ Export and import a backup; erase all local data.
 - ✅ Backups include profiles and PINs.
-- 📋 Full backup and sync through WebDAV.
+- 🧪 Full backup and sync through WebDAV (Nextcloud, a NAS, PikPak WebDAV or any other): back up now or automatically, keep the last versions, restore from any device. Sign-ins are included only with a sync passphrase, encrypted.
 
 ---
 
