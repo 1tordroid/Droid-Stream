@@ -5,6 +5,8 @@
 import {SOURCE_SERVICE_NAMES} from './authErrors';
 import {ToastAndroid} from 'react-native';
 import {listEmby, listJellyfin, listPlex, resolvePlexPlayUrl, signInEmby, signInJellyfin, signInPlex, type LibraryItem} from './mediaServers';
+import type {PlexLinkResult} from './plexLink';
+import {seedServerResume} from './serverProgress';
 import {canStreamSmb, listSmbShare, openSmbStream, smbFileLink} from './smb';
 import {getInstallId, type SavedSource, type SourceKind} from './vault';
 import {listWebDav, webDavDownloadHeaders, type RemoteFile} from './webdav';
@@ -116,6 +118,41 @@ export const completeSourceForm = async (form: SourceForm, existing?: SavedSourc
   return {...base, username: login, secret: form.secret, authState: 'ok'};
 };
 
+/** The id a new source gets, or the one it keeps when edited or signed in again. */
+export const sourceIdFor = (form: SourceForm, existing?: SavedSource): string => existing?.id || form.id || `${Date.now()}`;
+
+/** The Jellyfin source a Quick Connect sign-in saves. deviceId must be the one the code was asked with. */
+export const quickConnectSource = (
+  form: SourceForm,
+  id: string,
+  deviceId: string,
+  session: {userId: string; token: string; userName: string},
+): SavedSource => ({
+  id,
+  kind: 'jellyfin',
+  name: form.name.trim() || SOURCE_SERVICE_NAMES.jellyfin,
+  server: form.server.trim().replace(/\/+$/, ''),
+  share: '',
+  username: session.userId,
+  secret: session.token,
+  loginName: session.userName,
+  deviceId,
+  authState: 'ok',
+});
+
+/** The Plex source a plex.tv sign-in saves: the chosen server's best address and its token. */
+export const plexLinkSource = (form: SourceForm, id: string, link: PlexLinkResult): SavedSource => ({
+  id,
+  kind: 'plex',
+  name: form.name.trim() || link.server.name || SOURCE_SERVICE_NAMES.plex,
+  server: link.connection.uri,
+  share: '',
+  username: '',
+  secret: link.server.accessToken,
+  deviceId: link.clientId,
+  authState: 'ok',
+});
+
 /**
  * Row playUrl of a Plex video whose listing had no media part: the rating key
  * behind this prefix is resolved to the part's address by playSource.
@@ -208,15 +245,23 @@ export const playSource = (
       },
     );
   }
-  openSourcePlayer(navigation, source, title, url);
+  return openSourcePlayer(navigation, source, title, url);
 };
 
-const openSourcePlayer = (navigation: PlayerNavigation, source: SavedSource, title: string, url: string, stableLink?: string): void => {
-  const headers = playbackHeaders(source);
+const isMediaServer = (kind: SourceKind) => kind === 'jellyfin' || kind === 'emby' || kind === 'plex';
+
+const openSourcePlayer = (navigation: PlayerNavigation, source: SavedSource, title: string, url: string, stableLink?: string): void | Promise<void> => {
   // The player keys watch progress by the episode link, hands it to providers
   // and logs it, so that link leaves the token out. The stream keeps it. An
   // SMB stream address changes on every open, so SMB passes the smb:// name.
   const link = stableLink || (source.kind === 'webdav' ? url : withoutToken(url));
+  if (!isMediaServer(source.kind)) return navigatePlayer(navigation, source, title, url, link);
+  // Jellyfin, Emby and Plex: continue where the server says, when this device has no progress.
+  return seedServerResume(source, url, link).then(() => navigatePlayer(navigation, source, title, url, link));
+};
+
+const navigatePlayer = (navigation: PlayerNavigation, source: SavedSource, title: string, url: string, link: string): void => {
+  const headers = playbackHeaders(source);
   navigation.navigate('Player', {
     linkIndex: 0,
     episodeList: [{title, link}],
