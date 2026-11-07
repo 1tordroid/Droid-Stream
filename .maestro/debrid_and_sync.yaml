@@ -10,7 +10,7 @@ tags: [settings, phone, ci]
       visible: "Torrents are not unblocked"
     commands:
       - tapOn: "Not now"
-- tapOn: "Debrid & cloud"
+- tapOn: "Debrid and cloud services"
 - assertVisible: "Debrid and cloud"
 - assertVisible: "TorBox"
 - scrollUntilVisible:
