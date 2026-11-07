@@ -219,11 +219,18 @@ allprojects {
       );
     }
 
+    // 8.1.9 is FFmpeg n8.1.3 with its security fixes. A project generated
+    // with an older build is moved up to it.
     if (!contents.includes('ffmpeg-kit-https')) {
       contents = contents.replace(
         /dependencies\s*\{/,
         match =>
-          `${match}\n    implementation 'dev.ffmpegkit-maintained:ffmpeg-kit-https:8.1.8'\n`,
+          `${match}\n    implementation 'dev.ffmpegkit-maintained:ffmpeg-kit-https:8.1.9'\n`,
+      );
+    } else {
+      contents = contents.replace(
+        /dev\.ffmpegkit-maintained:ffmpeg-kit-https:[0-9.]+/g,
+        'dev.ffmpegkit-maintained:ffmpeg-kit-https:8.1.9',
       );
     }
 
