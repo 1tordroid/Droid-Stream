@@ -184,6 +184,8 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Providers can't reach devices on your home network.
 - ✅ In-app updates check the download before installing, signed with the Droid Stream key.
 - ✅ Encrypted storage for sign-ins and keys; no analytics or trackers.
+- 🧪 Library upgrades: newer Android parts for the browser (WebKit 1.18), the YouTube challenge sandbox (JavaScript Engine 1.1.1) and Play Next (TV Provider 1.1.0).
+- 📋 Library upgrades: the torrent engine with OpenSSL 3.5.9 (it has 3.5.5), and OkHttp 5 once the player no longer needs OkHttp 4.
 
 ## Look and feel
 
