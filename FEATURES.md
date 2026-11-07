@@ -121,6 +121,14 @@ It runs on Android phones, tablets and Android TV.
 - 🔨 Command access from Termux, ADB or Tasker.
 - 🔨 Browser-like connection for sites that turn away download apps.
 
+## Browser
+
+- 🔨 Built-in browser: tabs, private tabs, bookmarks, history, desktop mode and dark pages, opened from a small globe icon.
+- 🔨 Download detection: a download button on videos and a list of every video, audio, image and stream on the page.
+- 🔨 Ad and tracker blocker with common filter lists, and userscripts.
+- 🔨 Send pages, links and media to the downloader, Torrents, the player or cast.
+- 📋 Droid Stream Browser: a separate, optional app built on Firefox's engine (GeckoView) with Firefox add-on support (for example uBlock Origin, Dark Reader and Tampermonkey). It sends downloads, magnets and videos to Droid Stream. A separate app so Droid Stream stays small.
+
 ## Profiles and family
 
 - 🧪 Profiles: each has its own history, library, Continue watching, searches, Live TV favourites and Trakt sign-in.
