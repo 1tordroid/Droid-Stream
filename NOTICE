@@ -21,6 +21,18 @@ Android media library, both under the GNU Lesser General Public License
 version 2.1. Droid Stream does not modify those libraries. Their source is
 available from VideoLAN (https://www.videolan.org/).
 
+Extra audio formats in the built-in player use Media3's FFmpeg decoder
+(androidx/media decoder_ffmpeg 1.8.0, Apache License 2.0, unmodified), which
+links FFmpeg dynamically. On 64-bit devices that is the FFmpeg 8.1.3 of
+ffmpeg-kit-https (GNU Lesser General Public License 3.0). On 32-bit ARM the
+app ships FFmpeg 8.1.3, unmodified, built with only audio decoders and
+without GPL or non-free parts (GNU Lesser General Public License 2.1 or
+later). Its source is https://ffmpeg.org/releases/ffmpeg-8.1.3.tar.xz; the
+configure line and build script are in docs/DEVELOPMENT.md and
+scripts/build-ffmpeg-decoder.sh. For three years from each release we send
+this exact source on request (open an issue on
+https://github.com/1tordroid/Droid-Stream).
+
 SMB browsing uses SMBJ (com.hierynomus:smbj) under the Apache License 2.0.
 Credentials for network sources are kept in an encrypted on-device store.
 

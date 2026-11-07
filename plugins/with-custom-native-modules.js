@@ -88,6 +88,13 @@ allprojects {
         fs.cpSync(sourceJniDir, targetJniDir, {recursive: true});
       }
 
+      // Media3's FFmpeg audio decoder (decoder_ffmpeg, unmodified) for extra
+      // audio formats. Its native part is jniLibs/<abi>/libffmpegJNI.so.
+      const ffmpegDecoderJava = path.join(projectRoot, 'native-src', 'android', 'decoder_ffmpeg', 'java');
+      if (fs.existsSync(ffmpegDecoderJava)) {
+        fs.cpSync(ffmpegDecoderJava, path.join(projectRoot, 'android', 'app', 'src', 'main', 'java'), {recursive: true});
+      }
+
       return cfg;
     },
   ]);
@@ -211,6 +218,16 @@ allprojects {
         /dependencies\s*\{/,
         match => `${match}\n    implementation 'androidx.media3:media3-muxer:1.8.0'\n`,
       );
+    }
+
+    // The FFmpeg audio decoder builds on Media3's ExoPlayer and decoder modules.
+    for (const module of ['media3-exoplayer', 'media3-decoder']) {
+      if (!contents.includes(`androidx.media3:${module}:`)) {
+        contents = contents.replace(
+          /dependencies\s*\{/,
+          match => `${match}\n    implementation 'androidx.media3:${module}:1.8.0'\n`,
+        );
+      }
     }
 
     // Make sure nanohttpd and libtorrent4j are re-added during prebuild

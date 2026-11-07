@@ -64,6 +64,7 @@ export enum SettingsKeys {
   ENABLE_VOLUME_BOOST = 'enableVolumeBoost',
   NIGHT_MODE = 'nightMode',
   DIALOGUE_BOOST = 'dialogueBoost',
+  EXTRA_AUDIO_FORMATS = 'extraAudioFormats',
   FORWARD_BUFFER_MB = 'forwardBufferMB',
   BACK_BUFFER_MB = 'backBufferMB',
   SEEK_INTERVAL = 'seekInterval',
@@ -564,6 +565,15 @@ export class SettingsStorage {
 
   setVolumeBoostEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.ENABLE_VOLUME_BOOST, enabled);
+  }
+
+  /** Android: FFmpeg decodes DTS, TrueHD and other audio the device can't. */
+  isExtraAudioFormatsEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.EXTRA_AUDIO_FORMATS, true);
+  }
+
+  setExtraAudioFormatsEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.EXTRA_AUDIO_FORMATS, enabled);
   }
 
   /** Night mode for new videos; the player menu changes it too. */

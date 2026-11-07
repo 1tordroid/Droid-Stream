@@ -872,7 +872,7 @@ const audioTrackListKey = (tracks: any[]): string =>
   tracks
     .map(
       track =>
-        `${track.index}-${track.title}-${track.language}-${track.selected}`,
+        `${track.index}-${track.title}-${track.language}-${track.selected}-${track.type}-${!!track.softwareDecoded}`,
     )
     .join('|');
 

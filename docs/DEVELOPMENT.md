@@ -189,6 +189,21 @@ All three are off by default, in Settings > Advanced downloads (`screens/setting
 - `lib/linkIntake.ts` takes magnets and links shared or opened from other apps, and offers a copied magnet. RSS feeds are polled every 15 minutes.
 - Downloaded files can be checked against an MD5, SHA-1 or SHA-256 hash.
 
+### Extra audio formats (FFmpeg audio decoder)
+
+DTS, TrueHD and other audio the device can't decode play in the built-in player through Media3's FFmpeg extension. No GPL code: the 5.5.0 decoder (Jellyfin's media3-ffmpeg-decoder, GPL-3.0) is gone for good.
+
+- `native-src/android/decoder_ffmpeg` is androidx/media `libraries/decoder_ffmpeg` at tag 1.8.0 (Apache-2.0), unmodified: the Java classes (without the unused ExperimentalFfmpegVideoRenderer), `jni/ffmpeg_jni.cc` and its ProGuard rules. `plugins/with-custom-native-modules.js` copies the classes into the app and adds media3-exoplayer and media3-decoder; `plugins/with-proguard-rules.js` adds the rules and keeps the classes Media3 and react-native-video look up by name.
+- `scripts/build-ffmpeg-decoder.sh` builds `libffmpegJNI.so` into `native-src/android/jniLibs/<abi>/` (committed, like libusque.so) and writes `native-src/android/decoder_ffmpeg/build.json` with the pins and SHA-256 of each library. It runs on Linux or in Git Bash with NDK 27.1.12297006 (Windows uses the NDK's own make.exe; no WSL or MSYS2 needed). It downloads FFmpeg 8.1.3 and ffmpeg-kit-https 8.1.9, both pinned by SHA-256.
+- FFmpeg is always linked dynamically. On arm64-v8a and x86_64 `libffmpegJNI.so` links the libavcodec, libswresample and libavutil that ffmpeg-kit-https already ships (FFmpeg n8.1.3, LGPL-3.0, all decoders), so there is one FFmpeg; the headers come from the FFmpeg 8.1.3 release. ffmpeg-kit-https has no armeabi-v7a build, so the script builds FFmpeg 8.1.3 for it as shared libraries with only the audio decoders (aac, ac3, alac, dca, eac3, flac, mlp, mp3, opus, truehd, vorbis), configured as:
+
+  `--target-os=android --enable-cross-compile --nm=llvm-nm --ar=llvm-ar --ranlib=llvm-ranlib --strip=llvm-strip --host-cc=x86_64-linux-android28-clang --enable-pic --enable-shared --disable-static --extra-ldflags=-Wl,-z,max-page-size=16384 --disable-autodetect --disable-iconv --disable-debug --disable-doc --disable-programs --disable-everything --disable-avdevice --disable-avformat --disable-swscale --disable-avfilter --disable-network --disable-v4l2-m2m --disable-vulkan --enable-avcodec --enable-swresample --enable-avutil --enable-decoder=aac,ac3,alac,dca,eac3,flac,mlp,mp3,opus,truehd,vorbis --arch=arm --cpu=armv7-a --cross-prefix=armv7a-linux-androideabi28- --cc=armv7a-linux-androideabi28-clang --extra-cflags=-mfpu=neon`
+
+  No `--enable-gpl`, `--enable-version3` or `--enable-nonfree`: configure reports "LGPL version 2.1 or later", and the script stops unless `config.h` has `CONFIG_GPL`, `CONFIG_NONFREE` and `CONFIG_VERSION3` at 0. The host compiler is only checked by configure; nothing is built for the host.
+- When ffmpeg-kit-https moves to a new version, run the script again: on 64-bit the shim depends on ffmpeg-kit's FFmpeg ABI. `__tests__/ffmpegDecoderBuild.test.ts` fails while the plugin, the script, `build.json`, the libraries and the licence text disagree.
+- The react-native-video patch sets the extension mode to ON (Player settings > "Extra audio formats", prop `extraAudioFormats`, on by default) or OFF. ON puts `FfmpegAudioRenderer` after `MediaCodecAudioRenderer`, so the device's decoders and passthrough to a receiver win and FFmpeg only takes what they can't play. Video never uses extension renderers. The FFmpeg renderer shares the patched audio sink, so night mode, dialogue boost and volume boost work on its PCM (16-bit, as float output is off).
+- Each audio track group belongs to one of the two audio renderers. The patch's audio track list, its indices, selection, "disabled" and the unsupported-track recovery use all audio renderers in the media's order (`AudioGroups`), and tracks FFmpeg decodes carry `softwareDecoded`; the audio menu shows them as "DTS · software" (`src/lib/player/audioTrackLabel.ts`).
+
 ### Video downloader (yt-dlp)
 
 Written for Droid Stream; nothing comes from the GPL YTDLnis or youtubedl-android.

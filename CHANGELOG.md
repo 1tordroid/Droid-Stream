@@ -116,6 +116,13 @@ Built and being tested:
   encrypted with a key from the code, works without internet, and the
   TV shows what came and asks before applying. The code works once and
   for 10 minutes.
+- DTS and TrueHD play again in the built-in player on phones and TVs
+  that can't decode them. The app decodes them (also E-AC3, AC3, FLAC
+  and others when the device has no decoder), with an LGPL build of
+  FFmpeg. The audio menu shows these tracks as "DTS · software", and
+  night mode, dialogue boost and volume boost work on them. Sound that
+  the device or a receiver can play still goes there. Turn it off in
+  Player settings > Extra audio formats (DTS, TrueHD).
 
 ## 5.6.1
 
