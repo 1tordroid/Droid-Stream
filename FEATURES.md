@@ -172,6 +172,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Accent colours, launcher icons, AMOLED black and Soft dark themes.
 - ✅ Advanced mode shows every extra control; tab bar labels, haptics and the Home menu are adjustable.
 - ✅ Search inside Settings to jump to any option.
+- 🧪 Check for updates and the version in Settings; one Credits and licences page with links.
 - 📋 IMDb, Rotten Tomatoes and Metacritic scores together.
 
 ## Backup
@@ -185,4 +186,4 @@ It runs on Android phones, tablets and Android TV.
 Ideas come from what users ask for in many apps. Droid Stream's code is
 its own: projects under GPL (such as YTDLnis, Ghost Downloader 3, aMule and
 Jellyfin clients) are used for ideas only. Projects whose code or logic is
-used are credited in the app under Credits and Open-source licenses.
+used are credited in the app under Credits and licences.

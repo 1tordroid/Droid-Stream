@@ -249,7 +249,7 @@ export type SettingsStackParamList = {
   LocalLibrary: undefined;
   OpenSourceLicenses: undefined;
   AdvancedDownloads: undefined;
-  Credits: undefined;
+  Credits: {section?: import('./screens/settings/creditsData').CreditSectionId} | undefined;
   WatchSync: undefined;
   Languages: undefined;
   Profiles: undefined;

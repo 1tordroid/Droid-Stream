@@ -3,7 +3,6 @@ import {View, ScrollView, ToastAndroid, Linking, BackHandler, Image, type HostIn
 import {getNodeHandle} from '../../lib/tv/focus';
 import React, {useState, useRef, useCallback} from 'react';
 import {settingsStorage} from '../../lib/storage';
-import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import SettingsRow from '../../components/ui/SettingsRow';
 import SettingsSection from '../../components/ui/SettingsSection';
@@ -24,6 +23,7 @@ import {useRemoteStore} from '../../lib/remote/remoteStore';
 import {socialLinks} from '../../lib/constants';
 import BrandLinkButtons from './components/BrandLinkButtons';
 import {checkForUpdate} from '../../lib/updates/checkForUpdate';
+import {editionName, versionLabel} from '../../lib/appVersion';
 
 export {checkForUpdate};
 
@@ -44,7 +44,6 @@ const About = ({navigation}: any) => {
   );
   const [exportingLogs, setExportingLogs] = useState(false);
   const [clearingLogs, setClearingLogs] = useState(false);
-  const version = Application.nativeApplicationVersion || '';
 
   const handleClearLogs = async () => {
     setClearingLogs(true);
@@ -131,7 +130,7 @@ const About = ({navigation}: any) => {
             <AppText
               role="headlineLargeEmphasized"
               className="text-m3-on-background">
-              About Droid Stream
+              About {editionName()}
             </AppText>
           </View>
           <AppText role="bodyLarge" className="mt-1 text-m3-on-surface-variant">
@@ -144,7 +143,7 @@ const About = ({navigation}: any) => {
 
         <Image
           source={require('../../../assets/brand/logo.png')}
-          accessibilityLabel="Droid Stream"
+          accessibilityLabel={editionName()}
           resizeMode="contain"
           style={{alignSelf: 'center', height: 168, marginBottom: 20, width: 168}}
         />
@@ -152,7 +151,7 @@ const About = ({navigation}: any) => {
         <SettingsSection title="App">
           <SettingsRow
             title="Version"
-            description={`Droid Stream ${version}`}
+            description={versionLabel()}
             icon="information-outline"
             divider={Constants.expoConfig?.extra?.isPlayStore}
           />
@@ -211,10 +210,10 @@ const About = ({navigation}: any) => {
             onPress={() => Linking.openURL(socialLinks.telegram)}
           />
           <SettingsRow
-            title="Open-source licenses"
-            description="libVLC and other media libraries"
+            title="Credits and licences"
+            description="Projects, services and open-source licences"
             icon="scale-balance"
-            onPress={() => navigation.navigate('OpenSourceLicenses')}
+            onPress={() => navigation.navigate('Credits')}
           />
           <SettingsRow
             title="Based on Vega by vega-org"

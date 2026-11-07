@@ -51,6 +51,9 @@ Not released yet. Built and being tested:
   each page, an ad and tracker blocker, userscripts, saved passwords
   and passkeys. File links from other browsers can be sent to the
   downloader.
+- Your version and build number, and a Check for updates button, at
+  the top of Settings. Credits and open-source licences are now one
+  page, with link buttons for the projects and services.
 
 Being built:
 

@@ -120,6 +120,7 @@ import FeatureSearchPanel from '../../components/FeatureSearchPanel';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
 import BrandLinkButtons from './components/BrandLinkButtons';
 import DnsPreference from './components/DnsPreference';
+import VersionCard from './components/VersionCard';
 import SettingsRow from '../../components/ui/SettingsRow';
 import SettingsSection from '../../components/ui/SettingsSection';
 import AppText from '../../components/ui/Text';
@@ -127,6 +128,7 @@ import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
 import useProfilesStore from '../../lib/profiles/useProfiles';
+import {editionName} from '../../lib/appVersion';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
 const AnimatedSection = ({
@@ -252,6 +254,8 @@ const Settings = ({navigation}: Props) => {
               {searching ? <FeatureSearchPanel autoFocus /> : null}
               </>
             )}
+
+            <VersionCard />
 
             {/* Content provider section */}
             <AnimatedSection delay={100}>
@@ -408,13 +412,14 @@ const Settings = ({navigation}: Props) => {
             <AnimatedSection delay={400}>
               <SettingsSection title="About">
                 <SettingsRow
-                  title="About Droid Stream"
+                  title={`About ${editionName()}`}
+                  description="Update settings and support"
                   icon="information-outline"
                   onPress={() => navigation.navigate('About')}
                 />
                 <SettingsRow
-                  title="Credits"
-                  description="Projects behind Droid Stream"
+                  title="Credits and licences"
+                  description="Projects, services and licences behind Droid Stream"
                   icon="heart-outline"
                   onPress={() => navigation.navigate('Credits')}
                 />

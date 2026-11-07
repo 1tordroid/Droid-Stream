@@ -35,3 +35,11 @@ describe('library features', () => {
     expect(searchFeatures('wrong poster')[0]?.entry.id).toBe('library-fix-match');
   });
 });
+describe('about features', () => {
+  it('finds the update check, the credits page and the licence list', () => {
+    expect(searchFeatures('check for updates')[0]?.entry.id).toBe('check-updates');
+    expect(searchFeatures('check for updates')[0]?.entry.route).toEqual({tab: 'SettingsStack', screen: 'Settings'});
+    expect(searchFeatures('credits')[0]?.entry.id).toBe('credits');
+    expect(searchFeatures('licence')[0]?.entry.id).toBe('licenses');
+  });
+});
