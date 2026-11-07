@@ -24,6 +24,7 @@ import {socialLinks} from '../../lib/constants';
 import BrandLinkButtons from './components/BrandLinkButtons';
 import {checkForUpdate} from '../../lib/updates/checkForUpdate';
 import {editionName, versionLabel} from '../../lib/appVersion';
+import ProblemReportSheet from '../../components/ProblemReportSheet';
 
 export {checkForUpdate};
 
@@ -44,6 +45,7 @@ const About = ({navigation}: any) => {
   );
   const [exportingLogs, setExportingLogs] = useState(false);
   const [clearingLogs, setClearingLogs] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const handleClearLogs = async () => {
     setClearingLogs(true);
@@ -245,6 +247,12 @@ const About = ({navigation}: any) => {
               onPress={exportingLogs || clearingLogs ? undefined : exportLogs}
             />
             <SettingsRow
+              title="Send a problem report"
+              description="Opens a GitHub issue with the app and phone details filled in. You choose whether to add logs."
+              icon="bug-outline"
+              onPress={() => setReportOpen(true)}
+            />
+            <SettingsRow
               title="Clear logs"
               description="Clear old logs before reproducing a problem."
               icon="delete-outline"
@@ -255,6 +263,7 @@ const About = ({navigation}: any) => {
           </SettingsSection>
         )}
       </ScrollView>
+      {!isTV && <ProblemReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} />}
     </TVFocusGuide>
   );
 };
