@@ -23,6 +23,7 @@ import {
 } from '../../lib/downloadEngine/engineStore';
 import {MIRROR_HOSTS, validateMirrorRule, type MirrorRule} from '../../lib/downloadEngine/mirrors';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import {BrowserLikeSection, CommandAccessSection, RemoteControlSection} from './RemoteAccessSections';
 
 const Note = ({children}: {children: React.ReactNode}) => {
   const colors = useM3Colors();
@@ -262,6 +263,9 @@ export const ADVANCED_DOWNLOAD_SECTIONS: {key: string; Component: React.Componen
   {key: 'mirrors', Component: MirrorSection},
   {key: 'ftp', Component: FtpSection},
   {key: 'recording', Component: RecordingSection},
+  {key: 'remote-control', Component: RemoteControlSection},
+  {key: 'command-access', Component: CommandAccessSection},
+  {key: 'browser-like', Component: BrowserLikeSection},
 ];
 
 const AdvancedDownloads = () => {

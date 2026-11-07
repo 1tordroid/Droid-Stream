@@ -132,6 +132,28 @@ Off by default (Settings > Preferences > Downloads > eD2k downloads). Written fr
 - No uploading or sharing. The client offers the server an empty file list, never listens for connections (so servers give it a low ID and low-ID peers are skipped), and answers peers' file, upload and shared-list requests with "not found" or "denied". Nothing runs unless a download or search is active; the server connection closes a minute after the last one. The torrent Wi-Fi only setting applies (it also allows Ethernet).
 - Not done: obfuscated connections, Kad, AICH recovery, source exchange, UDP reasks.
 
+### Remote control, command access and browser-like connections
+
+All three are off by default, in Settings > Advanced downloads (`screens/settings/RemoteAccessSections.tsx`). The logic is in `src/lib/remoteAccess` and is pure where it can be (tested in `__tests__/remoteAccess.test.ts`).
+
+- Remote control is an aria2-compatible JSON-RPC 2.0 server, written from aria2's public RPC documentation (aria2 is GPL; none of its code is used). `native-src/android/com/vega/RemoteRpcServer.kt` listens on the Wi-Fi or Ethernet IPv4 address only (`RemoteAccess.lanAddress`, or the device's own hotspot), on the port the user sets (6800 by default): HTTP `POST /jsonrpc`, the CORS preflight, and WebSocket on the same path. It closes connections from addresses outside the home network before reading them (loopback, RFC 1918, link-local, IPv6 ULA), limits request heads to 16 KB and bodies to about 5.6 MB, serves 12 connections at a time and times out slow clients. It rebinds when the Wi-Fi address changes. `RemoteControlService.kt` is the foreground service (type `connectedDevice`) with the "Remote control on" notification and a Turn off action; the server runs only while it does.
+- Each body goes to JavaScript (`RemoteRpcRequest` event, answered with `respond`, 30 s limit). `aria2Rpc.ts` checks the `token:<secret>` first parameter in constant time (`secret.ts`), locks out an address after 5 wrong tokens in a minute (1 minute, doubling up to 15), and refuses clients that are not on the home network again. Methods: `aria2.addUri` (http, https, ftp, ftps, magnet, ed2k), `addTorrent` (base64, up to 4 MB), `tellStatus`, `tellActive`, `tellWaiting`, `tellStopped`, `pause`, `unpause`, `remove`, `forceRemove` (and the `All`/`force` forms), `getGlobalStat`, `getVersion`, `getGlobalOption`, `changeGlobalOption` (only `max-overall-download-limit`, applied to HTTP downloads), `getFiles`, `getUris`, `getSessionInfo`, `removeDownloadResult`, `system.multicall`, `system.listMethods`. `dir` is ignored and `out` is cut to a file name, so files always go to the app's download folder; finished files are never deleted over RPC. `aria2Status.ts` maps the downloads list to aria2 fields (16-digit GIDs from the download id).
+- Settings shows the address (`http://<phone-ip>:<port>/jsonrpc`), the token and a QR code of AriaNg's command-API link (`ariaNg.ts`).
+- Command access is `RemoteCommandReceiver.kt`, an exported receiver for `com.tordroid.droidstream.ADD_DOWNLOAD`, `PAUSE`, `RESUME` and `LIST`. It is refused unless command access is on and the `token` extra matches (SHA-256 then constant-time compare, with the same lockout). The token and switch are in SharedPreferences so the check works with the app closed; an ADD_DOWNLOAD that arrives then is kept (20 at most) and added at the next start. The actions are the same in every edition; the package (`-p`) is the edition's application id, which Settings shows. Examples (preview build):
+
+  ```sh
+  # Termux on the phone
+  am broadcast -a com.tordroid.droidstream.ADD_DOWNLOAD -p com.tordroid.droidstream.preview --es token '<token>' --es url 'https://example.com/video.mp4'
+  am broadcast -a com.tordroid.droidstream.PAUSE -p com.tordroid.droidstream.preview --es token '<token>' --es id all
+  am broadcast -a com.tordroid.droidstream.RESUME -p com.tordroid.droidstream.preview --es token '<token>' --es id <id from LIST>
+  am broadcast -a com.tordroid.droidstream.LIST -p com.tordroid.droidstream.preview --es token '<token>'
+  # From a computer
+  adb shell "am broadcast -a com.tordroid.droidstream.LIST -p com.tordroid.droidstream.preview --es token '<token>'"
+  ```
+
+  `am broadcast` prints `result=-1` when the command worked and `result=1` when it did not, with the reason in `data`. Tasker: Send Intent, the action, Package set to the application id, Target Broadcast Receiver, extras `token:<token>` and `url:<link>`.
+- "Use a browser-like connection" is a per-site list (never debrid hosts, never local ones; `browserLike.ts`). `BrowserLikeConnection.kt` is installed on the shared OkHttp client in `DohOkHttpFactory`: for listed hosts only, an SSL socket factory sets Chrome's cipher-suite order and TLS 1.3/1.2 (OkHttp keeps the socket's order and already offers ALPN h2), and a network interceptor adds Chrome's user agent and client hints and puts the headers in Chrome's order. Other hosts get the platform sockets unchanged. Android's BoringSSL has no GREASE or extension shuffling and OkHttp keeps its own HTTP/2 settings, so it is Chrome-like, not identical. yt-dlp downloads from listed sites get Chrome's headers (`browserLikeYtdlArgs`). yt-dlp's `--impersonate` needs curl_cffi, whose Android wheels are only for CPython 3.13+ on arm64; the app's Chaquopy Python is 3.11 (for armeabi-v7a), so it is not available.
+
 ### Debrid and cloud
 
 `src/lib/debrid`, with settings in `screens/torrents/DebridSettings`.

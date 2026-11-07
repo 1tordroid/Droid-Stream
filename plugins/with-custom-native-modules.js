@@ -114,6 +114,7 @@ allprojects {
       'SmbPackage()',
       'YtdlPackage()',
       'Ed2kPackage()',
+      'RemoteAccessPackage()',
     ];
 
     for (const pkg of packagesToAdd) {
@@ -332,6 +333,8 @@ configurations.configureEach {
       const extras = [
         {name: '.DownloadForegroundService', type: 'dataSync'},
         {name: '.TorrentForegroundService', type: 'dataSync'},
+        // Remote control: a server on the home network while it is on.
+        {name: '.RemoteControlService', type: 'connectedDevice'},
       ];
       for (const extra of extras) {
         if (!app.service.some(service => service.$?.['android:name'] === extra.name)) {
@@ -357,6 +360,20 @@ configurations.configureEach {
           }
           app.receiver.push(receiver);
         }
+      }
+      // Command access (Termux, ADB, Tasker). Refused unless it is on in
+      // Settings and the broadcast carries the user's token.
+      if (!app.receiver.some(receiver => receiver.$?.['android:name'] === '.RemoteCommandReceiver')) {
+        app.receiver.push({
+          $: {'android:name': '.RemoteCommandReceiver', 'android:exported': 'true'},
+          'intent-filter': [
+            {
+              action: ['ADD_DOWNLOAD', 'PAUSE', 'RESUME', 'LIST'].map(action => ({
+                $: {'android:name': `com.tordroid.droidstream.${action}`},
+              })),
+            },
+          ],
+        });
       }
       if (!app['activity-alias']) app['activity-alias'] = [];
       // ed2k:// links from the browser. The app asks before using them and

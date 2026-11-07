@@ -180,6 +180,8 @@ class DohOkHttpFactory(private val cacheDir: File) : OkHttpClientFactory {
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+            // Sites listed under "Use a browser-like connection" only; others are unchanged.
+            .let { BrowserLikeConnection.install(it) }
             .build()
     }
 }

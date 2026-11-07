@@ -123,9 +123,9 @@ It runs on Android phones, tablets and Android TV.
 
 - ✅ eD2k links, server list and search.
 - ✅ GitHub and HuggingFace mirrors that you add yourself.
-- 🔨 aria2-style remote control: send downloads to your phone from AriaNg or a browser extension on your Wi-Fi.
-- 🔨 Command access from Termux, ADB or Tasker.
-- 🔨 Browser-like connection for sites that turn away download apps.
+- 🧪 aria2-style remote control: send downloads to your phone from AriaNg or a browser extension on your Wi-Fi.
+- 🧪 Command access from Termux, ADB or Tasker.
+- 🧪 Browser-like connection for sites that turn away download apps.
 
 ## Browser
 

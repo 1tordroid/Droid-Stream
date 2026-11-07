@@ -188,6 +188,8 @@ module.exports = () => {
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',
           'FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+          // Remote control's notification while its server runs.
+          'FOREGROUND_SERVICE_CONNECTED_DEVICE',
           'ACCESS_NETWORK_STATE',
           'ACCESS_WIFI_STATE',
           'CHANGE_WIFI_MULTICAST_STATE',

@@ -30,6 +30,13 @@ Built and being tested:
   Video downloader settings opens a GitHub issue with the site, app
   version, rules version and error. The post link is added only if you
   tick the box.
+- Remote control (off by default): add and manage downloads from AriaNg
+  or an aria2 browser extension on your Wi-Fi, with a token and a QR
+  code that sets up AriaNg.
+- Command access (off by default): add, pause, resume and list downloads
+  from Termux, ADB or Tasker with a token.
+- Use a browser-like connection (off by default): downloads from sites
+  you list connect like Chrome does.
 
 ## 5.6.0
 

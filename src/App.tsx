@@ -70,6 +70,7 @@ import SearchResults from './screens/SearchResults';
 import About from './screens/settings/About';
 import {checkForUpdate} from './lib/updates/checkForUpdate';
 import {startLinkIntake} from './lib/linkIntake';
+import {startRemoteAccess} from './lib/remoteAccess/service';
 import FirstRunTips from './components/FirstRunTips';
 import BootSplash from 'react-native-bootsplash';
 import {SystemBars} from 'react-native-edge-to-edge';
@@ -689,6 +690,9 @@ const App = () => {
       }),
     [],
   );
+
+  // Remote control, command access and browser-like connections (all off by default).
+  useEffect(() => startRemoteAccess(), []);
 
   // Safety fallback to ensure splash is hidden
   useEffect(() => {
