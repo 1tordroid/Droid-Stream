@@ -121,6 +121,12 @@ export const setDetailedLogging = (enabled: boolean): void => {
   applyDetailed(enabled);
 };
 
+/** Sends the JS lines still waiting in the batch to the log file now. */
+export const flushPendingLogs = (): void => {
+  flushRepeats();
+  flush();
+};
+
 export const shareLogs = async (extraHeader?: string): Promise<void> => {
   if (!VegaLog) throw new Error('Logs are unavailable on this device');
   flushRepeats();

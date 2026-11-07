@@ -9,6 +9,7 @@ import * as Application from 'expo-application';
 import {reloadAppAsync} from 'expo';
 import {showAppDialog} from '../lib/zustand/appDialogStore';
 import BootSplash from 'react-native-bootsplash';
+import ProblemReportSheet from './ProblemReportSheet';
 
 interface GlobalErrorBoundaryProps {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ interface GlobalErrorBoundaryState {
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
   showDetails: boolean;
+  reportOpen: boolean;
 }
 
 export default class GlobalErrorBoundary extends React.Component<
@@ -32,6 +34,7 @@ export default class GlobalErrorBoundary extends React.Component<
       error: null,
       errorInfo: null,
       showDetails: false,
+      reportOpen: false,
     };
   }
 
@@ -88,6 +91,7 @@ export default class GlobalErrorBoundary extends React.Component<
       error: null,
       errorInfo: null,
       showDetails: false,
+      reportOpen: false,
     });
   };
 
@@ -135,15 +139,23 @@ ${errorInfo?.componentStack || 'Not available'}
   render() {
     if (this.state.hasError && this.state.error) {
       return (
-        <ErrorFallbackUI
-          error={this.state.error}
-          errorInfo={this.state.errorInfo}
-          showDetails={this.state.showDetails}
-          onRestart={this.handleRestart}
-          onReset={this.resetError}
-          onToggleDetails={this.toggleDetails}
-          onShowReport={this.showErrorReport}
-        />
+        <>
+          <ErrorFallbackUI
+            error={this.state.error}
+            errorInfo={this.state.errorInfo}
+            showDetails={this.state.showDetails}
+            onRestart={this.handleRestart}
+            onReset={this.resetError}
+            onToggleDetails={this.toggleDetails}
+            onShowReport={this.showErrorReport}
+            onSendReport={() => this.setState({reportOpen: true})}
+          />
+          <ProblemReportSheet
+            visible={this.state.reportOpen}
+            onClose={() => this.setState({reportOpen: false})}
+            error={{message: this.state.error.message, stack: this.state.error.stack}}
+          />
+        </>
       );
     }
 
@@ -159,6 +171,7 @@ interface ErrorFallbackUIProps {
   onReset: () => void;
   onToggleDetails: () => void;
   onShowReport: () => void;
+  onSendReport: () => void;
 }
 
 const ErrorFallbackUI: React.FC<ErrorFallbackUIProps> = ({
@@ -169,6 +182,7 @@ const ErrorFallbackUI: React.FC<ErrorFallbackUIProps> = ({
   onReset,
   onToggleDetails,
   onShowReport,
+  onSendReport,
 }) => {
   const {primary} = useThemeStore();
   const {width} = Dimensions.get('window');
@@ -283,6 +297,18 @@ const ErrorFallbackUI: React.FC<ErrorFallbackUIProps> = ({
               </View>
             </TVTouchable>
           </View>
+
+          <TVTouchable
+            onPress={onSendReport}
+            className="bg-gray-800 rounded-lg py-3 px-4 items-center"
+            activeOpacity={0.8}>
+            <View className="flex-row items-center">
+              <Ionicons name="logo-github" size={16} color="#9ca3af" />
+              <Text className="text-gray-400 text-sm ml-2">
+                Send a problem report
+              </Text>
+            </View>
+          </TVTouchable>
         </View>
 
         <View className="mt-8 pt-6 border-t border-gray-800">

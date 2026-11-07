@@ -57,6 +57,18 @@ Built and being tested:
   Live TV starts on your country, found on the device from the SIM,
   network or language settings, and Change country picks another.
   Free Indian channels and JioTV stay as they were.
+- Live TV: the quality tag (1080p) ends the group line on each channel
+  and sits under the logo in the guide, so it no longer hides the logo.
+  The Indian source's chip reads India, the chosen chip scrolls into
+  view, and the World header fits at 360 dp.
+- Browser passkeys: when a passkey sign-in fails, the browser offers
+  Sign in with Chrome once per site (also in the browser menu). It opens
+  the page in a Chrome Custom Tab, and the sign-in stays in Chrome.
+  Browser settings explain why and add Choose a passkey manager.
+- Send a problem report in About and on the error screen: opens a GitHub
+  issue with the app, version, Android version and phone model. Recent
+  logs are added only if you tick the box, with sign-ins, cookies,
+  emails, IP addresses, link details and file paths removed.
 
 ## 5.6.0
 

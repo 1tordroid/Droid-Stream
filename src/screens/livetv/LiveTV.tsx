@@ -51,6 +51,7 @@ import {
   worldSourceId,
 } from '../../lib/livetv/world';
 import CountryPicker from './CountryPicker';
+import {sourceChipLabel, useSelectedChipScroll} from './chipScroll';
 import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
 
 export {openChannel};
@@ -112,14 +113,17 @@ const ChannelTile = ({channel, title, badge, width, favourite, now, preferred, b
         ) : (
           <MaterialCommunityIcons name="television-classic" size={30} color={colors.onSurfaceVariant} />
         )}
-        {badge ? <QualityBadge label={badge} /> : null}
         {busy ? <ActivityIndicator color={colors.primary} style={{position: 'absolute'}} /> : null}
         {favourite ? (
           <MaterialCommunityIcons name="star" size={16} color={colors.primary} style={{position: 'absolute', top: 4, right: 4}} />
         ) : null}
       </View>
       <AppText role="labelLarge" numberOfLines={1} style={{color: colors.onSurface, marginTop: 6}}>{title}</AppText>
-      <AppText role="bodySmall" numberOfLines={1} style={{color: colors.onSurfaceVariant}}>{now || channel.group || ' '}</AppText>
+      {/* The quality tag ends the group line, so it never covers the logo. */}
+      <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+        <AppText role="bodySmall" numberOfLines={1} style={{flex: 1, color: colors.onSurfaceVariant}}>{now || channel.group || ' '}</AppText>
+        {badge ? <QualityBadge label={badge} /> : null}
+      </View>
     </TVFocusable>
   );
 };
@@ -352,27 +356,37 @@ const LiveTV = ({navigation}: {navigation: any}) => {
 
   const inputStyle = {backgroundColor: colors.surfaceContainerHigh, color: colors.onSurface, borderRadius: 12, paddingHorizontal: 14, minHeight: 52, fontSize: 16, marginTop: 8};
 
+  // The selected chip scrolls into view, also after the header remounts.
+  const selectedChip = mode === 'grid' ? (worldCountry ? 'world' : `view:${view}`) : mode === 'country' ? 'world' : `mode:${mode}`;
+  const chipRow = useSelectedChipScroll(selectedChip);
+  const chip = (key: string, element: React.ReactElement) => (
+    <View key={key} onLayout={chipRow.chipLayout(key)}>{element}</View>
+  );
+
   const header = (
     <View style={{paddingHorizontal: isTV ? 40 : 12, paddingTop: isTV ? 24 : 12}}>
       <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground}}>Live TV</AppText>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingVertical: 12}}>
-        <Chip label="Favourites" icon="star-outline" selected={mode === 'grid' && view === 'favourites'} onPress={() => { setMode('grid'); setView('favourites'); }} />
-        <Chip label="Recent" icon="history" selected={mode === 'grid' && view === 'recent'} onPress={() => { setMode('grid'); setView('recent'); }} />
-        {sources.map(item => (
-          <Chip
-            key={item.id}
-            label={item.name}
-            icon={item.kind === 'iptv-org' ? 'earth' : item.kind === 'jiotv' ? 'server-network' : 'playlist-play'}
-            selected={mode === 'grid' && view === item.id}
-            onPress={() => { setMode('grid'); setView(item.id); }}
-            onLongPress={item.kind === 'jiotv' && !kids ? () => setMode('jiotv') : undefined}
-          />
-        ))}
-        {kids && !jioNumber ? null : <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />}
-        <Chip label="World" icon="web" selected={mode === 'country' || (mode === 'grid' && !!worldCountry)} onPress={openWorld} />
+      <ScrollView ref={chipRow.ref} {...chipRow.scrollProps} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingVertical: 12}}>
+        {chip('view:favourites', <Chip label="Favourites" icon="star-outline" selected={mode === 'grid' && view === 'favourites'} onPress={() => { setMode('grid'); setView('favourites'); }} />)}
+        {chip('view:recent', <Chip label="Recent" icon="history" selected={mode === 'grid' && view === 'recent'} onPress={() => { setMode('grid'); setView('recent'); }} />)}
+        {sources.map(item =>
+          chip(
+            `view:${item.id}`,
+            <Chip
+              label={sourceChipLabel(item)}
+              accessibilityLabel={item.name}
+              icon={item.kind === 'iptv-org' ? 'earth' : item.kind === 'jiotv' ? 'server-network' : 'playlist-play'}
+              selected={mode === 'grid' && view === item.id}
+              onPress={() => { setMode('grid'); setView(item.id); }}
+              onLongPress={item.kind === 'jiotv' && !kids ? () => setMode('jiotv') : undefined}
+            />,
+          ),
+        )}
+        {kids && !jioNumber ? null : chip(`view:${JIO_SOURCE_ID}`, <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />)}
+        {chip('world', <Chip label="World" icon="web" selected={mode === 'country' || (mode === 'grid' && !!worldCountry)} onPress={openWorld} />)}
         {/* Server and playlist setup is not shown on a kids profile. */}
-        {kids ? null : <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />}
-        {kids ? null : <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />}
+        {kids ? null : chip('mode:jiotv', <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />)}
+        {kids ? null : chip('mode:add', <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />)}
       </ScrollView>
     </View>
   );
@@ -570,15 +584,22 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             {header}
             <View style={{paddingHorizontal: isTV ? 40 : 12}}>
               {worldCountry ? (
-                <View style={{flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8}}>
-                  <AppText role="titleMedium" style={{flexShrink: 1, color: colors.onSurface}}>
-                    {flagOf(worldCountry)} {findCountry(worldCountry)?.name}
-                    {detected?.code === worldCountry ? <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant}}> · {DETECTED_FROM[detected.from]}</AppText> : null}
-                  </AppText>
-                  <TVFocusable accessibilityRole="button" accessibilityLabel="Change country" onPress={() => setMode('country')} borderRadius={20} style={{flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.surfaceContainerHigh}}>
-                    <MaterialCommunityIcons name="web" size={18} color={colors.onSurfaceVariant} />
-                    <AppText role="labelLarge" style={{color: colors.onSurface}}>Change country</AppText>
-                  </TVFocusable>
+                <View style={{marginBottom: 8}}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                    <AppText role="titleMedium" numberOfLines={2} style={{flex: 1, color: colors.onSurface}}>
+                      {flagOf(worldCountry)} {findCountry(worldCountry)?.name}
+                    </AppText>
+                    <TVFocusable accessibilityRole="button" accessibilityLabel="Change country" onPress={() => setMode('country')} borderRadius={20} style={{flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.surfaceContainerHigh}}>
+                      <MaterialCommunityIcons name="web" size={18} color={colors.onSurfaceVariant} />
+                      <AppText role="labelLarge" numberOfLines={1} style={{color: colors.onSurface}}>Change country</AppText>
+                    </TVFocusable>
+                  </View>
+                  {/* On its own line, so the long "detected from your phone's language settings" fits at 360 dp. */}
+                  {detected?.code === worldCountry ? (
+                    <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 2}}>
+                      {DETECTED_FROM[detected.from][0].toUpperCase() + DETECTED_FROM[detected.from].slice(1)}
+                    </AppText>
+                  ) : null}
                 </View>
               ) : null}
               {note ? <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>{note}</AppText> : null}
