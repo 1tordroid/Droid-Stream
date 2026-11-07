@@ -28,3 +28,10 @@ describe('feature search', () => {
     expect(ids.has('download-checksum')).toBe(true);
   });
 });
+
+describe('library features', () => {
+  it('finds the poster library and fix match', () => {
+    expect(searchFeatures('rescan')[0]?.entry.id).toBe('network-library');
+    expect(searchFeatures('wrong poster')[0]?.entry.id).toBe('library-fix-match');
+  });
+});

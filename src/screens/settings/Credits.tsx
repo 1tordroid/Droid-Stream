@@ -31,6 +31,11 @@ const SECTIONS: {title: string; intro: string; items: Credit[]}[] = [
     items: [
       {name: 'Stremio add-on protocol', note: 'Add-on support, written from the public protocol.', url: 'https://github.com/Stremio/stremio-addon-sdk'},
       {name: 'Cinemeta', note: 'Movie and show details.', url: 'https://www.stremio.com'},
+      {
+        name: 'TMDB (The Movie Database)',
+        note: 'Posters, artwork and details for your library and title pages, with your own API key. This product uses the TMDB API but is not endorsed or certified by TMDB.',
+        url: 'https://www.themoviedb.org/api-terms-of-use',
+      },
       {name: 'Jikan and AniSkip', note: 'Anime details and skip times.', url: 'https://jikan.moe'},
       {name: 'OpenSubtitles', note: 'Subtitle matching.', url: 'https://www.opensubtitles.com'},
       {name: 'Trakt, Simkl and AniList', note: 'Watch history sync.', url: 'https://trakt.tv'},

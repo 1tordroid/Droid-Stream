@@ -110,6 +110,16 @@ libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD ser
 ### Network sources, links and downloads
 
 - SMB (smbj), WebDAV, Jellyfin, Emby and Plex, with credentials in an encrypted MMKV store.
+- `native-src/android/com/vega/SmbStreamServer.kt` serves SMB files to the player on `127.0.0.1` with Range support: one random 128-bit token per opened file, no listing route, tokens expire 30 minutes after the last read. `lib/sources/smb.ts` (`openSmbStream`, `SMB_STREAMING.enabled`) gates it; it is off until device seek tests pass, so SMB is browse-only.
+
+### Network library (netlib)
+
+- `src/lib/netlib/` turns WebDAV and SMB sources and device folders into poster libraries. `scan/` lists folders (`walk.ts`: 8 levels, 5000 videos), `parsePath.ts` reads a title from the file name and the folders above it (season folders, show folders, film folders, id tags such as `{tmdb-603}`, extras), and `group.ts` makes movies (versions, cd1/cd2 parts), shows (episodes) and Other.
+- `match/` matches titles: an id tag, then TMDB `/search/movie` or `/search/tv` with the year when a TMDB key is saved, else Cinemeta (`findImdb`). Four requests at once with backoff on 429 (`match/index.ts`), scored by `match/score.ts`. `cache.ts` keeps hits 180 days and misses 7 days.
+- Everything is in the unencrypted MMKV instance `netlib`: libraries, per-source settings (library folder, online lookups, Other tab), device folders, matches and library history. Erase all clears it; Android Auto Backup skips it (`plugins/with-backup-rules.js`), and it is not in the settings backup or watch sync.
+- A file's player link is a version key (`ids.ts`, `netlib:v:<source>:<path>`, no sign-in in it). `resolve.ts` turns it into a stream: WebDAV with Basic auth headers, SMB through the stream server, device files as they are. `useStream` resolves it too, so the next episode plays from the same source.
+- Screens: `screens/library/SourceLibrary.tsx` (Movies, Shows, Other, Folders; A-Z, Recently added, Year; search; settings sheet; FlashList with the first-focus guard), `components/netlib/FixMatch.tsx` (the metadata picker), `components/netlib/NetlibEpisodeList.tsx` (Info body). `LocalLibrary.tsx` is the device source. Info links are `netlib:i:<item id>` with provider `netlib`.
+- Continue Watching: the player writes `history.ts` (not the synced store); `continueWatching.ts` builds the rows and the resume point, counting 85% as watched.
 - `lib/linkIntake.ts` takes magnets and links shared or opened from other apps, and offers a copied magnet. RSS feeds are polled every 15 minutes.
 - Downloaded files can be checked against an MD5, SHA-1 or SHA-256 hash.
 
@@ -131,6 +141,8 @@ Known issues:
 - A FORTIFY mutex abort shows in logcat when a reinstall kills the app process. It has not been seen during use.
 
 Not tested yet: Cloud files with real PikPak or debrid accounts, debrid and watch sync sign-in, the "Because you watched" row, and Android TV.
+
+5.5.0 network library, not yet tested on a device: scanning a real WebDAV server, SMB share and device folder; poster matching with and without a TMDB key; Fix match; resume and next episode from Continue Watching; the TV D-pad pass through the library grid. SMB playback (smbj 0.15.0 and `SmbStreamServer`) is built but switched off until a 4 GB MKV plays and seeks at 10%, 50% and 90% from Windows and Samba shares on the OnePlus 12 and an Android TV.
 
 ## Roadmap
 
