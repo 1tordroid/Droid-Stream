@@ -43,6 +43,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Notification media controls.
 - ✅ Subtitles: style, size and colour, matched by file hash, search and add your own.
 - ✅ Preferred audio and subtitle languages, with a second choice.
+- 🧪 Night mode (evens out loud and quiet sound) and dialogue boost (clearer voices), changed live from the audio menu. VLC has night mode only.
 - 📋 Subtitle sync tools and dual subtitles.
 - 📋 Subtitle translation, using your own service.
 
