@@ -2,6 +2,7 @@ import {NativeModules} from 'react-native';
 import {downloadManager} from './downloader';
 import {fileCategory, findDuplicate, parseDashRepresentations, parseHlsVariants} from './downloadEngine/planner';
 import useDownloadsStore from './zustand/downloadsStore';
+import {setEngineOptions, type DownloadEngineOptions} from './downloadEngine/engineStore';
 
 const linksIn = (text: string): string[] =>
   Array.from(text.matchAll(/magnet:\?[^\s]+|https?:\/\/[^\s]+/gi)).map(match => match[0]);
@@ -55,7 +56,12 @@ export const qualityChoices = (variants: ProbedLink['variants'], limit = 4): Pro
     .slice(0, limit);
 };
 
-export const queueLink = async (url: string, fileName?: string): Promise<'queued' | 'duplicate'> => {
+export const queueLink = async (
+  url: string,
+  fileName?: string,
+  /** DASH choice or debrid file, kept so the engine can use it later. */
+  engine?: DownloadEngineOptions,
+): Promise<'queued' | 'duplicate'> => {
   const name = fileName || url.split('/').pop()?.split('?')[0] || 'download';
   const existing = Object.values(useDownloadsStore.getState().downloads).map(item => ({
     url: item.url,
@@ -64,8 +70,10 @@ export const queueLink = async (url: string, fileName?: string): Promise<'queued
   }));
   if (findDuplicate(existing, {url, fileName: name})) return 'duplicate';
   const extension = name.includes('.') ? name.split('.').pop() || 'mp4' : 'mp4';
+  const downloadId = `link-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  if (engine) setEngineOptions(downloadId, engine);
   await downloadManager({
-    downloadId: `link-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    downloadId,
     // The saved file may change format (an HLS stream becomes one video), so the title has no extension.
     title: name.replace(/\.[^.]+$/, ''),
     mediaType: 'movie',

@@ -54,6 +54,7 @@ import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {canReplayOn, openChannel, openReplay, type GridChannel} from './play';
+import {showProgrammeMenu} from './record';
 import {isKidsChannelGroup} from '../../lib/profiles/kids';
 import {isKidsProfileActive} from '../../lib/profiles/profiles';
 
@@ -494,7 +495,23 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     [play, playLive, navigation, sourceName],
   );
 
-  const onLongPressCell = useCallback((channel: GridChannel, cell: GuideCell) => setSelected({channel, cell}), []);
+  const onLongPressCell = useCallback(
+    (channel: GridChannel, cell: GuideCell) => {
+      setSelected({channel, cell});
+      const programme = cell.programme;
+      if (!programme || programme.stop <= Date.now()) return;
+      const live = programme.start <= Date.now();
+      showProgrammeMenu(channel, programme, [
+        live
+          ? {label: 'Watch', onPress: () => playLive(channel)}
+          : {
+              label: reminderIds().has(reminderId(`${channel.sourceId}|${channel.id}`, programme.start)) ? 'Remove reminder' : 'Set reminder',
+              onPress: () => onPressCell(channel, cell),
+            },
+      ]);
+    },
+    [playLive, onPressCell],
+  );
 
   const onFocusCell = useCallback(
     (channel: GridChannel, cell: GuideCell) => {
@@ -654,7 +671,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
             </>
           ) : (
             <AppText role="bodySmall" style={{color: error ? colors.error : colors.onSurfaceVariant}}>
-              {status || (isTV ? 'Pick a programme on now to watch, a past one to replay, a future one for a reminder.' : 'Tap a programme on now to watch, a past one to replay, a future one for a reminder. Long-press for details.')}
+              {status || (isTV ? 'Pick a programme on now to watch, a past one to replay, a future one for a reminder.' : 'Tap a programme on now to watch, a past one to replay, a future one for a reminder. Long-press to record.')}
             </AppText>
           )}
           {selected && status ? (

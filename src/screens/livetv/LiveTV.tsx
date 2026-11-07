@@ -30,6 +30,7 @@ import {
 } from '../../lib/livetv/store';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {openChannel, type GridChannel} from './play';
+import {showChannelMenu} from './record';
 import {isKidsChannelGroup} from '../../lib/profiles/kids';
 import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
 
@@ -525,7 +526,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             preferred={index === 0}
             busy={opening === item.id}
             onPress={() => onPlay(item)}
-            onLongPress={() => onToggleFavourite(item)}
+            onLongPress={() => showChannelMenu(item, favouriteKeys.has(`${item.sourceId}|${item.id}`), () => onToggleFavourite(item))}
           />
         )}
       />

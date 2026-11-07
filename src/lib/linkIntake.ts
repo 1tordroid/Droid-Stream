@@ -14,6 +14,7 @@ import {showAppDialog} from './zustand/appDialogStore';
 import {isPageLink} from './ytdl/formats';
 import {ytdlSupported} from './ytdl/native';
 import {readYtdlSettings} from './ytdl/settings';
+import {offerDashDownload} from './downloadEngine/dashIntake';
 
 const storage = openStore('droid-stream-intake');
 
@@ -23,7 +24,7 @@ export const classifyLink = (value: string): IncomingKind | null => {
   const text = value.trim();
   if (/^magnet:\?/i.test(text)) return 'magnet';
   if (/^content:\/\//i.test(text) || /\.torrent(\?|$)/i.test(text)) return 'torrent';
-  if (/^https?:\/\/\S+$/i.test(text)) return 'http';
+  if (/^(https?|ftps?|ftpes):\/\/\S+$/i.test(text)) return 'http';
   return null;
 };
 
@@ -48,7 +49,13 @@ const queueWithToast = (url: string, name?: string) =>
 
 /** Asks which quality to save when a stream offers more than one. */
 const downloadLink = async (url: string): Promise<void> => {
-  if (!/\.(m3u8|mpd)(\?|$)/i.test(url)) {
+  if (/\.mpd(\?|$)/i.test(url)) {
+    await offerDashDownload(url, undefined, (link, name, dash) =>
+      queueLink(link, name, {dash}).then(state => toast(state === 'queued' ? 'Added to Downloads' : 'Already in Downloads')),
+    );
+    return;
+  }
+  if (!/\.m3u8(\?|$)/i.test(url)) {
     await queueWithToast(url);
     return;
   }

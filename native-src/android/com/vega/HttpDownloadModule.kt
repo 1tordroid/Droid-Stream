@@ -477,12 +477,63 @@ class HttpDownloadModule(
                     result.putDouble("size", size.toDouble())
                     result.putString("mime", it.header("Content-Type"))
                     result.putBoolean("acceptRanges", it.code == 206 || it.header("Accept-Ranges")?.contains("bytes", true) == true)
+                    result.putInt("statusCode", it.code)
+                    it.header("ETag")?.let { value -> result.putString("etag", value) }
+                    it.header("Last-Modified")?.let { value -> result.putString("lastModified", value) }
                     promise.resolve(result)
                 }
             } catch (error: Exception) {
                 promise.reject("PROBE_FAILED", error.message ?: error.toString(), error)
             }
         }
+    }
+
+    /**
+     * What a stopped download saved about its link: the address, validators,
+     * total size and whether out-of-order ranges are recorded. Null when nothing
+     * is saved.
+     */
+    @ReactMethod
+    fun resumeInfo(downloadId: String, promise: Promise) {
+        val url = metadata.getString(metaKey(downloadId, "url"), null)
+        if (url == null) {
+            promise.resolve(null)
+            return
+        }
+        promise.resolve(Arguments.createMap().apply {
+            putString("url", url)
+            metadata.getString(metaKey(downloadId, "etag"), null)?.let { putString("etag", it) }
+            metadata.getString(metaKey(downloadId, "lastModified"), null)?.let { putString("lastModified", it) }
+            putDouble("totalBytes", metadata.getLong(metaKey(downloadId, "total"), -1L).toDouble())
+            putBoolean("hasRanges", metadata.contains(metaKey(downloadId, "remaining")))
+        })
+    }
+
+    /**
+     * Moves a stopped download to a new address that JavaScript checked serves
+     * the same file (same size, byte ranges, validators). The saved ranges stay,
+     * so the next start continues from the bytes already written.
+     */
+    @ReactMethod
+    fun rebindUrl(downloadId: String, url: String, etag: String?, lastModified: String?, promise: Promise) {
+        if (jobs.containsKey(downloadId)) {
+            promise.reject("DOWNLOAD_ACTIVE", "Stop the download before changing its link")
+            return
+        }
+        if (!metadata.contains(metaKey(downloadId, "url"))) {
+            promise.resolve(false)
+            return
+        }
+        metadata.edit()
+            .putString(metaKey(downloadId, "url"), url)
+            .remove(metaKey(downloadId, "etag"))
+            .remove(metaKey(downloadId, "lastModified"))
+            .apply {
+                if (!etag.isNullOrEmpty()) putString(metaKey(downloadId, "etag"), etag)
+                if (!lastModified.isNullOrEmpty()) putString(metaKey(downloadId, "lastModified"), lastModified)
+            }
+            .commit()
+        promise.resolve(true)
     }
 
     @ReactMethod
