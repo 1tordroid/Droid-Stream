@@ -106,7 +106,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
             TorrentModule.addPublicTrackers = settings.getBoolean("publicTrackers")
             TorrentModule.preferPex = settings.getBoolean("pex")
             promise.resolve(true)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             promise.reject("SETTINGS", error.message, error)
         }
     }
@@ -143,7 +143,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
                 }
                 TorrentNotifier.update(reactApplicationContext)
                 promise.resolve(result)
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 promise.reject("ENQUEUE", error.message, error)
             }
         }.start()
@@ -161,7 +161,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
                 rows.pushMap(summary(handle))
             }
             promise.resolve(rows)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             promise.reject("LIST", error.message, error)
         }
     }
@@ -352,7 +352,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
                 putInt("ranges", applied)
                 putString("reason", "")
             })
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             promise.resolve(Arguments.createMap().apply {
                 putBoolean("applied", false)
                 putInt("ranges", 0)
@@ -487,7 +487,7 @@ class TorrentClientModule(reactContext: ReactApplicationContext) : ReactContextB
     private fun handle(infoHash: String): TorrentHandle? =
         try {
             engine().ensureSession().find(Sha1Hash.parseHex(infoHash))?.takeIf { it.isValid }
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             null
         }
 

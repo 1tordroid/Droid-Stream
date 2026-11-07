@@ -253,11 +253,21 @@ configurations.configureEach {
 `;
     }
 
-    if (!contents.includes('libtorrent4j:2.1.0-39')) {
+    // The Java API plus the native engine for each shipped ABI. Each one is
+    // checked on its own so a project generated before armeabi-v7a support
+    // picks up the 32-bit library too.
+    const torrentArtifacts = [
+      'libtorrent4j',
+      'libtorrent4j-android-arm64',
+      'libtorrent4j-android-arm',
+    ].filter(name => !contents.includes(`org.libtorrent4j:${name}:2.1.0-39`));
+    if (torrentArtifacts.length > 0) {
       contents = contents.replace(
         /dependencies\s*\{/,
         match =>
-          `${match}\n    implementation 'org.libtorrent4j:libtorrent4j:2.1.0-39'\n    implementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39'\n`,
+          `${match}\n${torrentArtifacts
+            .map(name => `    implementation 'org.libtorrent4j:${name}:2.1.0-39'`)
+            .join('\n')}\n`,
       );
     }
 

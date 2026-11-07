@@ -16,6 +16,7 @@ import useDownloadsStore, {
 import { TextTrackType } from 'react-native-video';
 import { downloadOutputExists } from '../downloadDestination';
 import {guardWafPrompts} from '../services/wafSession';
+import {withoutUnplayableTorrents} from '../torrentStream';
 
 interface UseStreamOptions {
   activeEpisode: any;
@@ -541,8 +542,9 @@ export const fetchStreamList = async ({
         streamItem => !excludedQualities.includes(streamItem?.quality + 'p'),
       );
 
-      remoteStreams =
-        filteredQualities?.length > 0 ? filteredQualities : data || [];
+      remoteStreams = withoutUnplayableTorrents(
+        filteredQualities?.length > 0 ? filteredQualities : data || [],
+      );
     } finally {
       clearTimeout(timeoutId);
       signal?.removeEventListener('abort', abort);

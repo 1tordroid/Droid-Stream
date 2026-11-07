@@ -1,6 +1,7 @@
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import * as FileSystem from 'expo-file-system/legacy';
 import {NativeModules, Platform} from 'react-native';
+import {markTorrentEngineUnavailable} from './torrentStream';
 
 const {TorrentModule, TorrentClientModule, HttpDownloadModule} = NativeModules;
 
@@ -136,6 +137,9 @@ class TorrentManager {
       console.log('TorrentManager initialized, stream port:', this.streamPort);
     } catch (error) {
       console.error('Failed to init TorrentModule:', error);
+      if ((error as {code?: string} | undefined)?.code === 'INIT_ERROR') {
+        markTorrentEngineUnavailable();
+      }
       throw error;
     }
     try {
