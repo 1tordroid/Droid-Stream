@@ -27,6 +27,8 @@ Droid Stream installs beside the original Vega app. Its Android application id i
 - Sync with the Vega desktop app.
 - In-app updates from this repository's GitHub Releases.
 
+See [FEATURES.md](FEATURES.md) for the full list, including what is being built and planned, and [CHANGELOG.md](CHANGELOG.md) for each release.
+
 ## Plugins
 
 Droid Stream runs the provider extensions Vega runs. The rebrand does not change the module shape, the sandbox, or the identifiers those plugins already use.

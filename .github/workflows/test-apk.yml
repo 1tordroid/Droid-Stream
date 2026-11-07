@@ -6,6 +6,9 @@ name: Test APK
 on:
   push:
     branches-ignore: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
