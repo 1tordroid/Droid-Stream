@@ -7,9 +7,7 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
-## Coming in 5.6.1
-
-Built and being tested:
+## 5.6.1
 
 - Watch online for any magnet or torrent (Torrents results, opened magnets,
   the Magnet screen): cached debrid first, then PikPak, then the torrent
@@ -127,8 +125,6 @@ Built and being tested:
   the top of Settings. Credits and open-source licences are now one
   page, with link buttons for the projects and services.
 
-More in 5.6.1: aria2-style remote control, command access, PikPak and
-debrid files in the poster library, Tordroid Plus, and more.
 
 ## 5.5.0
 
