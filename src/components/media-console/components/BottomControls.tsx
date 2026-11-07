@@ -41,6 +41,7 @@ interface BottomControlsProps {
   seekThumbnailLoading: boolean;
   seekSnapPosition: number | null;
   skips?: SkipInterval[];
+  chapters?: {start: number; title: string}[];
 }
 
 export const BottomControls = ({
@@ -68,6 +69,7 @@ export const BottomControls = ({
   seekThumbnailLoading,
   seekSnapPosition,
   skips,
+  chapters,
 }: BottomControlsProps) => {
   const seekbarControl = disableSeekbar ? (
     <NullControl />
@@ -94,6 +96,7 @@ export const BottomControls = ({
       thumbnailLoading={seekThumbnailLoading}
       snapPosition={seekSnapPosition}
       skips={skips}
+      chapters={chapters}
     />
   );
 

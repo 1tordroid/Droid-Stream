@@ -86,4 +86,9 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
+  previewChapter: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 10,
+    maxWidth: 140,
+  },
 });

@@ -9,7 +9,7 @@ export type SegmentKind = 'intro' | 'recap' | 'credits' | 'preview';
 export const SEGMENT_KINDS: readonly SegmentKind[] = ['intro', 'recap', 'credits', 'preview'];
 
 /** Where a segment came from, highest priority first. */
-export type SegmentSource = 'provider' | 'jellyfin' | 'emby' | 'plex' | 'aniskip' | 'introdb' | 'user';
+export type SegmentSource = 'provider' | 'jellyfin' | 'emby' | 'plex' | 'chapters' | 'aniskip' | 'introdb' | 'user';
 
 export interface SkipSegment extends SkipInterval {
   title: string;

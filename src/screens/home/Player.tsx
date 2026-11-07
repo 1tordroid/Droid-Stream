@@ -122,10 +122,13 @@ import {
   type SkipSegment,
 } from '../../lib/playback/skipSegmentModel';
 import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
+import ChaptersMenu from './player/ChaptersMenu';
 import SubtitleSyncMenu from './player/SubtitleSyncMenu';
 import SecondSubtitleMenu from './player/SecondSubtitleMenu';
 import TimedSubtitleOverlay from './player/TimedSubtitleOverlay';
 import {useSubtitleTools} from './player/useSubtitleTools';
+import {usePlayerChapters} from './player/usePlayerChapters';
+import {chapterIndexAt, chaptersToSegments, nextChapterStart, previousChapterStart} from '../../lib/player/chapters';
 import {frameRateMatchingNativeValue, getFrameRateMatching} from '../../lib/player/frameRate';
 import {readSecondSubtitleStyle, secondLineBottom} from '../../lib/subtitles/dualSubtitles';
 import {MAX_SUBTITLE_DELAY_MS} from '../../lib/subtitles/subtitleSync';
@@ -800,8 +803,13 @@ const Player = ({route}: Props): React.JSX.Element => {
   const [editingControls, setEditingControls] = useState(false);
   const [showMoreControls, setShowMoreControls] = useState(false);
   const [showMarksMenu, setShowMarksMenu] = useState(false);
+  const [showChapters, setShowChapters] = useState(false);
   const [showSubtitleSync, setShowSubtitleSync] = useState(false);
   const [showSecondSubtitle, setShowSecondSubtitle] = useState(false);
+  // Chapter jumps for the remote's next/previous keys, set once chapters are known.
+  const chapterNavRef = useRef({next: (): boolean => false, previous: (): boolean => false});
+  const nextChapterFromRemote = useCallback(() => chapterNavRef.current.next(), []);
+  const previousChapterFromRemote = useCallback(() => chapterNavRef.current.previous(), []);
   const nativeVideoViewRef = useRef<HostInstance>(null);
   const [hdrWidth, setHdrWidth] = useState(0);
   const [decoderMode, setDecoderMode] = useState<'hardware' | 'software'>('hardware');
@@ -994,7 +1002,9 @@ const Player = ({route}: Props): React.JSX.Element => {
     primaryColor: primary,
     onTogglePlayPause: handleTogglePlayPause,
     onSeekNotification: handleSeekNotification,
-    remoteSuspended: autoNextVisible || editingControls || showMoreControls || showMarksMenu || showSubtitleSync || showSecondSubtitle,
+    remoteSuspended: autoNextVisible || editingControls || showMoreControls || showMarksMenu || showChapters || showSubtitleSync || showSecondSubtitle,
+    onNextChapter: nextChapterFromRemote,
+    onPreviousChapter: previousChapterFromRemote,
   });
 
   const [showTimeRemaining, setShowTimeRemaining] = useState<boolean>(() =>
@@ -1245,21 +1255,37 @@ const Player = ({route}: Props): React.JSX.Element => {
     (route.params as any)?.linkList,
   ]);
 
-  // Every source merged: provider, Jellyfin, AniSkip, IntroDB, then the
-  // viewer's marks. Kinds set to Off are left out.
+  // Chapters: from the media server, else from the file once it has loaded.
+  const {chapters, source: chapterSource} = usePlayerChapters({
+    streamUrls: segmentStreamUrls,
+    serverItemKey,
+    videoUri: (isTorrentStream(selectedStream) ? processedStreamUrl : selectedStream.link) || '',
+    headers: selectedStream?.headers,
+    videoType: selectedStream?.type,
+    loaded: loadedDuration > 0,
+    durationSeconds: loadedDuration,
+    enabled: !route.params.live,
+  });
+  const chapterSegments = useMemo(() => chaptersToSegments(chapters, loadedDuration), [chapters, loadedDuration]);
+  const chapterTicks = useMemo(() => chapters.map(chapter => ({start: chapter.start, title: chapter.title})), [chapters]);
+
+  // Every source merged: provider, Jellyfin, Emby, Plex, chapters named Intro
+  // or Credits, AniSkip, IntroDB, then the viewer's marks. Kinds set to Off
+  // are left out.
   const combinedSkips: SkipSegment[] = useMemo(() => {
     const legacy = markersToSkips(readShowMarkers(marksShowKey));
     return withoutOff(
       gatherSegments({
         provider: providerSkips,
         fetched: fetchedSegments,
+        chapters: chapterSegments,
         marks: seasonMarks,
         legacy,
         durationSeconds: loadedDuration,
       }),
       skipModes,
     );
-  }, [providerSkips, fetchedSegments, seasonMarks, marksShowKey, loadedDuration, skipModes]);
+  }, [providerSkips, fetchedSegments, chapterSegments, seasonMarks, marksShowKey, loadedDuration, skipModes]);
 
   // New skip intervals change what the current position renders.
   useEffect(() => {
@@ -1804,6 +1830,30 @@ const Player = ({route}: Props): React.JSX.Element => {
     [videoPositionRef, loadedDuration, hasNextEpisode, handleNextEpisode, isCasting, route.params?.type],
   );
 
+  // Chapter jumps: the toolbar, the Chapters menu and the remote's next/previous keys.
+  const seekToChapter = useCallback(
+    (target: number | undefined): boolean => {
+      if (target === undefined) return false;
+      playerRef.current?.seek(target);
+      playbackTimeRef.current = target;
+      playbackClockRef.current.time = target;
+      playbackClockRef.current.at = Date.now();
+      setCurrentPlaybackTime(target);
+      const index = chapterIndexAt(chapters, target);
+      if (index >= 0) setToast(chapters[index].title, 1500);
+      return true;
+    },
+    [chapters, setToast],
+  );
+  const goNextChapter = useCallback(
+    () => seekToChapter(nextChapterStart(chapters, playbackTimeRef.current)),
+    [chapters, seekToChapter],
+  );
+  const goPreviousChapter = useCallback(
+    () => seekToChapter(previousChapterStart(chapters, playbackTimeRef.current)),
+    [chapters, seekToChapter],
+  );
+  chapterNavRef.current = {next: goNextChapter, previous: goPreviousChapter};
   // The sync picker pauses while a line is chosen.
   const pausePlayback = useCallback(() => {
     if (isTV) setIsPaused(true);
@@ -3151,6 +3201,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       onProgress: handleProgressWithTime,
       onPlaybackStateChanged: handlePlaybackStateChanged,
       skips: combinedSkips,
+      chapterMarks: chapterTicks,
       onLoad: handleVideoLoadCallback,
       videoRef: playerRef,
       rate: playbackRate,
@@ -3226,6 +3277,7 @@ const Player = ({route}: Props): React.JSX.Element => {
       handleProgressWithTime,
       handlePlaybackStateChanged,
       combinedSkips,
+      chapterTicks,
       frameRateMatching,
       hideNativeSubtitles,
       handleVideoLoadCallback,
@@ -3509,6 +3561,30 @@ const Player = ({route}: Props): React.JSX.Element => {
         videoPositionRef.current.duration > 0 &&
         videoPositionRef.current.position / videoPositionRef.current.duration > 0.8,
       onPress: handleNextEpisode,
+    },
+    {
+      id: 'chapterPrev',
+      title: 'Previous chapter',
+      label: 'Prev ch.',
+      icon: 'skip-previous-circle-outline',
+      visible: chapters.length > 1 && !isCasting,
+      onPress: goPreviousChapter,
+    },
+    {
+      id: 'chapters',
+      title: 'Chapters',
+      label: 'Chapters',
+      icon: 'format-list-numbered',
+      visible: chapters.length > 1 && !isCasting,
+      onPress: () => setShowChapters(true),
+    },
+    {
+      id: 'chapterNext',
+      title: 'Next chapter',
+      label: 'Next ch.',
+      icon: 'skip-next-circle-outline',
+      visible: chapters.length > 1 && !isCasting,
+      onPress: goNextChapter,
     },
     {
       id: 'marks',
@@ -4013,6 +4089,26 @@ const Player = ({route}: Props): React.JSX.Element => {
                     backgroundColor: primary,
                   }}
                 />
+                {videoPositionRef.current.duration > 0 && chapters.length > 1
+                  ? chapters.map(chapter =>
+                      chapter.start > 0 && chapter.start < videoPositionRef.current.duration ? (
+                        <View
+                          key={`tv-chapter-${chapter.start}`}
+                          pointerEvents="none"
+                          style={{
+                            position: 'absolute',
+                            left: `${(100 * chapter.start) / videoPositionRef.current.duration}%`,
+                            marginLeft: -1.5,
+                            top: -3,
+                            width: 3,
+                            height: 5 * controlStyle.scale * controlStyle.seekbarScale + 6,
+                            borderRadius: 1.5,
+                            backgroundColor: 'rgba(255,255,255,0.9)',
+                          }}
+                        />
+                      ) : null,
+                    )
+                  : null}
               </View>
               <Text style={{color: 'white', fontSize: 14 * controlStyle.scale, marginTop: 6, textAlign: 'center'}}>
                 {formatTVTimelineTime(scrubPosition ?? currentPlaybackTime)} /{' '}
@@ -4021,6 +4117,9 @@ const Player = ({route}: Props): React.JSX.Element => {
                       ? `-${formatTVTimelineTime(Math.max(0, videoPositionRef.current.duration - (scrubPosition ?? currentPlaybackTime)))}`
                       : formatTVTimelineTime(videoPositionRef.current.duration))
                   : '--:--'}
+                {chapters.length > 1 && chapterIndexAt(chapters, scrubPosition ?? currentPlaybackTime) >= 0
+                  ? `  •  ${chapters[chapterIndexAt(chapters, scrubPosition ?? currentPlaybackTime)].title}`
+                  : ''}
                 {scrubPosition !== null
                   ? '  •  Select to seek · Back to cancel'
                   : ''}
@@ -4110,6 +4209,34 @@ const Player = ({route}: Props): React.JSX.Element => {
           onClear={handleClearMarks}
           onClose={() => {
             setShowMarksMenu(false);
+            setShowControls(true);
+          }}
+        />
+      )}
+
+      {showChapters && !isCasting && (
+        <ChaptersMenu
+          chapters={chapters}
+          source={chapterSource}
+          time={playbackTimeRef.current}
+          color={primary}
+          onSeek={seconds => {
+            seekToChapter(seconds);
+            setShowChapters(false);
+            setShowControls(true);
+          }}
+          onPrevious={() => {
+            goPreviousChapter();
+            setShowChapters(false);
+            setShowControls(true);
+          }}
+          onNext={() => {
+            goNextChapter();
+            setShowChapters(false);
+            setShowControls(true);
+          }}
+          onClose={() => {
+            setShowChapters(false);
             setShowControls(true);
           }}
         />
