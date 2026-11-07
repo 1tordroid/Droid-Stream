@@ -37,6 +37,21 @@ Built and being tested:
 - Both work on decoded audio. When sound goes encoded to a receiver,
   the menu says so. VLC has night mode (it restarts at the same time);
   dialogue boost is in the built-in player only.
+- Plex: sign in with a code. Tap Get a code, then enter it at
+  plex.tv/link on your phone or computer, or scan the QR code. Pick a
+  server if you have more than one; the app uses the best address that
+  answers (your network first, then internet, then relay). Sign in with
+  server address is still there.
+- Jellyfin: Use Quick Connect. Enter the 6-digit code in Jellyfin under
+  Settings > Quick Connect on a device that is signed in. Username and
+  password still work. Emby keeps its normal sign-in.
+- The codes and QR code are large on TV and work with the D-pad.
+- Progress goes back to your Jellyfin, Emby and Plex servers while you
+  watch: start, every 10 seconds, pause and stop. At 90% the video is
+  marked played. Offline, the last position waits and is sent later.
+- Videos opened from a server continue where you stopped in its apps,
+  when this device has no progress of its own.
+- New switch in Watch sync: Sync progress with my servers (on).
 
 ## 5.6.1
 

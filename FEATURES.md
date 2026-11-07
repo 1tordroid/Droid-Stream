@@ -98,8 +98,8 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Try SMB playback (testing), a switch in Advanced downloads. Off by default.
 - ✅ Poster library for your servers and your device's videos: Movies, Shows, Other and Folders, matched titles and artwork, Continue watching across sources.
 - ✅ Fix a wrong poster or title.
-- 📋 Plex PIN sign-in and Jellyfin Quick Connect.
-- 📋 Sync your progress back to Jellyfin, Emby and Plex.
+- 🧪 Plex sign-in with a code at plex.tv/link (QR code on screen), then pick a server; the app uses the best address that answers. Jellyfin Quick Connect with a 6-digit code. Password sign-in stays.
+- 🧪 Sync your progress back to Jellyfin, Emby and Plex while you watch, and continue where their apps stopped. Played at 90%. Works offline: the last position is sent later. A switch in Watch sync.
 - 📋 Find servers on your network by themselves.
 
 ## Downloads
