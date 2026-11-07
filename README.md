@@ -13,19 +13,28 @@ Based on Vega by [vega-org](https://github.com/vega-org/vega-app).
 Droid Stream installs beside the original Vega app. Its Android application id is `com.tordroid.droidstream` (Play builds use `com.tordroid.droidstream.play`).
 
 ### Features
-- Stream and download with the same provider plugins Vega runs.
-- Torrents: search many sites at once, stream while downloading, open magnets and `.torrent` files from other apps, RSS feeds, and schedule, Wi-Fi and VPN rules.
+- Stream and download with the same provider plugins Vega runs, with Play best that moves to the next source by itself.
+- Live TV: free-to-air channels, Sign in with Jio, your own M3U playlists, a TV guide with catch-up, quality and language filters, and recording for channels without DRM.
+- Your own servers in a poster library: SMB, WebDAV, Jellyfin, Emby and Plex.
 - Debrid and cloud: TorBox, Real-Debrid, AllDebrid, Premiumize, Offcloud, Debrid-Link and PikPak.
-- Stremio add-ons such as Torrentio, Comet, MediaFusion and OpenSubtitles, with one ranked stream list and Play best.
-- Your own servers: SMB, WebDAV, Jellyfin, Emby and Plex.
-- Built-in player or VLC, skip intro and credits (AniSkip for anime), and subtitles matched by file hash.
-- Watch sync with Trakt, Simkl and AniList.
-- Multi-connection downloader with a queue, HLS downloads and checksum checks.
+- Stremio add-ons such as Torrentio, Comet, MediaFusion and OpenSubtitles, with one ranked stream list.
+- Torrents: search many sites at once, stream while downloading, RSS feeds, and schedule, Wi-Fi and VPN rules.
+- Downloads: multi-connection downloader, HLS, DASH and FTP, a yt-dlp video and audio downloader, and photos from social posts.
+- A built-in browser with download detection, an ad and tracker blocker, userscripts and saved passwords.
+- Built-in player or VLC, skip intro, recap and credits for every show, picture-in-picture and background audio.
+- Profiles with a kids mode and PIN locks, and watch sync with Trakt (QR sign-in and scrobbling), Simkl and AniList.
+- Smart unblock opens sites your provider blocks through ByeDPI or Cloudflare WARP, only for those sites.
 - Cast support: Google Cast/DLNA, plus Vega Cast so existing Vega receivers still pair.
-- Watch list, Library and a local video library with posters.
-- External player and downloader support.
-- Sync with the Vega desktop app.
-- In-app updates from this repository's GitHub Releases.
+- In-app updates from this repository's GitHub Releases, signed with the Droid Stream key.
+
+### Screenshots
+
+| | | | |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screenshots/home-livetv.webp" width="200" alt="Live TV with free channels"> | <img src="docs/screenshots/livetv-filters.webp" width="200" alt="Live TV quality and language filters"> | <img src="docs/screenshots/library.webp" width="200" alt="Library and your own sources"> | <img src="docs/screenshots/browser-media.webp" width="200" alt="Browser finding a video on a page"> |
+| Live TV | Channel filters | Library | Browser |
+| <img src="docs/screenshots/video-downloader.webp" width="200" alt="yt-dlp video downloader"> | <img src="docs/screenshots/torrents.webp" width="200" alt="Torrents tab"> | <img src="docs/screenshots/unblock.webp" width="200" alt="Smart unblock choice"> | <img src="docs/screenshots/about.webp" width="200" alt="About and updates"> |
+| Video downloader | Torrents | Smart unblock | Updates |
 
 See [FEATURES.md](FEATURES.md) for the full list, including what is being built and planned, and [CHANGELOG.md](CHANGELOG.md) for each release.
 
