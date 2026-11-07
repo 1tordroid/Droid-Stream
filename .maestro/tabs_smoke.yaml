@@ -6,6 +6,12 @@ tags: [smoke, phone, ci]
 - tapOn: "Search"
 - assertVisible: "Search"
 - tapOn: "Torrents"
+# First visit: a one-time tip about torrents and VPNs.
+- runFlow:
+    when:
+      visible: "Torrents are not unblocked"
+    commands:
+      - tapOn: "Not now"
 - assertVisible: "Find streams"
 - tapOn: "Library"
 - assertVisible: "Library"
