@@ -189,6 +189,29 @@ describe('settings defaults', () => {
     expect(settingsStorage.getPlayerControlLayout().top).toEqual(['sleep', 'lock', 'cast', 'decoder']);
   });
 
+  it('keeps night mode and dialogue boost off until chosen', () => {
+    expect(settingsStorage.getNightMode()).toBe('off');
+    expect(settingsStorage.getDialogueBoost()).toBe('off');
+  });
+
+  it('remembers night mode and dialogue boost choices', () => {
+    settingsStorage.setNightMode('medium');
+    settingsStorage.setDialogueBoost('strong');
+
+    expect(settingsStorage.getNightMode()).toBe('medium');
+    expect(settingsStorage.getDialogueBoost()).toBe('strong');
+    expect(mockStringValues.get(SettingsKeys.NIGHT_MODE)).toBe('medium');
+    expect(mockStringValues.get(SettingsKeys.DIALOGUE_BOOST)).toBe('strong');
+  });
+
+  it('reads unknown saved night mode and dialogue boost values as off', () => {
+    mockStringValues.set(SettingsKeys.NIGHT_MODE, 'max');
+    mockStringValues.set(SettingsKeys.DIALOGUE_BOOST, 'loud');
+
+    expect(settingsStorage.getNightMode()).toBe('off');
+    expect(settingsStorage.getDialogueBoost()).toBe('off');
+  });
+
   it('remembers a playback speed from the picker list', () => {
     settingsStorage.setPlaybackSpeed(1.5);
 

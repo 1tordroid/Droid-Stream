@@ -4,6 +4,11 @@ import renderer, {act} from 'react-test-renderer';
 import {ToastAndroid} from 'react-native';
 
 const mockSeek = jest.fn();
+const mockSetNativeProps = jest.fn();
+let mockNightMode = 'off';
+const mockSetNightMode = jest.fn((mode: string) => {
+  mockNightMode = mode;
+});
 let mockVlcProps: any = {};
 jest.mock('react-native-vlc-media-player', () => {
   const ReactActual = require('react');
@@ -11,7 +16,7 @@ jest.mock('react-native-vlc-media-player', () => {
   return {
     VLCPlayer: ReactActual.forwardRef((props: any, ref: any) => {
       mockVlcProps = props;
-      ReactActual.useImperativeHandle(ref, () => ({seek: mockSeek}));
+      ReactActual.useImperativeHandle(ref, () => ({seek: mockSeek, setNativeProps: mockSetNativeProps}));
       return ReactActual.createElement(View, {testID: 'vlc'});
     }),
   };
@@ -30,7 +35,13 @@ jest.mock('../src/components/tv', () => {
     TVFocusable: ({children, ...props}: any) => ReactActual.createElement(P, props, children),
   };
 });
-jest.mock('../src/lib/storage', () => ({settingsStorage: {getSeekInterval: () => 10}}));
+jest.mock('../src/lib/storage', () => ({
+  settingsStorage: {
+    getSeekInterval: () => 10,
+    getNightMode: () => mockNightMode,
+    setNightMode: (mode: string) => mockSetNightMode(mode),
+  },
+}));
 jest.mock('../src/lib/sources/vault', () => ({listSources: () => []}));
 jest.mock('../src/lib/aniskip', () => ({findAnimeSkips: jest.fn(async () => [])}));
 
@@ -71,6 +82,9 @@ const startsWith = (prefix: string) =>
 beforeEach(() => {
   mainStorage.clearAll();
   mockSeek.mockClear();
+  mockSetNativeProps.mockClear();
+  mockSetNightMode.mockClear();
+  mockNightMode = 'off';
   jest.spyOn(ToastAndroid, 'show').mockImplementation(() => undefined);
 });
 afterEach(() => {
@@ -134,5 +148,47 @@ describe('VLC player skip marks', () => {
     await render({...params, episodeList: [{...params.episodeList[0], skip: [{title: 'Recap', from: 0, to: 30}]}]});
     await play(10);
     expect(shown('Skip recap')).toBe(true);
+  });
+});
+
+describe('VLC night mode', () => {
+  const choice = (label: string) =>
+    tree!.root.findAll(node => typeof node.type !== 'string' && node.props.onPress && node.props.accessibilityLabel === `Night mode: ${label}`)[0];
+
+  it('starts with the old source while night mode is off', async () => {
+    await render();
+    expect(mockVlcProps.source).toEqual({
+      uri: params.directUrl,
+      initOptions: ['--audio-time-stretch', '--sub-track=0'],
+    });
+  });
+
+  it('starts libVLC with the compressor when night mode is the default', async () => {
+    mockNightMode = 'strong';
+    await render();
+    expect(mockVlcProps.source.initType).toBe(2);
+    expect(mockVlcProps.source.initOptions).toContain('--audio-filter=compressor');
+  });
+
+  it('restarts with the new preset, saves it and returns to the same time and tracks', async () => {
+    await render();
+    await play(300);
+    act(() => button('Audio and subtitles')[0].props.onPress());
+    act(() => choice('Medium').props.onPress());
+    expect(mockSetNightMode).toHaveBeenCalledWith('medium');
+    expect(mockVlcProps.source.initOptions).toContain('--compressor-ratio=3');
+    // The new player loads and is sent back to 300 s of 1400 s.
+    await act(async () => {
+      mockVlcProps.onLoad?.({duration: 1400});
+    });
+    expect(mockSeek).toHaveBeenCalledWith(300 / 1400);
+    expect(mockSetNativeProps).toHaveBeenCalled();
+  });
+
+  it('says dialogue boost is in the built-in player', async () => {
+    await render();
+    act(() => button('Audio and subtitles')[0].props.onPress());
+    const texts = tree!.root.findAll(node => node.props.children === 'Available in the built-in player');
+    expect(texts.length).toBeGreaterThan(0);
   });
 });

@@ -11,6 +11,18 @@ import useLocalContentStore from '../../lib/zustand/localContentStore';
 import PlayerMoreMenu from '../../components/PlayerMoreMenu';
 import {PlayerControlStyle} from '../../lib/player/controlStyle';
 import {languageLabel, shortLanguageLabel} from '../../lib/player/languageLabel';
+import {
+  DIALOGUE_BOOST_HINT,
+  DIALOGUE_BOOST_NEEDS_DECODED,
+  DIALOGUE_BOOST_OPTIONS,
+  NIGHT_MODE_HINT,
+  NIGHT_MODE_NEEDS_DECODED,
+  NIGHT_MODE_OPTIONS,
+  dialogueBoostNativeValue,
+  nightModeNativeValue,
+  type DialogueBoost,
+  type NightMode,
+} from '../../lib/player/audioEffects';
 import {usePlayerControlAnimations} from '../../components/media-console/hooks/usePlayerControlAnimations';
 import {isRemotePlaybackCanceled} from '../../lib/remote/remotePlaybackErrors';
 import React, {useEffect, useState, useRef, useCallback, useMemo} from 'react';
@@ -138,6 +150,7 @@ import {takePersistableUriPermission} from '../../lib/uriPermission';
 import AnimatedHourglass from '../../components/AnimatedHourglass';
 import PlayerMenuRow from '../../components/PlayerMenuRow';
 import PlayerDelayControl from '../../components/PlayerDelayControl';
+import PlayerChoiceControl from '../../components/PlayerChoiceControl';
 import PlayerSpeedControl from '../../components/PlayerSpeedControl';
 import PlayerSleepControl from '../../components/PlayerSleepControl';
 import PlayerSourceMenu from '../../components/PlayerSourceMenu';
@@ -764,6 +777,27 @@ const Player = ({route}: Props): React.JSX.Element => {
   const decoderRestartRef = useRef(false);
   const decoderSwitchBusyRef = useRef(false);
   const manualDecoderModeRef = useRef<'hardware' | 'software' | null>(null);
+  // Night mode and dialogue boost start from the saved defaults; a change in
+  // the player menu applies live and becomes the new default.
+  const [nightMode, setNightMode] = useState<NightMode>(() => settingsStorage.getNightMode());
+  const [dialogueBoost, setDialogueBoost] = useState<DialogueBoost>(() => settingsStorage.getDialogueBoost());
+  // Encoded (passthrough) audio skips the PCM effects, so the menu says so.
+  const [encodedAudio, setEncodedAudio] = useState(false);
+  const changeNightMode = useCallback((mode: NightMode) => {
+    settingsStorage.setNightMode(mode);
+    setNightMode(mode);
+  }, []);
+  const changeDialogueBoost = useCallback((level: DialogueBoost) => {
+    settingsStorage.setDialogueBoost(level);
+    setDialogueBoost(level);
+  }, []);
+  useEffect(() => {
+    const listener = DeviceEventEmitter.addListener('VegaAudioOutput', (event: {viewTags?: number[]; encoded?: boolean}) => {
+      const tag = getNodeHandle(nativeVideoViewRef.current);
+      if (tag && event.viewTags?.includes(tag)) setEncodedAudio(event.encoded === true);
+    });
+    return () => listener.remove();
+  }, []);
   useEffect(() => { manualDecoderModeRef.current = null; }, [selectedStream?.link]);
   useEffect(() => {
     const listener = DeviceEventEmitter.addListener('VegaVideoDecoderFallback', (event: {viewTags?: number[]}) => {
@@ -781,7 +815,8 @@ const Player = ({route}: Props): React.JSX.Element => {
 
   const refreshDecoderStatus = useCallback(() => {
     const tag = getNodeHandle(nativeVideoViewRef.current);
-    if (tag && NativeModules.VideoDecoder) NativeModules.VideoDecoder.getStatus(tag).then((status: {mode?: string} | null) => {
+    if (tag && NativeModules.VideoDecoder) NativeModules.VideoDecoder.getStatus(tag).then((status: {mode?: string; encodedAudio?: boolean} | null) => {
+      if (typeof status?.encodedAudio === 'boolean') setEncodedAudio(status.encodedAudio);
       if (status?.mode === 'software' || status?.mode === 'hardware') {
         setDecoderMode(status.mode);
         if (manualDecoderModeRef.current && status.mode !== manualDecoderModeRef.current) {
@@ -3042,6 +3077,12 @@ const Player = ({route}: Props): React.JSX.Element => {
       rate: playbackRate,
       subtitleDelayMs,
       audioDelayMs,
+      ...(Platform.OS === 'android'
+        ? {
+            nightMode: nightModeNativeValue(nightMode),
+            dialogueBoost: dialogueBoostNativeValue(dialogueBoost),
+          }
+        : {}),
       subtitleStyle,
       title: {
         primary:
@@ -3107,6 +3148,8 @@ const Player = ({route}: Props): React.JSX.Element => {
       subtitleDelayMs,
       subtitleStyle,
       audioDelayMs,
+      nightMode,
+      dialogueBoost,
       primary,
       navigation,
       handleShowControls,
@@ -4096,6 +4139,32 @@ const Player = ({route}: Props): React.JSX.Element => {
                       onChange={setAudioDelayMs}
                       onTVFocus={() => setSettingsCloseFocused(false)}
                     />
+                    {Platform.OS === 'android' && (
+                      <>
+                        <PlayerChoiceControl
+                          title="Night mode"
+                          hint={NIGHT_MODE_HINT}
+                          icon="nights-stay"
+                          options={NIGHT_MODE_OPTIONS}
+                          value={nightMode}
+                          accentColor={primary}
+                          unavailable={encodedAudio ? NIGHT_MODE_NEEDS_DECODED : undefined}
+                          onChange={changeNightMode}
+                          onTVFocus={() => setSettingsCloseFocused(false)}
+                        />
+                        <PlayerChoiceControl
+                          title="Dialogue boost"
+                          hint={DIALOGUE_BOOST_HINT}
+                          icon="record-voice-over"
+                          options={DIALOGUE_BOOST_OPTIONS}
+                          value={dialogueBoost}
+                          accentColor={primary}
+                          unavailable={encodedAudio ? DIALOGUE_BOOST_NEEDS_DECODED : undefined}
+                          onChange={changeDialogueBoost}
+                          onTVFocus={() => setSettingsCloseFocused(false)}
+                        />
+                      </>
+                    )}
                     {audioTracks.length === 0 && (
                       <View className="flex justify-center items-center">
                         <Text className="text-white text-xs">

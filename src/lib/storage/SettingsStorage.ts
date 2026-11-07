@@ -1,4 +1,10 @@
 import {normalizePlayerControlStyle, PlayerControlStyle} from '../player/controlStyle';
+import {
+  DialogueBoost,
+  NightMode,
+  normalizeDialogueBoost,
+  normalizeNightMode,
+} from '../player/audioEffects';
 import {mainStorage} from './StorageService';
 import {normalizePlayerControlLayout, PlayerControlLayout, PlayerControlId, PLAYER_CONTROL_IDS} from '../player/controlLayout';
 import {
@@ -56,6 +62,8 @@ export enum SettingsKeys {
   ENABLE_2X_GESTURE = 'enable2xGesture',
   ENABLE_SWIPE_GESTURE = 'enableSwipeGesture',
   ENABLE_VOLUME_BOOST = 'enableVolumeBoost',
+  NIGHT_MODE = 'nightMode',
+  DIALOGUE_BOOST = 'dialogueBoost',
   FORWARD_BUFFER_MB = 'forwardBufferMB',
   BACK_BUFFER_MB = 'backBufferMB',
   SEEK_INTERVAL = 'seekInterval',
@@ -556,6 +564,24 @@ export class SettingsStorage {
 
   setVolumeBoostEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.ENABLE_VOLUME_BOOST, enabled);
+  }
+
+  /** Night mode for new videos; the player menu changes it too. */
+  getNightMode(): NightMode {
+    return normalizeNightMode(mainStorage.getString(SettingsKeys.NIGHT_MODE));
+  }
+
+  setNightMode(mode: NightMode): void {
+    mainStorage.setString(SettingsKeys.NIGHT_MODE, normalizeNightMode(mode));
+  }
+
+  /** Dialogue boost for new videos; the player menu changes it too. */
+  getDialogueBoost(): DialogueBoost {
+    return normalizeDialogueBoost(mainStorage.getString(SettingsKeys.DIALOGUE_BOOST));
+  }
+
+  setDialogueBoost(level: DialogueBoost): void {
+    mainStorage.setString(SettingsKeys.DIALOGUE_BOOST, normalizeDialogueBoost(level));
   }
 
   getSeekInterval(): number {

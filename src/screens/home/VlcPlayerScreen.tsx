@@ -1,7 +1,7 @@
 import {VLCPlayer} from 'react-native-vlc-media-player';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Image, Pressable, ToastAndroid, View} from 'react-native';
+import {Image, Pressable, ScrollView, ToastAndroid, View, useWindowDimensions} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import AppText from '../../components/ui/Text';
 import {settingsStorage} from '../../lib/storage';
@@ -26,6 +26,12 @@ import {actionFor, segmentAt, segmentId, setMark, skipLabel, withoutOff} from '.
 import type {SkipInterval} from '../../lib/providers/types';
 import {guessWatchMeta, type WatchMeta} from '../../lib/watchMeta';
 import SkipMarksMenu, {type MarkChoice} from './player/SkipMarksMenu';
+import {
+  BUILT_IN_PLAYER_ONLY,
+  NIGHT_MODE_OPTIONS,
+  vlcAudioSourceOptions,
+  type NightMode,
+} from '../../lib/player/audioEffects';
 
 /** Skip times the provider gave with the episode or stream. */
 export const providerSkipsOf = (params: any): SkipInterval[] => {
@@ -51,6 +57,7 @@ type Track = {id: number; name: string};
  */
 const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => {
   const insets = useSafeAreaInsets();
+  const {height: windowHeight} = useWindowDimensions();
   const params = route.params || {};
   const uri =
     params.directUrl ||
@@ -70,6 +77,17 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
   const [textTrack, setTextTrack] = useState<number | undefined>();
   const [showTracks, setShowTracks] = useState(false);
   const [markers, setMarkers] = useState(() => readShowMarkers(showKey));
+  // libVLC reads its compressor settings only when a player starts, so a
+  // change restarts the player and returns to the same time.
+  const [nightMode, setNightMode] = useState<NightMode>(() => settingsStorage.getNightMode());
+  const resumeAt = useRef<number | null>(null);
+  const source = useMemo(() => ({uri, ...vlcAudioSourceOptions(nightMode)}), [uri, nightMode]);
+  const changeNightMode = (mode: NightMode) => {
+    if (mode === nightMode) return;
+    settingsStorage.setNightMode(mode);
+    resumeAt.current = time > 1 ? time : null;
+    setNightMode(mode);
+  };
   const seekSeconds = settingsStorage.getSeekInterval();
 
   // The same skip times and settings as the built-in player: the provider,
@@ -180,7 +198,7 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
       <VLCPlayer
         ref={player}
         style={{flex: 1}}
-        source={{uri, initOptions: ['--audio-time-stretch', '--sub-track=0']}}
+        source={source}
         autoplay
         paused={paused}
         audioTrack={audioTrack}
@@ -189,6 +207,17 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
           setDuration(event.duration || 0);
           setAudioTracks(event.audioTracks || []);
           setTextTracks(event.textTracks || []);
+          const resume = resumeAt.current;
+          if (resume !== null && event.duration > 0) {
+            resumeAt.current = null;
+            player.current?.seek(Math.min(0.999, resume / event.duration));
+            setTime(resume);
+            // The new player starts on the default tracks; pick the chosen ones again.
+            player.current?.setNativeProps({
+              ...(audioTrack !== undefined ? {audioTrack} : {}),
+              ...(textTrack !== undefined ? {textTrack} : {}),
+            });
+          }
         }}
         onProgress={(event: {currentTime: number; duration: number}) => {
           setTime(event.currentTime || 0);
@@ -239,13 +268,31 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
         ) : null}
       </View>
       {showTracks ? (
-        <View style={{position: 'absolute', right: 12, top: insets.top + 56, backgroundColor: 'rgba(0,0,0,0.88)', borderRadius: 16, padding: 12, maxWidth: 260}}>
+        <ScrollView
+          style={{position: 'absolute', right: 12, top: insets.top + 56, backgroundColor: 'rgba(0,0,0,0.88)', borderRadius: 16, maxWidth: 260, maxHeight: windowHeight - insets.top - insets.bottom - 68}}
+          contentContainerStyle={{padding: 12}}>
           <AppText className="text-white mb-2">Audio</AppText>
           {audioTracks.map(track => (
             <Pressable key={`a${track.id}`} onPress={() => setAudioTrack(track.id)} style={{paddingVertical: 6}}>
               <AppText style={{color: audioTrack === track.id ? '#E2B340' : '#fff'}}>{track.name}</AppText>
             </Pressable>
           ))}
+          <AppText className="text-white mb-2 mt-2">Night mode</AppText>
+          <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 6}}>
+            {NIGHT_MODE_OPTIONS.map(option => (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityLabel={`Night mode: ${option.label}`}
+                accessibilityState={{selected: nightMode === option.value}}
+                onPress={() => changeNightMode(option.value)}
+                style={{paddingVertical: 6, paddingHorizontal: 4}}>
+                <AppText style={{color: nightMode === option.value ? '#E2B340' : '#fff'}}>{option.label}</AppText>
+              </Pressable>
+            ))}
+          </View>
+          <AppText className="text-white mt-2">Dialogue boost</AppText>
+          <AppText style={{color: 'rgba(255,255,255,0.6)', paddingVertical: 4}}>{BUILT_IN_PLAYER_ONLY}</AppText>
           <AppText className="text-white mb-2 mt-2">Subtitles</AppText>
           <Pressable onPress={() => setTextTrack(-1)} style={{paddingVertical: 6}}>
             <AppText style={{color: '#fff'}}>Off</AppText>
@@ -255,7 +302,7 @@ const VlcPlayerScreen = ({route, navigation}: {route: any; navigation: any}) => 
               <AppText style={{color: textTrack === track.id ? '#E2B340' : '#fff'}}>{track.name}</AppText>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       ) : null}
       {showMarksMenu ? (
         <SkipMarksMenu

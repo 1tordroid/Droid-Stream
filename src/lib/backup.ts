@@ -69,6 +69,8 @@ const BACKUP_SETTINGS: Record<string, SettingType> = {
   [SettingsKeys.AMBIENT_SPREAD]: 'number',
   [SettingsKeys.AMBIENT_RESPONSE]: 'number',
   [SettingsKeys.ENABLE_VOLUME_BOOST]: 'bool',
+  [SettingsKeys.NIGHT_MODE]: 'string',
+  [SettingsKeys.DIALOGUE_BOOST]: 'string',
   [SettingsKeys.PLAYER_CONTROL_LAYOUT]: 'string',
   [SettingsKeys.PLAYER_CONTROL_STYLE]: 'string',
   [SettingsKeys.HIDDEN_PLAYER_CONTROLS]: 'array',

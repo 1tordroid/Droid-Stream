@@ -7,6 +7,19 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
+## Coming in 5.7
+
+Built and being tested:
+
+- Night mode in the player's audio menu: Off, Light, Medium or Strong.
+  Loud scenes get quieter and quiet speech louder, without clipping.
+  Changes apply at once and become the default in Player settings.
+- Dialogue boost in the same menu: Off, On or Strong. Raises the centre
+  channel on 5.1 and 7.1, and the voice range on stereo.
+- Both work on decoded audio. When sound goes encoded to a receiver,
+  the menu says so. VLC has night mode (it restarts at the same time);
+  dialogue boost is in the built-in player only.
+
 ## 5.6.1
 
 - Watch online for any magnet or torrent (Torrents results, opened magnets,
