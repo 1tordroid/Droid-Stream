@@ -54,12 +54,12 @@ import {
   getEpgOverride,
   getJioServer,
   jioEpgUrl,
-  listSources,
   loadPlaylist,
   readCachedPlaylist,
   setChannelFilters,
   setEpgOverride,
 } from '../../lib/livetv/store';
+import {findSource} from '../../lib/livetv/world';
 import {normalizeChannelName} from '../../lib/livetv/xmltv';
 import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
@@ -327,7 +327,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   const colors = useM3Colors();
   const {width: screenWidth} = useWindowDimensions();
   const isJio = sourceId === JIO_SOURCE_ID;
-  const source = useMemo(() => listSources().find(item => item.id === sourceId), [sourceId]);
+  const source = useMemo(() => findSource(sourceId), [sourceId]);
   const sourceName = isJio ? 'JioTV' : source?.name || 'Live TV';
   // A kids profile keeps only kids, animation and cartoon groups.
   const filterKids = useCallback(

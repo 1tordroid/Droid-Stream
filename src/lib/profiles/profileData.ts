@@ -25,7 +25,7 @@ export const PROFILE_MAIN_KEYS = [
   'library-selected-filter',
 ] as const;
 export const LIVETV_INSTANCE_ID = 'droid-stream-livetv';
-export const PROFILE_LIVETV_KEYS = ['favourites', 'recent', 'liveFilters'] as const;
+export const PROFILE_LIVETV_KEYS = ['favourites', 'recent', 'liveFilters', 'liveView', 'liveCountry', 'liveCountries'] as const;
 export const LANGUAGES_INSTANCE_ID = 'droid-stream-languages';
 export const PROFILE_LANGUAGE_KEYS = ['prefs'] as const;
 

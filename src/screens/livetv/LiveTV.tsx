@@ -36,12 +36,27 @@ import {openChannel, type GridChannel} from './play';
 import {showChannelMenu} from './record';
 import ChannelFilterBar, {QualityBadge} from './ChannelFilterBar';
 import {isKidsChannelGroup} from '../../lib/profiles/kids';
+import {flagOf, findCountry} from '../../lib/livetv/countries';
+import {detectCountry, DETECTED_FROM} from '../../lib/livetv/deviceCountry';
+import {
+  findSource,
+  getSavedLiveView,
+  initialLiveView,
+  listRecentCountries,
+  pickCountry,
+  saveLiveView,
+  worldChipCountry,
+  worldCountryOf,
+  worldSource,
+  worldSourceId,
+} from '../../lib/livetv/world';
+import CountryPicker from './CountryPicker';
 import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
 
 export {openChannel};
 
 type Section = 'favourites' | 'recent' | string;
-type Mode = 'grid' | 'jiotv' | 'add';
+type Mode = 'grid' | 'jiotv' | 'add' | 'country';
 
 const IPTV_ORG_NOTE = 'Publicly listed free-to-air channels from iptv-org. Availability varies and some streams may not play.';
 const JIOTV_NOTE = 'jiotv_go runs on your PC or phone (Termux) and signs in with your own Jio number. Enter its address here.';
@@ -113,7 +128,23 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   const colors = useM3Colors();
   const {width} = useWindowDimensions();
   const [sources, setSources] = useState<LiveSource[]>(() => listSources());
-  const [view, setView] = useState<Section>(() => (listFavourites().length ? 'favourites' : 'iptv-org'));
+  const detected = useMemo(() => detectCountry(), []);
+  // The list picked last; on first open, the detected country (see initialLiveView).
+  const [view, setView] = useState<Section>(() =>
+    initialLiveView({
+      saved: getSavedLiveView(),
+      validIds: ['favourites', 'recent', JIO_SOURCE_ID, ...sources.map(item => item.id)],
+      hasFavourites: listFavourites().length > 0,
+      detected: detected?.code,
+    }),
+  );
+  // Every list opened after this one is remembered for next time.
+  const firstView = useRef(view);
+  useEffect(() => {
+    if (view === firstView.current) return;
+    firstView.current = '';
+    saveLiveView(view);
+  }, [view]);
   const [mode, setMode] = useState<Mode>('grid');
   const [channels, setChannels] = useState<GridChannel[]>([]);
   const [epgUrl, setEpgUrl] = useState<string | undefined>();
@@ -147,8 +178,9 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   const [opening, setOpening] = useState<string | undefined>();
   const otpRef = useRef<TextInputInstance>(null);
 
-  const source = sources.find(item => item.id === view);
-  const sourceName = (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : sources.find(item => item.id === id)?.name || 'Live TV');
+  const worldCountry = worldCountryOf(view);
+  const source = sources.find(item => item.id === view) || worldSource(worldCountry);
+  const sourceName = (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : findSource(id)?.name || 'Live TV');
 
   useFocusEffect(useCallback(() => setFavourites(listFavourites()), []));
   // The guide may have changed the filters.
@@ -300,6 +332,24 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     }
   };
 
+  // World opens the country picked last (or the detected one); with neither, the country list.
+  const openWorld = () => {
+    const code = worldCountry || worldChipCountry(detected?.code);
+    const id = worldSourceId(code);
+    if (id) {
+      setMode('grid');
+      setView(id);
+    } else {
+      setMode('country');
+    }
+  };
+
+  const onPickCountry = (code: string) => {
+    const id = pickCountry(code);
+    setMode('grid');
+    if (id) setView(id);
+  };
+
   const inputStyle = {backgroundColor: colors.surfaceContainerHigh, color: colors.onSurface, borderRadius: 12, paddingHorizontal: 14, minHeight: 52, fontSize: 16, marginTop: 8};
 
   const header = (
@@ -319,6 +369,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
           />
         ))}
         {kids && !jioNumber ? null : <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />}
+        <Chip label="World" icon="web" selected={mode === 'country' || (mode === 'grid' && !!worldCountry)} onPress={openWorld} />
         {/* Server and playlist setup is not shown on a kids profile. */}
         {kids ? null : <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />}
         {kids ? null : <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />}
@@ -431,6 +482,18 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     );
   }
 
+  if (mode === 'country') {
+    return (
+      <CountryPicker
+        header={header}
+        detected={detected}
+        current={worldCountry || worldChipCountry(detected?.code)}
+        recent={listRecentCountries()}
+        onPick={onPickCountry}
+      />
+    );
+  }
+
   if (mode === 'add') {
     const playlists = listPlaylists();
     return (
@@ -482,7 +545,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   }
 
   const isJio = view === JIO_SOURCE_ID;
-  const note = source?.kind === 'iptv-org' ? IPTV_ORG_NOTE : source?.kind === 'jiotv' ? JIOTV_NOTE : undefined;
+  const note = source?.kind === 'iptv-org' || source?.kind === 'world' ? IPTV_ORG_NOTE : source?.kind === 'jiotv' ? JIOTV_NOTE : undefined;
   const empty = view === 'favourites'
     ? 'No favourites yet. Long-press a channel to add it.'
     : view === 'recent'
@@ -506,6 +569,18 @@ const LiveTV = ({navigation}: {navigation: any}) => {
           <View style={{marginHorizontal: isTV ? -36 : -8}}>
             {header}
             <View style={{paddingHorizontal: isTV ? 40 : 12}}>
+              {worldCountry ? (
+                <View style={{flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8}}>
+                  <AppText role="titleMedium" style={{flexShrink: 1, color: colors.onSurface}}>
+                    {flagOf(worldCountry)} {findCountry(worldCountry)?.name}
+                    {detected?.code === worldCountry ? <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant}}> · {DETECTED_FROM[detected.from]}</AppText> : null}
+                  </AppText>
+                  <TVFocusable accessibilityRole="button" accessibilityLabel="Change country" onPress={() => setMode('country')} borderRadius={20} style={{flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.surfaceContainerHigh}}>
+                    <MaterialCommunityIcons name="web" size={18} color={colors.onSurfaceVariant} />
+                    <AppText role="labelLarge" style={{color: colors.onSurface}}>Change country</AppText>
+                  </TVFocusable>
+                </View>
+              ) : null}
               {note ? <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>{note}</AppText> : null}
               {isJio && jioNumber ? (
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8}}>
