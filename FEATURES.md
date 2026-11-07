@@ -69,6 +69,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Trackers, encryption, DHT, PEX, LSD, uTP and an IP blocklist.
 - ✅ RSS feeds, create a torrent, seeding limits (seeding is off until you turn it on).
 - ✅ Open torrents in external players such as VLC and MX Player.
+- 🧪 Watch online for any magnet or torrent: cached debrid first, then PikPak in the cloud, then the torrent on this device. Shows the way it uses, and you can pick another.
 
 ## Debrid, cloud and add-ons
 
@@ -76,6 +77,9 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Stremio add-ons such as Torrentio, Comet, MediaFusion and OpenSubtitles.
 - ✅ One ranked stream list from add-ons, torrent sites and debrid caches, with Play best.
 - ✅ Cloud files in Library.
+- 🧪 PikPak and each signed-in debrid service as poster libraries: folders, Movies and Shows, artwork and Continue watching. Debrid transfers are the folders. A list view is still there.
+- 🧪 PikPak: play its own transcoded copies with a quality choice, storage and transfer quota, preview a magnet's files before adding, photo preview, share links, and PikPak WebDAV as a library source.
+- 🧪 Tordroid Plus: sign in to the family portal, see family downloads with progress, play them (with quality choice or in VLC), add magnets, quota, share links, and its WebDAV in the poster library.
 - ✅ Sign-ins stay saved as long as each service allows.
 - 📋 Add-on rows on Home.
 

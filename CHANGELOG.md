@@ -7,6 +7,22 @@ here before tagging a release.
 For everything the app can do, and what is planned, see
 [FEATURES.md](FEATURES.md).
 
+## Coming in 5.6.1
+
+Built and being tested:
+
+- Watch online for any magnet or torrent (Torrents results, opened magnets,
+  the Magnet screen): cached debrid first, then PikPak, then the torrent
+  on this device. Shows the way it uses and lets you pick another.
+- PikPak and debrid services in the poster library: folders, Movies and
+  Shows, artwork and Continue watching. Cloud files keeps a list view.
+- PikPak: quality choice from its own transcodes, storage and transfer
+  quota, magnet file preview before adding, photo preview, share links,
+  and PikPak WebDAV as a library source.
+- Tordroid Plus in Library > Add a source: family downloads with
+  progress, play with quality choice or in VLC, add magnets, quota, share
+  links and its WebDAV in the poster library.
+
 ## 5.6.0
 
 - Skip intro, recap, credits and previews for every show (provider,
