@@ -262,6 +262,14 @@ allprojects {
       );
     }
 
+    // Play Next on the Android TV home screen (Apache-2.0).
+    if (!contents.includes('androidx.tvprovider:tvprovider')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match => `${match}\n    implementation 'androidx.tvprovider:tvprovider:1.0.0'\n`,
+      );
+    }
+
     if (!contents.includes('androidx.documentfile:documentfile')) {
       contents = contents.replace(
         /dependencies\s*\{/,
@@ -326,6 +334,16 @@ configurations.configureEach {
         queries.intent.push({action: [{$: {'android:name': 'android.intent.action.VIEW'}}], data: [{$: {'android:scheme': scheme, ...(mime ? {'android:mimeType': mime} : {})}}]});
       }
     }
+    // Play Next: the app writes its own programs to the TV provider.
+    if (!queries.provider) queries.provider = [];
+    if (!queries.provider.some(item => item.$?.['android:authorities'] === 'android.media.tv')) {
+      queries.provider.push({$: {'android:authorities': 'android.media.tv'}});
+    }
+    if (!manifest['uses-permission']) manifest['uses-permission'] = [];
+    const epgPermission = 'com.android.providers.tv.permission.WRITE_EPG_DATA';
+    if (!manifest['uses-permission'].some(item => item.$?.['android:name'] === epgPermission)) {
+      manifest['uses-permission'].push({$: {'android:name': epgPermission}});
+    }
     const app = cfg.modResults.manifest.application?.[0];
     if (app) {
       if (!app.service) app.service = [];
@@ -377,6 +395,20 @@ configurations.configureEach {
           }
           app.receiver.push(receiver);
         }
+      }
+      // Removed from Play Next on the TV home screen (TvContract broadcasts).
+      if (!app.receiver.some(receiver => receiver.$?.['android:name'] === '.WatchNextReceiver')) {
+        app.receiver.push({
+          $: {'android:name': '.WatchNextReceiver', 'android:exported': 'true'},
+          'intent-filter': [
+            {
+              action: [
+                'android.media.tv.action.WATCH_NEXT_PROGRAM_BROWSABLE_DISABLED',
+                'android.media.tv.action.PREVIEW_PROGRAM_ADDED_TO_WATCH_NEXT',
+              ].map(action => ({$: {'android:name': action}})),
+            },
+          ],
+        });
       }
       // Command access (Termux, ADB, Tasker). Refused unless it is on in
       // Settings and the broadcast carries the user's token.

@@ -9,7 +9,7 @@ import ReactNativeHapticFeedback, {
 } from 'react-native-haptic-feedback';
 import type {HomeStackParamList} from '../App';
 import {useImageAccent} from '../lib/hooks/useImageAccent';
-import {getContinueWatchingRow} from '../lib/player/upNext';
+import {collectContinueWatchingItems} from '../lib/player/continueWatchingItems';
 import {settingsStorage} from '../lib/storage';
 import {showAppDialog} from '../lib/zustand/appDialogStore';
 import useContinueWatchingStore, {
@@ -21,13 +21,9 @@ import AppText from './ui/Text';
 import {isTV} from '../lib/tv/constants';
 import {TVFocusable} from './tv';
 import useLocalContentStore from '../lib/zustand/localContentStore';
-import {localContentId, localContentInfo, localContentLink} from '../lib/localContent/library';
-import {getLocalContinueWatching} from '../lib/localContent/playback';
-import {watchProgressStorage} from '../lib/storage';
+import {localContentId} from '../lib/localContent/library';
 import {netlibItemIdOf} from '../lib/netlib/ids';
 import {getNetlibHistorySnapshot, hideNetlibHistory, subscribeNetlibHistory} from '../lib/netlib/history';
-import {netlibContinueWatchingRows} from '../lib/netlib/continueWatching';
-import {findNetlibItem} from '../lib/netlib/library';
 
 interface ContinueWatchingCardProps {
   item: ContinueWatchingItem;
@@ -108,22 +104,7 @@ const ContinueWatching = ({localOnly = false}: {localOnly?: boolean}) => {
   // Watched movies stay in the store (and synced history), only the row
   // leaves them out.
   const items = useMemo(
-    () => {
-      const localItems: ContinueWatchingItem[] = localTitles.flatMap(title => {
-        const target = getLocalContinueWatching(title, uri => {
-          return watchProgressStorage.getProgress(uri) || undefined;
-        });
-        if (!target) return [];
-        const link = localContentLink(title.id);
-        return [{id: link, infoUrl: link, providerValue: 'local',
-          title: title.metadata?.title || title.name, episodeTitle: target.title, seasonTitle: target.seasonTitle,
-          episode: {id: target.episode.uri, link: target.episode.uri, title: target.title},
-          type: localContentInfo(title).type || 'series', poster: title.metadata?.poster, background: title.metadata?.background,
-          position: target.position, duration: target.duration, updatedAt: target.updatedAt}];
-      });
-      const netlibItems: ContinueWatchingItem[] = netlibContinueWatchingRows(netlibHistory, findNetlibItem, uri => watchProgressStorage.getProgress(uri) || undefined);
-      return getContinueWatchingRow([...(localOnly ? [] : storedItems), ...localItems, ...netlibItems]);
-    },
+    () => collectContinueWatchingItems({stored: storedItems, localTitles, netlibHistory, localOnly}),
     [storedItems, localTitles, localOnly, netlibHistory],
   );
 

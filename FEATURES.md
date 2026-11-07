@@ -172,9 +172,9 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Google Cast and DLNA, plus Vega Cast so existing Vega receivers still pair.
 - ✅ Android TV layout with remote (D-pad) control.
 - ✅ Sync with the Vega desktop app.
-- 📋 Android TV "Watch Next" row.
+- 🧪 Android TV "Watch Next" row: Continue watching and next episodes in Play Next on the TV home screen, per profile (kids profiles show kids titles only). Opens the title in the app.
 - 📋 Automatic frame-rate matching on TV.
-- 📋 TV screensaver and pause screen.
+- 🧪 TV screensaver and pause screen: after a video is paused a few minutes, its artwork moves slowly with the clock; when the app is idle, artwork from your library. Any button closes it.
 - 🧪 Send your whole setup from your phone to your TV (or another phone): pick what to send, scan the QR code or type the code the TV shows, confirm on the TV. Encrypted, over your home network only.
 
 ## Network and privacy

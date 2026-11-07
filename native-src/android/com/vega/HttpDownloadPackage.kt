@@ -13,6 +13,7 @@ class HttpDownloadPackage : ReactPackage {
             BackupExportModule(reactContext),
             MediaToolsModule(reactContext),
             FtpDownloadModule(reactContext),
+            TvHomeModule(reactContext),
         )
     }
 
