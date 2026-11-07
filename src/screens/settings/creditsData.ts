@@ -213,9 +213,7 @@ export const CREDIT_SECTIONS: CreditSection[] = [
       {name: 'SnapTube', note: 'Browser and download detection ideas. The Droid Stream browser is its own code.', links: [], noLinks: true},
       {name: 'Titanium Browser', note: 'Browser ideas. The Droid Stream browser is its own code.', links: [gh('jqssun/android-titanium-browser')]},
       {name: 'Morphe', note: 'Feature ideas.', links: [web('https://morphe.software'), gh('MorpheApp/morphe-manager')]},
-      {name: 'MovieBox', note: 'Browsing and design ideas.', links: [], noLinks: true},
       {name: 'Netflix', note: 'Browsing and design ideas.', links: [web('https://www.netflix.com')]},
-      {name: 'Castle', note: 'Browsing and design ideas.', links: [], noLinks: true},
     ],
   },
 ];

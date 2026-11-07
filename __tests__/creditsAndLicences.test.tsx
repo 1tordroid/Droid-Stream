@@ -120,7 +120,7 @@ describe('credits data', () => {
       'TorBox', 'Real-Debrid', 'AllDebrid', 'Premiumize', 'Offcloud', 'Debrid-Link', 'Jellyfin', 'Emby', 'Plex', 'Cloudflare WARP',
       'usque', 'ByeDPI', 'Bouncy Castle', 'Apache Commons Net', 'smbj', 'NanoHTTPD', 'libtorrent4j', 'yt-dlp', 'yt-dlp-ejs', 'Chaquopy',
       'Python (CPython)', 'FFmpeg', 'FFmpegKit', 'zustand', 'cheerio', 'Notifee', 'qBittorrent', 'LibreTorrent', 'Transmission', 'VidHub',
-      '1DM', 'YTDLnis', 'Seal', 'SnapTube', 'MovieBox', 'Netflix', 'Castle', 'Morphe', 'EasyList', 'EasyPrivacy', 'IndianList']) {
+      '1DM', 'YTDLnis', 'Seal', 'SnapTube', 'Netflix', 'Morphe', 'EasyList', 'EasyPrivacy', 'IndianList']) {
       expect(findEntry(name)).toBeDefined();
     }
   });
