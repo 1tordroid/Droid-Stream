@@ -3,13 +3,18 @@
  * one country at a time. India is not a World country; it keeps its own
  * "Free Indian channels" source.
  *
+ * "All countries" (world:all) is every country's free channels in one list
+ * (see allCountries.ts).
+ *
  * Which list opens first and the countries picked are kept per profile.
  */
 import {profileKey} from '../profiles/scope';
-import {findCountry, INDIA, normalizeCountryCode, worldPlaylistUrl} from './countries';
+import {ALL_COUNTRIES, ALL_COUNTRIES_PLAYLIST_URL, findCountry, INDIA, normalizeCountryCode, worldPlaylistUrl} from './countries';
 import {listSources, readLiveJson, writeLiveJson, type LiveSource} from './store';
 
 export const WORLD_PREFIX = 'world:';
+/** Every country's free channels in one list. */
+export const WORLD_ALL_ID = `${WORLD_PREFIX}all`;
 /** The existing Free Indian channels source. */
 export const INDIA_SOURCE_ID = 'iptv-org';
 const RECENT_COUNTRIES_LIMIT = 5;
@@ -26,8 +31,9 @@ const KEYS = {
   },
 };
 
-/** "world:gb" for a country; India goes to the Free Indian channels source. */
+/** "world:gb" for a country; India goes to the Free Indian channels source; "ALL" gives world:all. */
 export const worldSourceId = (code: string | undefined): string | undefined => {
+  if (code?.trim().toUpperCase() === ALL_COUNTRIES) return WORLD_ALL_ID;
   const clean = normalizeCountryCode(code);
   if (!clean) return undefined;
   return clean === INDIA ? INDIA_SOURCE_ID : `${WORLD_PREFIX}${clean.toLowerCase()}`;
@@ -40,7 +46,10 @@ export const worldCountryOf = (sourceId: string | undefined): string | undefined
   return code && code !== INDIA ? code : undefined;
 };
 
+export const isWorldAll = (sourceId: string | undefined): boolean => sourceId === WORLD_ALL_ID;
+
 export const worldSource = (code: string | undefined): LiveSource | undefined => {
+  if (code === ALL_COUNTRIES) return {id: WORLD_ALL_ID, kind: 'world', name: 'World: All countries', url: ALL_COUNTRIES_PLAYLIST_URL};
   const country = findCountry(code);
   const id = worldSourceId(country?.code);
   if (!country || !id?.startsWith(WORLD_PREFIX)) return undefined;
@@ -49,7 +58,7 @@ export const worldSource = (code: string | undefined): LiveSource | undefined =>
 
 /** Any source by id, World countries included. */
 export const findSource = (sourceId: string): LiveSource | undefined =>
-  listSources().find(item => item.id === sourceId) || worldSource(worldCountryOf(sourceId));
+  listSources().find(item => item.id === sourceId) || worldSource(isWorldAll(sourceId) ? ALL_COUNTRIES : worldCountryOf(sourceId));
 
 // ---- Remembered choices (per profile) ----
 
@@ -60,9 +69,11 @@ export const getSavedLiveView = (): string | undefined => {
 };
 export const saveLiveView = (view: string) => writeLiveJson(KEYS.view, view);
 
-/** The World country picked last. */
+/** The World country picked last ("ALL" for All countries). */
 export const getWorldCountry = (): string | undefined => {
-  const code = normalizeCountryCode(readLiveJson<string>(KEYS.country));
+  const saved = readLiveJson<string>(KEYS.country);
+  if (saved === ALL_COUNTRIES) return ALL_COUNTRIES;
+  const code = normalizeCountryCode(saved);
   return code && code !== INDIA ? code : undefined;
 };
 
@@ -73,8 +84,12 @@ export const listRecentCountries = (): string[] => {
   return value.map(item => normalizeCountryCode(typeof item === 'string' ? item : '')).filter((code): code is string => !!code);
 };
 
-/** Saves a country pick. Returns the source id to open. */
+/** Saves a country pick ("ALL" for All countries). Returns the source id to open. */
 export const pickCountry = (code: string): string | undefined => {
+  if (code.trim().toUpperCase() === ALL_COUNTRIES) {
+    writeLiveJson(KEYS.country, ALL_COUNTRIES);
+    return WORLD_ALL_ID;
+  }
   const clean = normalizeCountryCode(code);
   if (!clean) return undefined;
   if (clean !== INDIA) writeLiveJson(KEYS.country, clean);
@@ -107,7 +122,7 @@ export const initialLiveView = ({
   hasFavourites: boolean;
   detected: string | undefined;
 }): string => {
-  if (saved && (validIds.includes(saved) || worldCountryOf(saved))) return saved;
+  if (saved && (validIds.includes(saved) || worldCountryOf(saved) || isWorldAll(saved))) return saved;
   if (hasFavourites) return 'favourites';
   const code = normalizeCountryCode(detected);
   return code && code !== INDIA ? worldSourceId(code)! : INDIA_SOURCE_ID;
