@@ -51,3 +51,17 @@ share() { adb -s "$S" shell am start --user 0 -a android.intent.action.SEND -t t
 # Frame-time summary since the last reset: jank percentage and percentiles.
 jank_reset() { adb -s "$S" shell dumpsys gfxinfo "$(pkg)" reset >/dev/null; }
 jank() { adb -s "$S" shell dumpsys gfxinfo "$(pkg)" | grep -E 'Total frames rendered|Janky frames:|90th percentile|99th percentile' | sed 's/^ *//' | tr '\n' ';'; echo; }
+# Keep the test phone awake while nobody is using it, without changing any
+# setting: every 2-4 minutes, if Droid Stream is in front, open a random tab.
+# The screen never sits on one static image (OLED burn-in) and never times out.
+# Does nothing while another app is in front or the screen is off.
+# Stop it with Ctrl+C, or: kill %1
+keepalive() {
+  local tabs=(Home Search Torrents Library Settings)
+  while true; do
+    if front >/dev/null 2>&1; then
+      tap "content-desc=\"${tabs[RANDOM % ${#tabs[@]}]}\"" >/dev/null 2>&1
+    fi
+    w $(( 120 + RANDOM % 120 ))
+  done
+}
