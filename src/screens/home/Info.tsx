@@ -50,6 +50,8 @@ import StatusBarScrim from '../../components/ui/StatusBarScrim';
 import {TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
 import useTVNavigationStore from '../../lib/zustand/tvNavigationStore';
+import {useKidsTitleCheck} from '../../lib/profiles/useKidsTitleCheck';
+import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Info'>;
 
@@ -79,6 +81,11 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     localTitle,
     netlibItem,
   } = useContentDetails(route.params.link, providerValue);
+  // Kids profile: hide 18+ titles where the rating is known, and torrent streams.
+  const kidsProfile = useIsKidsProfile();
+  const kidsVerdict = useKidsTitleCheck(
+    info ? {imdbId: info.imdbId, tmdbId: info.tmdbId, type: info.type, tags: info.tags, genres: meta?.genres} : undefined,
+  );
   const remoteInLibrary = useWatchListStore(state =>
     state.watchList.some(item => item.link === route.params.link),
   );
@@ -347,6 +354,23 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
     );
   }
 
+  if (kidsVerdict === 'blocked') {
+    return (
+      <View style={{alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', padding: 24}}>
+        <StatusBar style="light" />
+        <AppText role="headlineSmallEmphasized" style={{color: colors.onBackground, textAlign: 'center'}}>
+          Not available on a kids profile
+        </AppText>
+        <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginTop: 8, textAlign: 'center'}}>
+          This title is rated for older viewers.
+        </AppText>
+        <View style={{marginTop: 22}}>
+          <Button variant="tonal" onPress={navigation.goBack} hasTVPreferredFocus={isTV}>Go back</Button>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <QueryErrorBoundary>
       <M3PaletteContext.Provider value={detailColors}>
@@ -404,8 +428,8 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                   exploreRef={exploreRef}
                   onOpenWeb={webUrl ? handleOpenWeb : undefined}
                   onSearchTitle={searchTitle}
-                  onFindStreams={findStreams}
-                  onPlay={localTitle || netlibItem ? undefined : playMain}
+                  onFindStreams={kidsProfile ? undefined : findStreams}
+                  onPlay={localTitle || netlibItem || kidsVerdict === 'checking' ? undefined : playMain}
                   onToggleLibrary={toggleLibrary}
                   onToggleSynopsis={() => setReadMore(value => !value)}
                   providerName={contentProviderName}
@@ -430,6 +454,8 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
                       <SkeletonLoader show height={28} width={120} />
                       <SkeletonLoader show height={72} width="100%" />
                     </View>
+                  ) : kidsVerdict === 'checking' ? (
+                    <AppText role="bodyMedium" style={{color: detailColors.onSurfaceVariant}}>Checking the age rating…</AppText>
                   ) : netlibItem ? (
                     <NetlibEpisodeList item={netlibItem} />
                   ) : localTitle ? (

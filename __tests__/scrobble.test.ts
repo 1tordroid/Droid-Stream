@@ -27,7 +27,7 @@ describe('Trakt scrobble', () => {
     const sync = require('../src/lib/watchSync');
     const scrobble = require('../src/lib/watchSync/scrobble');
     // The stores are in memory and shared between module loads: start clean.
-    sync.watchSyncStorage.clearStore();
+    sync.watchSyncBaseStorage.clearStore();
     sync.updateAccount('trakt', {clientId: 'cid', clientSecret: 'secret', accessToken: 'a1', refreshToken: 'r1', issuedAt: Date.now(), expiresAt: Date.now() + 20 * HOUR});
     return {sync, scrobble};
   };

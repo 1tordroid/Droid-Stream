@@ -13,6 +13,8 @@ import {TVFocusable, TVFocusGuide} from './tv';
 import {useTVFocusBorderColor} from '../lib/tv/useTVFocusBorderColor';
 import ProviderIcon from './ProviderIcon';
 import ReorderableProviderList from './ReorderableProviderList';
+import {isAdultSource} from '../lib/profiles/kids';
+import {useIsKidsProfile} from '../lib/profiles/useProfiles';
 
 interface ProviderDrawerProps {
   onClose: () => void;
@@ -36,7 +38,13 @@ const ProviderDrawer = ({
 }: ProviderDrawerProps) => {
   const provider = useContentStore(state => state.provider);
   const setProvider = useContentStore(state => state.setProvider);
-  const installedProviders = useContentStore(state => state.installedProviders);
+  const allProviders = useContentStore(state => state.installedProviders);
+  // A kids profile does not list adult-named providers or the provider store.
+  const kids = useIsKidsProfile();
+  const installedProviders = React.useMemo(
+    () => (kids ? allProviders.filter(item => !isAdultSource({name: item.display_name, value: item.value})) : allProviders),
+    [allProviders, kids],
+  );
   const hasSelectedProvider = installedProviders.some(
     item => item.value === provider.value,
   );
@@ -131,7 +139,7 @@ const ProviderDrawer = ({
         trapFocusDown={true}
         style={{flex: 1}}>
         {/* Always visible, so it never scrolls away with a long provider list. */}
-        {onBrowseProviders ? (
+        {onBrowseProviders && !kids ? (
             <TVFocusable
               accessibilityRole="button"
               accessibilityLabel="Available providers"

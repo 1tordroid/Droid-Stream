@@ -30,6 +30,8 @@ import {
 } from '../../lib/livetv/store';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {openChannel, type GridChannel} from './play';
+import {isKidsChannelGroup} from '../../lib/profiles/kids';
+import {useIsKidsProfile} from '../../lib/profiles/useProfiles';
 
 export {openChannel};
 
@@ -180,8 +182,11 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     };
   }, [view, source?.id, source?.url, reload, jioNumber]);
 
-  const groups = useMemo(() => channelGroups(channels), [channels]);
-  const shown = useMemo(() => filterChannels(channels, query, group), [channels, query, group]);
+  // A kids profile keeps only kids, animation and cartoon groups.
+  const kids = useIsKidsProfile();
+  const allowed = useMemo(() => (kids ? channels.filter(channel => isKidsChannelGroup(channel.group)) : channels), [channels, kids]);
+  const groups = useMemo(() => channelGroups(allowed), [allowed]);
+  const shown = useMemo(() => filterChannels(allowed, query, group), [allowed, query, group]);
   const guide = useNowNext(epgUrl, shown.length > 400 ? [] : shown);
   const favouriteKeys = useMemo(() => new Set(favourites.map(item => `${item.sourceId}|${item.id}`)), [favourites]);
 
@@ -286,12 +291,13 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             icon={item.kind === 'iptv-org' ? 'earth' : item.kind === 'jiotv' ? 'server-network' : 'playlist-play'}
             selected={mode === 'grid' && view === item.id}
             onPress={() => { setMode('grid'); setView(item.id); }}
-            onLongPress={item.kind === 'jiotv' ? () => setMode('jiotv') : undefined}
+            onLongPress={item.kind === 'jiotv' && !kids ? () => setMode('jiotv') : undefined}
           />
         ))}
-        <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />
-        <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />
-        <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />
+        {kids && !jioNumber ? null : <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />}
+        {/* Server and playlist setup is not shown on a kids profile. */}
+        {kids ? null : <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />}
+        {kids ? null : <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />}
       </ScrollView>
     </View>
   );

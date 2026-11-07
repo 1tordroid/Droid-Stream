@@ -1,5 +1,6 @@
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import {parseM3U, type LiveChannel, type ParsedPlaylist} from './m3u';
+import {profileKey} from '../profiles/scope';
 
 const storage = new MMKVLoader().withInstanceID('droid-stream-livetv').initialize();
 
@@ -30,8 +31,13 @@ export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'g
 const KEYS = {
   playlists: 'playlists',
   jiotv: 'jiotvServer',
-  favourites: 'favourites',
-  recent: 'recent',
+  // Per profile; playlists, the Jio server and caches are shared.
+  get favourites() {
+    return profileKey('favourites');
+  },
+  get recent() {
+    return profileKey('recent');
+  },
   cache: (sourceId: string) => `cache:${sourceId}`,
   epg: (sourceId: string) => `epgUrl:${sourceId}`,
 };

@@ -37,6 +37,10 @@ import StreamFinder from './screens/torrents/StreamFinder';
 import StremioAddons from './screens/torrents/StremioAddons';
 import WatchSync from './screens/settings/WatchSync';
 import LanguageSettings from './screens/settings/LanguageSettings';
+import Profiles from './screens/settings/Profiles';
+import ProfileEdit from './screens/settings/ProfileEdit';
+import ProfileGate from './components/profiles/ProfileGate';
+import useProfilesStore from './lib/profiles/useProfiles';
 import UndoSnackbar from './components/UndoSnackbar';
 import Search from './screens/Search';
 import {isTV} from './lib/tv';
@@ -228,6 +232,8 @@ export type SettingsStackParamList = {
   Credits: undefined;
   WatchSync: undefined;
   Languages: undefined;
+  Profiles: undefined;
+  ProfileEdit: {id?: string};
 };
 
 export type DownloadsStackParamList = {
@@ -278,6 +284,8 @@ LogBox.ignoreLogs([
 ]);
 
 export const openDownloadsScreen = (): void => {
+  // Downloads sit under Settings, which a kids profile does not have.
+  if (useProfilesStore.getState().kids) return;
   if (!navigationRef.isReady()) {
     pendingDownloadsNavigation = true;
     return;
@@ -289,9 +297,15 @@ export const openDownloadsScreen = (): void => {
   });
 };
 
+const openProfilesScreen = (): void => {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('TabStack', {screen: 'SettingsStack', params: {screen: 'Profiles'}});
+};
+
 // Opens Extensions with the add source dialog prefilled. The user still
 // confirms there, so another app or web page cannot add a source silently.
 const openAddSourceScreen = (payload: SourceIntentPayload): void => {
+  if (useProfilesStore.getState().kids) return;
   if (!navigationRef.isReady()) {
     pendingAddSource = payload;
     return;
@@ -548,6 +562,8 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="OpenSourceLicenses" component={OpenSourceLicenses} options={subpageOptions} />
       <SettingsStack.Screen name="WatchSync" component={WatchSync} options={subpageOptions} />
       <SettingsStack.Screen name="Languages" component={LanguageSettings} options={subpageOptions} />
+      <SettingsStack.Screen name="Profiles" component={Profiles} options={subpageOptions} />
+      <SettingsStack.Screen name="ProfileEdit" component={ProfileEdit} options={subpageOptions} />
     </SettingsStack.Navigator>
   );
 }
@@ -568,6 +584,8 @@ function TabStack() {
     }),
     [isLargeScreen],
   );
+  // A kids profile has no Torrents or Settings tab. Switching profile stays on Home.
+  const kids = useProfilesStore(state => state.kids);
   const tabs = (
     <Tab.Navigator
       screenListeners={navigationWorkListeners}
@@ -584,21 +602,25 @@ function TabStack() {
         component={SearchStackScreen}
         options={searchTabOptions}
       />
-      <Tab.Screen
-        name="TorrentsStack"
-        component={TorrentsStackScreen}
-        options={{title: 'Torrents', tabBarIcon: makeTabIcon('magnet', 'magnet-on')}}
-      />
+      {kids ? null : (
+        <Tab.Screen
+          name="TorrentsStack"
+          component={TorrentsStackScreen}
+          options={{title: 'Torrents', tabBarIcon: makeTabIcon('magnet', 'magnet-on')}}
+        />
+      )}
       <Tab.Screen
         name="WatchListStack"
         component={WatchListStackScreen}
         options={watchListTabOptions}
       />
-      <Tab.Screen
-        name="SettingsStack"
-        component={SettingsStackScreen}
-        options={settingsTabOptions}
-      />
+      {kids ? null : (
+        <Tab.Screen
+          name="SettingsStack"
+          component={SettingsStackScreen}
+          options={settingsTabOptions}
+        />
+      )}
     </Tab.Navigator>
   );
   return tabs;
@@ -836,6 +858,7 @@ const App = () => {
               <WafWebViewDialog />
               <RemoteVolumeToast />
               <FirstRunTips />
+              <ProfileGate onManage={openProfilesScreen} />
               {/* Isolated realm that runs untrusted provider code. Must stay
                 mounted for the app lifetime: every provider call is dispatched
                 into it. */}

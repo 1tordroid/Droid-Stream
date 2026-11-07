@@ -7,11 +7,20 @@ import {Buffer} from 'buffer';
 import {MMKVLoader} from 'react-native-mmkv-storage';
 import type {WatchMeta} from '../watchMeta';
 import {builtInSimklApp, builtInTraktApp, type AppKeys} from './appKeys';
+import {scopedStringStore} from '../profiles/scope';
 
-const storage = new MMKVLoader().withInstanceID('droid-stream-watch-sync').withEncryption().recoverOnKeyLoss().initialize();
+const baseStorage = new MMKVLoader().withInstanceID('droid-stream-watch-sync').withEncryption().recoverOnKeyLoss().initialize();
 
-/** The encrypted watch-sync store, shared with the scrobble queue (keys under "scrobble:"). */
+/**
+ * The encrypted watch-sync store, shared with the scrobble queue (keys under
+ * "scrobble:"). Each profile has its own sign-ins: its keys sit under the
+ * profile in the one store (scopedStringStore), so no new encrypted instance
+ * and backup rule is needed.
+ */
+const storage = scopedStringStore(baseStorage);
 export const watchSyncStorage = storage;
+/** The whole store, every profile included. For deleting a profile's sign-ins. */
+export const watchSyncBaseStorage = baseStorage;
 
 export type SyncServiceId = 'trakt' | 'simkl' | 'anilist';
 

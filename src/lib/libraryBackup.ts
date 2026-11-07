@@ -1,5 +1,6 @@
 import {mainStorage} from './storage/StorageService';
-import {watchListStorage} from './storage/WatchListStorage';
+import {WatchListStorage, watchListStorage} from './storage/WatchListStorage';
+import {getActiveProfileId} from './profiles/scope';
 import {WatchListKeys, type WatchListItem, type LibraryCollection} from './storage/WatchListStorage';
 import useWatchListStore from './zustand/watchListStore';
 
@@ -8,10 +9,11 @@ export interface LibraryBackup {
   collections: LibraryCollection[];
 }
 
-export const createLibraryBackup = (): LibraryBackup => ({
-  items: watchListStorage.getWatchList(),
-  collections: watchListStorage.getCollections(),
-});
+/** The library of the profile in use, or of [profileId]. */
+export const createLibraryBackup = (profileId?: string): LibraryBackup => {
+  const storage = profileId ? new WatchListStorage(profileId) : watchListStorage;
+  return {items: storage.getWatchList(), collections: storage.getCollections()};
+};
 
 export const validateLibraryBackup = (value: unknown): void => {
   if (value === undefined) return;
@@ -31,12 +33,16 @@ export const validateLibraryBackup = (value: unknown): void => {
   }
 };
 
-export const restoreLibraryBackup = (library?: LibraryBackup): void => {
+/** Replaces the library of the profile in use, or of [profileId]. */
+export const restoreLibraryBackup = (library?: LibraryBackup, profileId?: string): void => {
   if (library === undefined) return;
   validateLibraryBackup(library);
-  mainStorage.setArray(WatchListKeys.WATCH_LIST, library.items);
-  mainStorage.setArray(WatchListKeys.COLLECTIONS, library.collections);
+  const storage = new WatchListStorage(profileId);
+  mainStorage.setArray(storage.key(WatchListKeys.WATCH_LIST), library.items);
+  mainStorage.setArray(storage.key(WatchListKeys.COLLECTIONS), library.collections);
   // Preserve an intentionally deleted default category, including an empty library.
-  mainStorage.setBool(WatchListKeys.DEFAULT_COLLECTION_ADDED, true);
-  useWatchListStore.setState({watchList: library.items, collections: library.collections});
+  mainStorage.setBool(storage.key(WatchListKeys.DEFAULT_COLLECTION_ADDED), true);
+  if (!profileId || profileId === getActiveProfileId()) {
+    useWatchListStore.setState({watchList: library.items, collections: library.collections});
+  }
 };

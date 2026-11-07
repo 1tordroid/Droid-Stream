@@ -4,6 +4,10 @@ import type {EpisodeLink} from '../providers/types';
 import {getEpisodeIdentity} from '../utils/episodeIdentity';
 import {createZustandStorage} from '../storage/StorageService';
 import {getUpNextItem} from '../player/upNext';
+import {profileKey} from '../profiles/scope';
+
+/** Default-store key of the list, before the profile is applied. */
+export const CONTINUE_WATCHING_KEY = 'continue-watching-storage';
 
 export interface ContinueWatchingItem {
   id: string;
@@ -98,7 +102,8 @@ const useContinueWatchingStore = create<ContinueWatchingState>()(
         set(state => ({items: state.items.filter(item => item.id !== id)})),
     }),
     {
-      name: 'continue-watching-storage',
+      // One list per profile; the first profile keeps the original key.
+      name: profileKey(CONTINUE_WATCHING_KEY),
       storage: createJSONStorage(() => createZustandStorage()),
     },
   ),

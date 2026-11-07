@@ -1,5 +1,6 @@
 import {registerStorageClearHook} from '../storage/StorageService';
 import {netlibStorage} from './cache';
+import {profileKey} from '../profiles/scope';
 
 /** Where a library title was left: the file (version key) and the position in it. */
 export interface NetlibHistoryEntry {
@@ -18,10 +19,12 @@ export const WATCHED_SHARE = 0.85;
 export const isWatchedProgress = (position: number, duration: number): boolean =>
   duration > 0 && position / duration > WATCHED_SHARE;
 
-const KEY = 'history';
+/** Each profile keeps its own history; the scans and matches are shared. */
+export const NETLIB_HISTORY_KEY = 'history';
+const historyKey = () => profileKey(NETLIB_HISTORY_KEY);
 const MAX_ENTRIES = 200;
 
-export const readNetlibHistory = (): NetlibHistoryEntry[] => netlibStorage.readJson<NetlibHistoryEntry[]>(KEY) || [];
+export const readNetlibHistory = (): NetlibHistoryEntry[] => netlibStorage.readJson<NetlibHistoryEntry[]>(historyKey()) || [];
 
 export const historyFor = (itemId: string): NetlibHistoryEntry | undefined =>
   getNetlibHistorySnapshot().find(entry => entry.itemId === itemId);
@@ -43,7 +46,7 @@ export const getNetlibHistorySnapshot = (): NetlibHistoryEntry[] => {
 };
 
 const write = (entries: NetlibHistoryEntry[]) => {
-  netlibStorage.writeJson(KEY, entries.slice(0, MAX_ENTRIES));
+  netlibStorage.writeJson(historyKey(), entries.slice(0, MAX_ENTRIES));
   snapshot = undefined;
   listeners.forEach(listener => listener());
 };

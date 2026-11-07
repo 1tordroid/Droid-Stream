@@ -126,6 +126,7 @@ import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {TVFocusable, TVFocusGuide} from '../../components/tv';
 import {isTV} from '../../lib/tv';
+import useProfilesStore from '../../lib/profiles/useProfiles';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
 const AnimatedSection = ({
@@ -145,6 +146,7 @@ const Settings = ({navigation}: Props) => {
   const installedProviders = useContentStore(state => state.installedProviders);
   const [searching, setSearching] = useState(false);
   const [advanced, setAdvanced] = useState(() => settingsStorage.isAdvancedMode());
+  const activeProfile = useProfilesStore(state => state.profiles.find(item => item.id === state.activeId) ?? state.profiles[0]);
 
   const handleProviderSelect = useCallback(
     (item: ProviderExtension) => {
@@ -316,6 +318,12 @@ const Settings = ({navigation}: Props) => {
             {/* Main options section */}
             <AnimatedSection delay={200}>
               <SettingsSection title="Options">
+                <SettingsRow
+                  title="Profiles"
+                  description={`${activeProfile.emoji} ${activeProfile.name} · Switch, add or edit profiles`}
+                  icon="account-multiple-outline"
+                  onPress={() => navigation.navigate('Profiles')}
+                />
                 <SettingsSwitchRow
                   title="Advanced mode"
                   description="Shows speed limits, player engine, subtitles, and other extra controls"

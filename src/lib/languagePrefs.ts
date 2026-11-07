@@ -3,6 +3,7 @@
  * from what a video offers.
  */
 import {openStore} from './storage/openStore';
+import {profileKey} from './profiles/scope';
 
 const storage = openStore('droid-stream-languages');
 
@@ -112,14 +113,14 @@ export const defaultLanguagePrefs = (): LanguagePrefs => ({
 
 export const readLanguagePrefs = (): LanguagePrefs => {
   try {
-    return {...defaultLanguagePrefs(), ...JSON.parse(storage.getString('prefs') || '{}')};
+    return {...defaultLanguagePrefs(), ...JSON.parse(storage.getString(profileKey('prefs')) || '{}')};
   } catch {
     return defaultLanguagePrefs();
   }
 };
 
 export const writeLanguagePrefs = (prefs: LanguagePrefs): void => {
-  storage.setString('prefs', JSON.stringify(prefs));
+  storage.setString(profileKey('prefs'), JSON.stringify(prefs));
 };
 
 export interface TrackLike {

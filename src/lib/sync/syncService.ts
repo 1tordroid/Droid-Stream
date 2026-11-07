@@ -8,6 +8,7 @@ import {
   type WatchListItem,
 } from '../storage/WatchListStorage';
 import {mainStorage} from '../storage/StorageService';
+import {isDefaultProfileActive} from '../profiles/scope';
 import useDownloadsStore, {type DownloadItem} from '../zustand/downloadsStore';
 import {
   createDownloadDirectoryName,
@@ -48,10 +49,13 @@ const PUBLISH_DELAY_MS = 1000;
 const getProgressClearedAt = () =>
   mainStorage.getNumber(PROGRESS_CLEARED_KEY) || 0;
 
+// Shared-folder sync carries one library and history, so it runs only in the
+// first profile; other profiles would mix their titles into it.
 const isSyncActive = () =>
-  typeof settingsStorage?.isSyncEnabled === 'function'
+  isDefaultProfileActive() &&
+  (typeof settingsStorage?.isSyncEnabled === 'function'
     ? settingsStorage.isSyncEnabled()
-    : true;
+    : true);
 
 let initialized = false;
 let applyingRemoteState = false;
