@@ -78,6 +78,22 @@ Releases are signed with the Droid Stream key (alias `droidstream`). The keystor
 
 Release certificate: CN=Tordroid, OU=Droid Stream, SHA-256 `76fb06dd1d36edb89ce3ed058c5c520bffcb36eb2667b4707b487138f650d2be`. First used for v5.3.3 (versionCode 218).
 
+## Site rules for the photo downloader
+
+The photo downloader's site readers (`src/lib/social/extractors`) take every value a site can change (links, query and app ids, headers, JSON paths and patterns) from `rules/social-rules.json`. The app bundles that file and, at most once a day (and on Check now in Video downloader settings), downloads `rules/social-rules.json` and `rules/social-rules.json.sig` from `main`. It takes the download only when the Ed25519 signature matches the public key in `src/lib/social/rules/publicKey.ts`, the file passes `validate.ts`, its `schema` is one the app reads and its `version` is higher than the active one. Anything else keeps the current rules.
+
+Rules are data only. `validate.ts` keeps links on https and on the site's own hosts (the list is in `ruleSchema.ts`, not in the file), rejects control characters and the Cookie and Host headers, and caps sizes (64 KB file). Patterns must pass `safeRegex.ts`: at most 400 characters and flags `i`, `m`, `s`; no back-references, look-arounds or nested repeats; and repeated groups with alternatives must start with different characters, so a pattern cannot backtrack for ever.
+
+To fix a site:
+
+1. Change the values in `rules/social-rules.json` and raise `version` by one (and `updated`). New keys need an app update; the app ignores keys it does not know.
+2. `node scripts/rules/sign-rules.mjs --check` validates the file with the app's own code.
+3. Push to `main`. `social-rules.yml` checks the file, refuses a change without a higher `version`, signs it with the `SOCIAL_RULES_PRIVATE_KEY` secret and commits the `.sig` (a push made with `GITHUB_TOKEN` starts no other workflow). If `main` is protected, let GitHub Actions push, or sign locally: `SOCIAL_RULES_PRIVATE_KEY="$(cat social-rules-private.pem)" node scripts/rules/sign-rules.mjs` and commit both files; the workflow then sees a matching signature and does nothing.
+
+The private key (PEM or base64 PKCS#8) is kept outside the repository with a backup. A new key pair means a new public key in `publicKey.ts` and an app release; phones on older builds then stop taking updates.
+
+`social-check.yml` runs every Monday (and by hand): `scripts/rules/check-sites.mjs` reads the posts in `rules/site-checks.json` signed out, with the app's readers and the repository's rules, one request per site (`"requests": 2` lets a reader try its fallback), and opens, comments on or closes one `site-check` issue per site. Sites sometimes block GitHub's servers, so try a post in the app before changing rules. Run it locally with `node scripts/rules/check-sites.mjs --site instagram`.
+
 ## Dependencies
 
 - Patches in `patches/` are applied by `patch-package` on every install. Patched packages are pinned to the exact patched version in `package.json`. Re-check the patch before updating one.

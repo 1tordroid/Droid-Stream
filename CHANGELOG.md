@@ -22,6 +22,14 @@ Built and being tested:
 - Tordroid Plus in Library > Add a source: family downloads with
   progress, play with quality choice or in VLC, add magnets, quota, share
   links and its WebDAV in the poster library.
+- Photos from social apps keep working when a site changes: the app
+  takes signed site rules from the Droid Stream repository once a day,
+  or with Check now in Video downloader settings, which shows the
+  rules version.
+- "This site stopped working" on the photo downloader's error and in
+  Video downloader settings opens a GitHub issue with the site, app
+  version, rules version and error. The post link is added only if you
+  tick the box.
 
 ## 5.6.0
 

@@ -1,14 +1,16 @@
 import {asArray, asNumber, asRecord, asString, decodeHtml, extensionOf, metaContent, parseJson} from '../http';
-import {SocialError, type SocialExtractor, type SocialMediaItem, type SocialPost, type SocialVariant} from '../types';
+import {fillUrl, ruleRegex, siteRules} from '../rules/active';
+import {SocialError, type SocialContext, type SocialExtractor, type SocialMediaItem, type SocialPost, type SocialVariant} from '../types';
 
 /** Images in post HTML, with every size from srcset, largest first. */
-export const imagesInHtml = (html: string): SocialVariant[][] => {
+export const imagesInHtml = (html: string, rulesContext?: Pick<SocialContext, 'rules'>): SocialVariant[][] => {
+  const mediaHost = ruleRegex(siteRules(rulesContext, 'tumblr').patterns.mediaHost);
   const found: SocialVariant[][] = [];
   const seen = new Set<string>();
   for (const match of html.matchAll(/<img\b[^>]*>/gi)) {
     const tag = match[0];
     const src = decodeHtml(tag.match(/\ssrc=["']([^"']+)["']/i)?.[1] || '');
-    if (!/^https?:\/\/\d+\.media\.tumblr\.com\//i.test(src)) continue;
+    if (!mediaHost.test(src)) continue;
     const width = Number(tag.match(/data-orig-width=["'](\d+)["']/i)?.[1]) || undefined;
     const height = Number(tag.match(/data-orig-height=["'](\d+)["']/i)?.[1]) || undefined;
     const sizes = decodeHtml(tag.match(/srcset=["']([^"']+)["']/i)?.[1] || '')
@@ -39,9 +41,10 @@ const toItems = (groups: SocialVariant[][], postId: string): SocialMediaItem[] =
   }));
 
 /** Reads the post from the blog's legacy JSON ("var tumblr_api_read = {...};"). */
-export const parseTumblrRead = (text: string, url: string, blog: string): SocialPost => {
+export const parseTumblrRead = (text: string, url: string, blog: string, rulesContext?: Pick<SocialContext, 'rules'>): SocialPost => {
+  const rules = siteRules(rulesContext, 'tumblr');
   const json = parseJson<Record<string, unknown>>(
-    {status: 200, url, text: text.replace(/^\s*var\s+tumblr_api_read\s*=\s*/, '').replace(/;\s*$/, '')},
+    {status: 200, url, text: text.replace(ruleRegex(rules.patterns.readPrefix), '').replace(/;\s*$/, '')},
     'This post',
   );
   const post = asRecord(asArray(json.posts)[0]);
@@ -56,7 +59,7 @@ export const parseTumblrRead = (text: string, url: string, blog: string): Social
       .map(photo => {
         const width = asNumber(photo.width);
         const height = asNumber(photo.height);
-        return ['1280', '500', '400', '250']
+        return rules.photoSizes
           .map(size => asString(photo[`photo-url-${size}`]))
           .filter((value): value is string => Boolean(value))
           .map((value, position) => (position === 0 ? {url: value, width, height} : {url: value}));
@@ -64,11 +67,9 @@ export const parseTumblrRead = (text: string, url: string, blog: string): Social
       .filter(variants => variants.length);
   }
   // Newer posts keep their images inside the text.
-  const html = ['regular-body', 'photo-caption', 'answer', 'link-description', 'quote-text']
-    .map(key => asString(post[key]) || '')
-    .join('\n');
-  if (!groups.length) groups = imagesInHtml(html);
-  const hasVideo = post.type === 'video' || /<video\b|<figure[^>]+data-npf=["'][^"']*video/i.test(html);
+  const html = rules.htmlFields.map(key => asString(post[key]) || '').join('\n');
+  if (!groups.length) groups = imagesInHtml(html, rulesContext);
+  const hasVideo = post.type === 'video' || ruleRegex(rules.patterns.video).test(html);
   const items = toItems(groups, postId);
   if (hasVideo) {
     items.push({id: `${postId}-video`, kind: 'video', variants: [], ext: 'mp4', postId, index: items.length + 1, needsYtdl: true, pageUrl: url});
@@ -83,17 +84,18 @@ export const tumblrExtractor: SocialExtractor = {
   async extract(link, context) {
     const blog = link.user;
     if (!blog || !link.id) throw new SocialError('unsupported', 'This Tumblr link has no post in it.');
-    const response = await context.fetch(`https://${blog}.tumblr.com/api/read/json?id=${link.id}`);
-    if (response.status < 400 && /tumblr_api_read/.test(response.text)) {
+    const rules = siteRules(context, 'tumblr');
+    const response = await context.fetch(fillUrl('tumblr', rules.endpoints.read, {blog, id: encodeURIComponent(link.id)}));
+    if (response.status < 400 && ruleRegex(rules.patterns.readMarker).test(response.text)) {
       try {
-        return parseTumblrRead(response.text, link.url, blog);
+        return parseTumblrRead(response.text, link.url, blog, context);
       } catch (error) {
         if (!(error instanceof SocialError) || error.code !== 'empty') throw error;
       }
     }
     // Some blogs need a sign-in (sensitive or private): the post page still has its picture.
     const page = await context.fetch(link.url);
-    const images = imagesInHtml(page.text);
+    const images = imagesInHtml(page.text, context);
     const og = metaContent(page.text, 'og:image');
     const groups = images.length ? images : og ? [[{url: og}]] : [];
     if (!groups.length) {

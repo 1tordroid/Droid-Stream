@@ -113,6 +113,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ Photos from social apps: Instagram (photos, carousels, reel covers, stories and highlights when signed in, full-size profile pictures), Facebook, X, Threads, Pinterest, Reddit and Tumblr. Pick items, "Photos only" and original quality; saved in Social/<site>/<author>.
 - ✅ Instagram photo with its song: save the photo, the song, or a video of the photo (or a carousel slideshow) with the song, made on the phone.
 - ✅ Batch downloads of a whole carousel or the latest posts of a profile (playlists go through the yt-dlp downloader).
+- 🧪 Site rules for photos from social apps: when a site changes, a signed rules update fixes it without an app update (checked once a day, or with Check now in Video downloader settings). "This site stopped working" opens a GitHub issue with the site and versions, and the post link only if you tick the box.
 - ✅ MPEG-DASH downloads (separate video and audio).
 - ✅ Fix a download mid-way: change the link or headers, or refresh an expired link, without losing progress.
 - ✅ FTP and FTPS downloads.

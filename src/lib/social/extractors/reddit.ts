@@ -1,6 +1,7 @@
 import {asArray, asNumber, asRecord, asString, decodeHtml, extensionOf, parseJson} from '../http';
+import {fillUrl, ruleRegex, siteRules} from '../rules/active';
 import {classifySocialUrl} from '../urls';
-import {SocialError, type SocialExtractor, type SocialMediaItem, type SocialPost, type SocialVariant} from '../types';
+import {SocialError, type SocialContext, type SocialExtractor, type SocialMediaItem, type SocialPost, type SocialVariant} from '../types';
 
 const clean = (url: string | undefined): string => decodeHtml(url || '');
 
@@ -13,7 +14,8 @@ const previewVariants = (image: Record<string, unknown> | undefined): SocialVari
     .filter(variant => variant.url);
 };
 
-const galleryItems = (post: Record<string, unknown>, postId: string): SocialMediaItem[] => {
+const galleryItems = (post: Record<string, unknown>, postId: string, rulesContext?: Pick<SocialContext, 'rules'>): SocialMediaItem[] => {
+  const rules = siteRules(rulesContext, 'reddit');
   const metadata = asRecord(post.media_metadata) || {};
   const order = asArray(asRecord(post.gallery_data)?.items)
     .map(entry => asString(asRecord(entry)?.media_id))
@@ -37,7 +39,10 @@ const galleryItems = (post: Record<string, unknown>, postId: string): SocialMedi
     if (!url) return;
     const mime = asString(media.m) || '';
     // The full file without resizing lives on i.redd.it.
-    const original = `https://i.redd.it/${mediaId}.${mime.split('/')[1]?.replace('jpeg', 'jpg') || extensionOf(url, 'jpg')}`;
+    const original = fillUrl('reddit', rules.endpoints.originalImage, {
+      id: encodeURIComponent(mediaId),
+      ext: mime.split('/')[1]?.replace('jpeg', 'jpg') || extensionOf(url, 'jpg'),
+    });
     items.push({
       id: mediaId,
       kind: 'image',
@@ -52,7 +57,8 @@ const galleryItems = (post: Record<string, unknown>, postId: string): SocialMedi
 };
 
 /** Reads one post from Reddit's JSON listing. */
-export const parseRedditPost = (json: unknown, url: string): SocialPost => {
+export const parseRedditPost = (json: unknown, url: string, rulesContext?: Pick<SocialContext, 'rules'>): SocialPost => {
+  const rules = siteRules(rulesContext, 'reddit');
   const listing = asArray(json)[0];
   let post = asRecord(asRecord(asArray(asRecord(asRecord(listing)?.data)?.children)[0])?.data);
   if (!post) throw new SocialError('notFound', 'This post was not found.');
@@ -62,11 +68,11 @@ export const parseRedditPost = (json: unknown, url: string): SocialPost => {
   const postId = asString(post.id) || 'post';
   const author = asString(post.author) || 'reddit';
   let items: SocialMediaItem[] = [];
-  if (post.is_gallery === true || post.media_metadata) items = galleryItems(post, postId);
+  if (post.is_gallery === true || post.media_metadata) items = galleryItems(post, postId, rulesContext);
   const link = clean(asString(post.url_overridden_by_dest) || asString(post.url));
   const preview = asRecord(asArray(asRecord(post.preview)?.images)[0]);
   if (!items.length && post.is_video !== true) {
-    if (/^https:\/\/i\.redd\.it\//.test(link) || /\.(jpe?g|png|webp|gif)(\?|$)/i.test(link)) {
+    if (ruleRegex(rules.patterns.imageLink).test(link) || ruleRegex(rules.patterns.imageExtension).test(link)) {
       const sizes = previewVariants(preview);
       const source = sizes[0];
       items.push({
@@ -117,15 +123,16 @@ export const redditExtractor: SocialExtractor = {
       id = classifySocialUrl(url)?.id;
       if (!id) throw new SocialError('notFound', 'This Reddit share link did not lead to a post.');
     }
-    const api = (host: string) => `https://${host}/comments/${id}/.json?raw_json=1&limit=1`;
-    let response = await context.fetch(api('www.reddit.com'), {headers: {Accept: 'application/json'}});
+    const rules = siteRules(context, 'reddit');
+    const values = {id: encodeURIComponent(id)};
+    let response = await context.fetch(fillUrl('reddit', rules.endpoints.post, values), {headers: {...rules.headers}});
     // Signed out, Reddit sometimes blocks the main site but not old.reddit.com.
     if (response.status === 403 || response.status === 429 || !response.text.trim().startsWith('[')) {
-      response = await context.fetch(api('old.reddit.com'), {headers: {Accept: 'application/json'}});
+      response = await context.fetch(fillUrl('reddit', rules.endpoints.postFallback, values), {headers: {...rules.headers}});
     }
     if (!response.text.trim().startsWith('[') && response.status < 400) {
       throw new SocialError('signIn', 'Reddit blocked the request. Sign in to Reddit under Video downloader > Cookies and try again.');
     }
-    return parseRedditPost(parseJson(response, 'This post'), url);
+    return parseRedditPost(parseJson(response, 'This post'), url, context);
   },
 };

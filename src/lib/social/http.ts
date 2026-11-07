@@ -1,5 +1,6 @@
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import {cookieHeaderFor, cookieValue, parseNetscapeCookies, type StoredCookie} from './cookies';
+import {loadSocialRules} from './rules/update';
 import {SocialError, type SocialContext, type SocialRequest, type SocialResponse} from './types';
 
 /** A phone browser, as the sign-in screen uses, so sites answer as they do to the browser. */
@@ -58,6 +59,7 @@ export const createSocialContext = async (): Promise<SocialContext> => {
     cookie: (host, name) => cookieValue(cookies, host, name),
     cookieHeader: url => cookieHeaderFor(cookies, url),
     sleep: wait,
+    rules: loadSocialRules(),
   };
 };
 

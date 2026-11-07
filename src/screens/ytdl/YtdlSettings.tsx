@@ -28,6 +28,7 @@ import type {
 } from '../../lib/ytdl/types';
 import {showAppDialog} from '../../lib/zustand/appDialogStore';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import SocialRulesSection from '../social/SocialRulesSection';
 import {ChipRow, Choice, Field, Section, ToggleRow} from './components';
 
 const YtdlSettings = () => {
@@ -286,6 +287,8 @@ const YtdlSettings = () => {
             </Button>
           </View>
         </Section>
+
+        <SocialRulesSection />
 
         <Section title="Templates" hint="Saved yt-dlp options, written as on a command line. Pick one in the Download sheet, or use one for every download.">
           {settings.templates.map(item => (

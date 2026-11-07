@@ -1,4 +1,5 @@
 import {asArray, asNumber, asRecord, asString, decodeHtml, extensionOf, parseJson, walkJson} from '../http';
+import {atPath, fillUrl, ruleRegex, siteRules} from '../rules/active';
 import {
   captionFromGraph,
   captionFromV1,
@@ -18,27 +19,26 @@ import {
   type SocialPost,
 } from '../types';
 
-const BASE = 'https://www.instagram.com';
-// The id Instagram's own web app sends with every API call.
-const WEB_APP_ID = '936619743392459';
-// Public post query of the web app (the same one yt-dlp uses).
-const POST_DOC_ID = '8845758582119845';
+// Links, the web app's id, its public post query (the same one yt-dlp uses)
+// and page patterns come from the site rules (rules/social-rules.json), so
+// they can change without an app update.
+const rulesOf = (context: SocialContext) => siteRules(context, 'instagram');
+const site = (template: string, values: Record<string, string> = {}) => fillUrl('instagram', template, values);
 
 export const SIGN_IN_STORIES = 'Sign in to Instagram under Video downloader > Cookies to download stories.';
 const SIGN_IN_POST = 'Instagram did not show this post. If it is from a private account you follow, sign in to Instagram under Video downloader > Cookies.';
 const SIGN_IN_SONG = 'Sign in to Instagram under Video downloader > Cookies to get songs from photo posts.';
 
-const signedIn = (context: SocialContext) => Boolean(context.cookie('instagram.com', 'sessionid'));
+const signedIn = (context: SocialContext) => Boolean(context.cookie('instagram.com', rulesOf(context).signInCookie));
 
-const apiHeaders = (context: SocialContext, referer = `${BASE}/`): Record<string, string> => ({
-  Accept: '*/*',
-  'X-IG-App-ID': WEB_APP_ID,
-  'X-ASBD-ID': '129477',
-  'X-IG-WWW-Claim': '0',
-  'X-Requested-With': 'XMLHttpRequest',
-  'X-CSRFToken': context.cookie('instagram.com', 'csrftoken') || '',
-  Referer: referer,
-});
+const apiHeaders = (context: SocialContext, referer?: string): Record<string, string> => {
+  const rules = rulesOf(context);
+  return {
+    ...rules.headers,
+    [rules.csrfHeader]: context.cookie('instagram.com', rules.csrfCookie) || '',
+    Referer: referer || site(rules.pages.home),
+  };
+};
 
 const titleFrom = (caption: string | undefined, author: string): string => {
   const line = caption?.split('\n').find(text => text.trim())?.trim();
@@ -94,43 +94,50 @@ const postFromGraph = (media: Record<string, unknown>, link: SocialLink, note?: 
 const v1Media = async (context: SocialContext, code: string, link: SocialLink): Promise<Record<string, unknown> | undefined> => {
   const id = mediaIdFromCode(code);
   if (!id) return undefined;
-  const response = await context.fetch(`${BASE}/api/v1/media/${id}/info/`, {headers: apiHeaders(context, link.url)});
+  const response = await context.fetch(site(rulesOf(context).endpoints.mediaInfo, {id}), {headers: apiHeaders(context, link.url)});
   if (response.status === 404) throw new SocialError('notFound', 'This post was not found. It may have been deleted.');
   const json = parseJson<{items?: unknown[]}>(response, 'This post');
   return asRecord(json.items?.[0]);
 };
 
 const graphMedia = async (context: SocialContext, code: string): Promise<Record<string, unknown> | undefined> => {
-  const variables = {shortcode: code, fetch_tagged_user_count: null, hoisted_comment_id: null, hoisted_reply_id: null};
-  const response = await context.fetch(`${BASE}/graphql/query`, {
+  const rules = rulesOf(context);
+  const query = rules.graphql;
+  const variables = {[query.shortcodeVariable]: code, ...query.variables};
+  const response = await context.fetch(site(rules.endpoints.graphql), {
     method: 'POST',
     headers: {
-      ...apiHeaders(context, `${BASE}/p/${code}/`),
+      ...apiHeaders(context, site(rules.pages.post, {code})),
       'Content-Type': 'application/x-www-form-urlencoded',
-      'X-FB-Friendly-Name': 'PolarisPostActionLoadPostQueryQuery',
-      Origin: BASE,
+      [query.queryNameHeader]: query.queryName,
+      Origin: site(rules.pages.origin),
     },
-    body: `variables=${encodeURIComponent(JSON.stringify(variables))}&doc_id=${POST_DOC_ID}`,
+    body: `variables=${encodeURIComponent(JSON.stringify(variables))}&doc_id=${encodeURIComponent(query.docId)}`,
   });
   if (response.status >= 400) return undefined;
   try {
-    const data = asRecord(asRecord(JSON.parse(response.text))?.data);
-    return asRecord(data?.xdt_shortcode_media) || asRecord(data?.shortcode_media);
+    const json: unknown = JSON.parse(response.text);
+    for (const path of query.media) {
+      const media = asRecord(atPath(json, path));
+      if (media) return media;
+    }
+    return undefined;
   } catch {
     return undefined;
   }
 };
 
 /** The embed page works signed out for public posts. */
-export const parseEmbed = (html: string, link: SocialLink): SocialPost | undefined => {
+export const parseEmbed = (html: string, link: SocialLink, rulesContext?: Pick<SocialContext, 'rules'>): SocialPost | undefined => {
   const code = link.id || 'post';
+  const rules = siteRules(rulesContext, 'instagram');
   // Newer embed pages carry the post as an escaped JSON string.
-  const context = html.match(/"contextJSON"\s*:\s*("(?:[^"\\]|\\.)*")/)?.[1];
+  const context = html.match(ruleRegex(rules.patterns.embedContext))?.[1];
   if (context) {
     try {
       let found: Record<string, unknown> | undefined;
       walkJson(JSON.parse(JSON.parse(context)), node => {
-        const media = asRecord(node.shortcode_media);
+        const media = asRecord(node[rules.paths.embedMedia]);
         if (media) {
           found = media;
           return true;
@@ -141,18 +148,18 @@ export const parseEmbed = (html: string, link: SocialLink): SocialPost | undefin
       // fall back to the image tag
     }
   }
-  const image = html.match(/<img[^>]*class="[^"]*EmbeddedMediaImage[^"]*"[^>]*>/i)?.[0];
+  const image = html.match(ruleRegex(rules.patterns.embedImage))?.[0];
   if (!image) return undefined;
-  const srcset = image.match(/srcset="([^"]+)"/i)?.[1];
+  const srcset = image.match(ruleRegex(rules.patterns.embedSrcset))?.[1];
   const variants = (srcset ? decodeHtml(srcset).split(',') : [])
     .map(entry => entry.trim().split(/\s+/))
     .map(([url, width]) => ({url, width: Number.parseInt(width, 10) || undefined}))
     .filter(variant => variant.url)
     .sort((left, right) => (right.width || 0) - (left.width || 0));
-  const src = image.match(/src="([^"]+)"/i)?.[1];
+  const src = image.match(ruleRegex(rules.patterns.embedSrc))?.[1];
   if (src && !variants.length) variants.push({url: decodeHtml(src), width: undefined});
   if (!variants.length) return undefined;
-  const author = decodeHtml(html.match(/class="UsernameText"[^>]*>([^<]+)</)?.[1] || link.user || 'instagram').trim();
+  const author = decodeHtml(html.match(ruleRegex(rules.patterns.embedUsername))?.[1] || link.user || 'instagram').trim();
   const item: SocialMediaItem = {
     id: code,
     kind: 'image',
@@ -188,8 +195,11 @@ const post = async (link: SocialLink, context: SocialContext): Promise<SocialPos
   }
   const graph = await graphMedia(context, code).catch(() => undefined);
   if (graph) return postFromGraph(graph, link, signedIn(context) ? undefined : SIGN_IN_SONG);
-  const embed = await context.fetch(`${BASE}/p/${code}/embed/captioned/`, {headers: {Referer: `${BASE}/`}}).catch(() => undefined);
-  const parsed = embed && embed.status < 400 ? parseEmbed(embed.text, link) : undefined;
+  const rules = rulesOf(context);
+  const embed = await context
+    .fetch(site(rules.endpoints.embed, {code}), {headers: {Referer: site(rules.pages.home)}})
+    .catch(() => undefined);
+  const parsed = embed && embed.status < 400 ? parseEmbed(embed.text, link, context) : undefined;
   if (parsed) return parsed;
   throw new SocialError(signedIn(context) ? 'private' : 'signIn', SIGN_IN_POST);
 };
@@ -205,12 +215,14 @@ interface ProfileInfo {
 }
 
 const profileInfo = async (context: SocialContext, username: string): Promise<ProfileInfo> => {
-  const response = await context.fetch(`${BASE}/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`, {
-    headers: apiHeaders(context, `${BASE}/${username}/`),
+  const rules = rulesOf(context);
+  const name = encodeURIComponent(username);
+  const response = await context.fetch(site(rules.endpoints.profileInfo, {username: name}), {
+    headers: apiHeaders(context, site(rules.pages.profile, {username: name})),
   });
   if (response.status === 404) throw new SocialError('notFound', `No Instagram account called ${username}.`);
-  const json = parseJson<{data?: {user?: Record<string, unknown> | null}}>(response, 'This profile');
-  const user = asRecord(json.data?.user);
+  const json = parseJson<unknown>(response, 'This profile');
+  const user = asRecord(atPath(json, rules.paths.profileUser));
   const id = asString(user?.id);
   if (!user || !id) throw new SocialError('notFound', `No Instagram account called ${username}.`);
   return {
@@ -231,7 +243,9 @@ const profilePicture = async (context: SocialContext, info: ProfileInfo): Promis
   let width: number | undefined;
   let height: number | undefined;
   if (signedIn(context)) {
-    const response = await context.fetch(`${BASE}/api/v1/users/${info.id}/info/`, {headers: apiHeaders(context)}).catch(() => undefined);
+    const response = await context
+      .fetch(site(rulesOf(context).endpoints.userInfo, {userId: encodeURIComponent(info.id)}), {headers: apiHeaders(context)})
+      .catch(() => undefined);
     try {
       const user = asRecord(asRecord(JSON.parse(response?.text || '{}'))?.user);
       const hd = asRecord(user?.hd_profile_pic_url_info);
@@ -272,7 +286,10 @@ const profilePosts = async (context: SocialContext, info: ProfileInfo, options?:
   let maxId: string | undefined;
   while (posts < options.limit) {
     const query = `count=12${maxId ? `&max_id=${encodeURIComponent(maxId)}` : ''}`;
-    const response = await context.fetch(`${BASE}/api/v1/feed/user/${info.id}/?${query}`, {headers: apiHeaders(context, `${BASE}/${info.username}/`)});
+    const rules = rulesOf(context);
+    const response = await context.fetch(site(rules.endpoints.feed, {userId: encodeURIComponent(info.id), query}), {
+      headers: apiHeaders(context, site(rules.pages.profile, {username: encodeURIComponent(info.username)})),
+    });
     const json = parseJson<{items?: unknown[]; more_available?: boolean; next_max_id?: string}>(response, 'This profile');
     for (const media of records(json.items)) {
       if (posts >= options.limit) break;
@@ -319,7 +336,9 @@ const reel = async (link: SocialLink, context: SocialContext): Promise<SocialPos
   } else {
     reelId = (await profileInfo(context, author)).id;
   }
-  const response = await context.fetch(`${BASE}/api/v1/feed/reels_media/?reel_ids=${encodeURIComponent(reelId)}`, {headers: apiHeaders(context, link.url)});
+  const response = await context.fetch(site(rulesOf(context).endpoints.reelsMedia, {reelId: encodeURIComponent(reelId)}), {
+    headers: apiHeaders(context, link.url),
+  });
   const json = parseJson<{reels?: Record<string, unknown>; reels_media?: unknown[]}>(response, 'These stories');
   const found = asRecord(json.reels?.[reelId]) || asRecord(asArray(json.reels_media)[0]);
   let stories = records(found?.items);
