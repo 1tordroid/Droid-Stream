@@ -1,5 +1,8 @@
 module.exports = {
-  preset: '@react-native/jest-preset',
+  // jest-expo builds on @react-native/jest-preset and adds the Expo module mocks.
+  preset: 'jest-expo',
+  // scripts/tests holds node:test files, which Jest 30 would now pick up as .cjs tests.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/scripts/'],
   setupFiles: ['./node_modules/react-native-gesture-handler/jestSetup.js', '<rootDir>/__mocks__/expoGlobals.js'],
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native(-[a-z0-9-]+)?|@[a-z0-9.-]+/react-native(-[a-z0-9-]+)?|@react-native(-community|-tvos)?|expo(-[a-z-]+)?|@expo(-google-fonts)?/[a-z-]+|@react-navigation/[a-z-]+|nativewind|@dr\\.pogodin|@shopify/flash-list)/)',

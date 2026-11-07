@@ -14,7 +14,9 @@ jest.mock('react-native-mmkv-storage', () => ({
   },
 }));
 
+// jest-expo installs Expo's fetch lazily; loading it reads Platform.
 jest.mock('react-native', () => ({
+  Platform: {OS: 'android', select: (options: any) => options.android ?? options.default},
   ToastAndroid: {LONG: 1, show: jest.fn()},
 }));
 
