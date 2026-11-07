@@ -16,6 +16,7 @@ import {
   type ChannelFilters,
   type FilterCounts,
 } from '../../lib/livetv/filters';
+import {countryLabel, flagOf} from '../../lib/livetv/countries';
 import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
 import {useM3Colors} from '../../theme/M3PaletteContext';
@@ -51,10 +52,21 @@ const Row = ({title, children}: {title: string; children: React.ReactNode}) => {
   );
 };
 
+/** "🇬🇧 United Kingdom" for a country chip. */
+export const countryChipLabel = (code: string) => `${flagOf(code)} ${countryLabel(code)}`;
+
+/** Country codes of All countries, most channels first. */
+export const countryChoices = (counts: FilterCounts, picked?: string): string[] => {
+  const codes = [...counts.countries.keys()].sort((a, b) => (counts.countries.get(b) || 0) - (counts.countries.get(a) || 0) || countryLabel(a).localeCompare(countryLabel(b)));
+  if (picked && !codes.includes(picked)) codes.unshift(picked);
+  return codes;
+};
+
 const ChannelFilterBar = ({
   filters,
   counts,
   groups,
+  countries,
   shown,
   total,
   onChange,
@@ -64,6 +76,8 @@ const ChannelFilterBar = ({
   counts: FilterCounts;
   /** When given, a Group row is shown in the panel too (the guide has no group chips of its own). */
   groups?: string[];
+  /** When true, a Country row is shown in the panel too (All countries in the guide). */
+  countries?: boolean;
   shown: number;
   total: number;
   onChange: (next: ChannelFilters) => void;
@@ -76,12 +90,14 @@ const ChannelFilterBar = ({
   const firstRef = useRef<HostInstance>(null);
   const active = activeFilterCount(filters);
   const showGroups = !!groups && groups.length > 1;
+  const countryCodes = countries ? countryChoices(counts, filters.country) : [];
+  const showCountries = countryCodes.length > 1;
 
   useEffect(() => {
     if (open) focusLater(firstRef);
   }, [open]);
 
-  if (!hasFilterChoices(counts) && !active && !showGroups) return null;
+  if (!hasFilterChoices(counts) && !active && !showGroups && !showCountries) return null;
 
   const change = (next: ChannelFilters) => {
     onTouch?.();
@@ -125,12 +141,33 @@ const ChannelFilterBar = ({
       </ScrollView>
       {open ? (
         <>
+          {showCountries ? (
+            <Row title="Country">
+              <Chip
+                ref={firstRef}
+                label="All"
+                count={counts.allCountries}
+                selected={!filters.country}
+                onPress={() => change({...filters, country: undefined})}
+              />
+              {countryCodes.map(code => (
+                <Chip
+                  key={code}
+                  label={countryChipLabel(code)}
+                  accessibilityLabel={`${countryLabel(code)}, ${counts.countries.get(code) || 0}`}
+                  count={counts.countries.get(code) || 0}
+                  selected={filters.country === code}
+                  onPress={() => change({...filters, country: code})}
+                />
+              ))}
+            </Row>
+          ) : null}
           {counts.resolutions.length > 1 ? (
             <Row title="Quality">
               {counts.resolutions.map((option, index) => (
                 <Chip
                   key={option.id}
-                  ref={index === 0 ? firstRef : undefined}
+                  ref={index === 0 && !showCountries ? firstRef : undefined}
                   label={option.label}
                   count={option.count}
                   selected={filters.resolution === option.id}
@@ -144,7 +181,7 @@ const ChannelFilterBar = ({
               {counts.languages.map((option, index) => (
                 <Chip
                   key={option.id || 'all'}
-                  ref={index === 0 && counts.resolutions.length <= 1 ? firstRef : undefined}
+                  ref={index === 0 && !showCountries && counts.resolutions.length <= 1 ? firstRef : undefined}
                   label={option.label}
                   count={option.count}
                   icon={option.id && filters.languages.includes(option.id) ? 'check' : undefined}
@@ -157,7 +194,7 @@ const ChannelFilterBar = ({
           {showGroups ? (
             <Row title="Group">
               <Chip
-                ref={counts.resolutions.length <= 1 && counts.languages.length <= 1 ? firstRef : undefined}
+                ref={!showCountries && counts.resolutions.length <= 1 && counts.languages.length <= 1 ? firstRef : undefined}
                 label="All"
                 count={counts.allGroups}
                 selected={!filters.group}

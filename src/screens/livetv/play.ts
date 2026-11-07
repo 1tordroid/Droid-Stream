@@ -6,7 +6,8 @@ import {getJioCatchupStream, getJioStream, jioChannelId} from '../../lib/livetv/
 import {pushRecent, type SavedChannel} from '../../lib/livetv/store';
 import {rememberChannelProtection} from '../../lib/downloadEngine/engineStore';
 
-export type GridChannel = (LiveChannel | SavedChannel) & {sourceId: string};
+/** `countries`: the countries that list it (All countries only). */
+export type GridChannel = (LiveChannel | SavedChannel) & {sourceId: string; countries?: string[]};
 
 export const streamType = (url: string) => (/\.mp4(\?|$)/i.test(url) ? 'mp4' : /\.ts(\?|$)/i.test(url) ? 'ts' : 'm3u8');
 

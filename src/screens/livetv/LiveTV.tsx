@@ -8,7 +8,6 @@ import Button from '../../components/ui/Button';
 import KeyboardForm from '../../components/ui/KeyboardForm';
 import AppText, {RawTextInput as TextInput} from '../../components/ui/Text';
 import {isTV} from '../../lib/tv';
-import {canLoadEpg, loadNowNext, type NowNext} from '../../lib/livetv/epg';
 import {channelGroups} from '../../lib/livetv/m3u';
 import {applyFilters, channelFacets, displayChannelName, filterCounts, type ChannelFilters} from '../../lib/livetv/filters';
 import {JIO_SOURCE_ID, loadJioChannels} from '../../lib/livetv/jio/channels';
@@ -16,6 +15,7 @@ import {jioSignedInNumber, sendOtp, signOutJio, verifyOtp} from '../../lib/livet
 import {
   addPlaylist,
   getChannelFilters,
+  getEpgOverride,
   getJioServer,
   jioEpgUrl,
   listFavourites,
@@ -34,14 +34,17 @@ import {
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import {openChannel, type GridChannel} from './play';
 import {showChannelMenu} from './record';
-import ChannelFilterBar, {QualityBadge} from './ChannelFilterBar';
+import ChannelFilterBar, {countryChipLabel, countryChoices, QualityBadge} from './ChannelFilterBar';
 import {isKidsChannelGroup} from '../../lib/profiles/kids';
-import {flagOf, findCountry} from '../../lib/livetv/countries';
+import {ALL_COUNTRIES, countryLabel, flagOf, findCountry} from '../../lib/livetv/countries';
+import {loadAllCountries, peekAllCountries, releaseAllCountries} from '../../lib/livetv/allCountries';
+import {useNowNext} from './useNowNext';
 import {detectCountry, DETECTED_FROM} from '../../lib/livetv/deviceCountry';
 import {
   findSource,
   getSavedLiveView,
   initialLiveView,
+  isWorldAll,
   listRecentCountries,
   pickCountry,
   saveLiveView,
@@ -63,24 +66,7 @@ const IPTV_ORG_NOTE = 'Publicly listed free-to-air channels from iptv-org. Avail
 const JIOTV_NOTE = 'jiotv_go runs on your PC or phone (Termux) and signs in with your own Jio number. Enter its address here.';
 const JIO_NOTE = 'Sign in with your Jio mobile number to watch JioTV channels here. Droid Stream is not affiliated with Jio.';
 const QUALITIES: JioQuality[] = ['auto', 'low', 'medium', 'high'];
-
-/** Now / next for the shown channels. Skips gzipped or large guides. */
-const useNowNext = (epgUrl: string | undefined, channels: GridChannel[]) => {
-  const [guide, setGuide] = useState<Map<string, NowNext>>(() => new Map());
-  const ids = useMemo(() => channels.map(channel => channel.tvgId).filter(Boolean).join(','), [channels]);
-  useEffect(() => {
-    setGuide(new Map());
-    if (!canLoadEpg(epgUrl) || !ids) return;
-    let alive = true;
-    loadNowNext(epgUrl, new Set(ids.split(',')))
-      .then(result => alive && setGuide(result))
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [epgUrl, ids]);
-  return guide;
-};
+const ALL_COUNTRIES_NOTE = 'Free channels of every country, listed by iptv-org. Pick a country below to narrow the list.';
 
 const ChannelTile = ({channel, title, badge, width, favourite, now, preferred, busy, onPress, onLongPress}: {
   channel: GridChannel;
@@ -183,7 +169,8 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   const otpRef = useRef<TextInputInstance>(null);
 
   const worldCountry = worldCountryOf(view);
-  const source = sources.find(item => item.id === view) || worldSource(worldCountry);
+  const allCountries = isWorldAll(view);
+  const source = sources.find(item => item.id === view) || worldSource(allCountries ? ALL_COUNTRIES : worldCountry);
   const sourceName = (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : findSource(id)?.name || 'Live TV');
 
   useFocusEffect(useCallback(() => setFavourites(listFavourites()), []));
@@ -215,6 +202,20 @@ const LiveTV = ({navigation}: {navigation: any}) => {
       setChannels(view === 'favourites' ? listFavourites() : listRecent());
       return;
     }
+    if (allCountries) {
+      // Every country: about 11,000 channels, read in pieces and kept once in memory.
+      setEpgUrl(undefined);
+      setChannels(peekAllCountries()?.channels || []);
+      let alive = true;
+      setLoading(true);
+      loadAllCountries({force: reload > 0})
+        .then(result => alive && setChannels(result.channels))
+        .catch(err => alive && setError(err?.message || 'Could not load the channels.'))
+        .finally(() => alive && setLoading(false));
+      return () => {
+        alive = false;
+      };
+    }
     if (!source) return;
     const cached = readCachedPlaylist(source);
     setChannels(cached ? cached.playlist.channels.map(channel => ({...channel, sourceId: source.id})) : []);
@@ -232,6 +233,10 @@ const LiveTV = ({navigation}: {navigation: any}) => {
       alive = false;
     };
   }, [view, source?.id, source?.url, reload, jioNumber]);
+  // The list of every country is large: let it go once another list opens.
+  useEffect(() => {
+    if (!allCountries) releaseAllCountries();
+  }, [allCountries]);
 
   // A kids profile keeps only kids, animation and cartoon groups.
   const kids = useIsKidsProfile();
@@ -247,7 +252,20 @@ const LiveTV = ({navigation}: {navigation: any}) => {
     setFilterState({view, filters: next});
     setChannelFilters(view, next);
   };
-  const guide = useNowNext(epgUrl, shown.length > 400 ? [] : shown);
+  // All countries: the guide of the country picked; none until one is.
+  const picked = allCountries ? filters.country : undefined;
+  const guideChannels = useMemo(
+    () => (allCountries ? (picked ? allowed.filter(channel => channel.countries?.includes(picked)) : []) : allowed),
+    [allCountries, picked, allowed],
+  );
+  const nowOf = useNowNext({
+    sourceId: view,
+    epgUrl: view === JIO_SOURCE_ID ? undefined : getEpgOverride(view) || epgUrl,
+    shown,
+    guideChannels: view === 'favourites' || view === 'recent' || view === JIO_SOURCE_ID ? [] : guideChannels,
+    country: picked,
+  });
+  const countryCodes = useMemo(() => (allCountries ? countryChoices(counts, picked) : []), [allCountries, counts, picked]);
   const favouriteKeys = useMemo(() => new Set(favourites.map(item => `${item.sourceId}|${item.id}`)), [favourites]);
 
   const columns = isTV ? 6 : Math.max(2, Math.floor((width - 24) / 120));
@@ -338,7 +356,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
 
   // World opens the country picked last (or the detected one); with neither, the country list.
   const openWorld = () => {
-    const code = worldCountry || worldChipCountry(detected?.code);
+    const code = allCountries ? ALL_COUNTRIES : worldCountry || worldChipCountry(detected?.code);
     const id = worldSourceId(code);
     if (id) {
       setMode('grid');
@@ -357,7 +375,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
   const inputStyle = {backgroundColor: colors.surfaceContainerHigh, color: colors.onSurface, borderRadius: 12, paddingHorizontal: 14, minHeight: 52, fontSize: 16, marginTop: 8};
 
   // The selected chip scrolls into view, also after the header remounts.
-  const selectedChip = mode === 'grid' ? (worldCountry ? 'world' : `view:${view}`) : mode === 'country' ? 'world' : `mode:${mode}`;
+  const selectedChip = mode === 'grid' ? (worldCountry || allCountries ? 'world' : `view:${view}`) : mode === 'country' ? 'world' : `mode:${mode}`;
   const chipRow = useSelectedChipScroll(selectedChip);
   const chip = (key: string, element: React.ReactElement) => (
     <View key={key} onLayout={chipRow.chipLayout(key)}>{element}</View>
@@ -383,7 +401,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
           ),
         )}
         {kids && !jioNumber ? null : chip(`view:${JIO_SOURCE_ID}`, <Chip label="JioTV" icon="cellphone-key" selected={mode === 'grid' && view === JIO_SOURCE_ID} onPress={() => { setMode('grid'); setView(JIO_SOURCE_ID); }} />)}
-        {chip('world', <Chip label="World" icon="web" selected={mode === 'country' || (mode === 'grid' && !!worldCountry)} onPress={openWorld} />)}
+        {chip('world', <Chip label="World" icon="web" selected={mode === 'country' || (mode === 'grid' && (!!worldCountry || allCountries))} onPress={openWorld} />)}
         {/* Server and playlist setup is not shown on a kids profile. */}
         {kids ? null : chip('mode:jiotv', <Chip label={jio ? 'JioTV Go settings' : 'JioTV Go server'} icon="cog-outline" selected={mode === 'jiotv'} onPress={() => setMode('jiotv')} />)}
         {kids ? null : chip('mode:add', <Chip label="Add playlist" icon="plus" selected={mode === 'add'} onPress={() => setMode('add')} />)}
@@ -501,7 +519,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
       <CountryPicker
         header={header}
         detected={detected}
-        current={worldCountry || worldChipCountry(detected?.code)}
+        current={allCountries ? ALL_COUNTRIES : worldCountry || worldChipCountry(detected?.code)}
         recent={listRecentCountries()}
         onPick={onPickCountry}
       />
@@ -577,17 +595,18 @@ const LiveTV = ({navigation}: {navigation: any}) => {
         keyExtractor={item => `${item.sourceId}|${item.id}`}
         contentContainerStyle={{paddingHorizontal: isTV ? 36 : 8, paddingBottom: 96}}
         initialNumToRender={columns * 4}
+        maxToRenderPerBatch={columns * 3}
         windowSize={7}
         removeClippedSubviews={!isTV}
         ListHeaderComponent={
           <View style={{marginHorizontal: isTV ? -36 : -8}}>
             {header}
             <View style={{paddingHorizontal: isTV ? 40 : 12}}>
-              {worldCountry ? (
+              {worldCountry || allCountries ? (
                 <View style={{marginBottom: 8}}>
                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
                     <AppText role="titleMedium" numberOfLines={2} style={{flex: 1, color: colors.onSurface}}>
-                      {flagOf(worldCountry)} {findCountry(worldCountry)?.name}
+                      {allCountries ? `${flagOf(ALL_COUNTRIES)} ${countryLabel(ALL_COUNTRIES)}` : `${flagOf(worldCountry!)} ${findCountry(worldCountry)?.name}`}
                     </AppText>
                     <TVFocusable accessibilityRole="button" accessibilityLabel="Change country" onPress={() => setMode('country')} borderRadius={20} style={{flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.surfaceContainerHigh}}>
                       <MaterialCommunityIcons name="web" size={18} color={colors.onSurfaceVariant} />
@@ -595,14 +614,14 @@ const LiveTV = ({navigation}: {navigation: any}) => {
                     </TVFocusable>
                   </View>
                   {/* On its own line, so the long "detected from your phone's language settings" fits at 360 dp. */}
-                  {detected?.code === worldCountry ? (
+                  {worldCountry && detected?.code === worldCountry ? (
                     <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginTop: 2}}>
                       {DETECTED_FROM[detected.from][0].toUpperCase() + DETECTED_FROM[detected.from].slice(1)}
                     </AppText>
                   ) : null}
                 </View>
               ) : null}
-              {note ? <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>{note}</AppText> : null}
+              {note ? <AppText role="bodySmall" style={{color: colors.onSurfaceVariant, marginBottom: 8}}>{allCountries ? ALL_COUNTRIES_NOTE : note}</AppText> : null}
               {isJio && jioNumber ? (
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8}}>
                   <AppText role="bodyMedium" style={{flex: 1, color: colors.onSurfaceVariant}}>Signed in as {jioNumber}</AppText>
@@ -623,6 +642,21 @@ const LiveTV = ({navigation}: {navigation: any}) => {
                   </TVFocusable>
                 ) : null}
               </View>
+              {countryCodes.length > 1 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingTop: 12}}>
+                  <Chip label="All countries" count={counts.allCountries} selected={!picked} onPress={() => updateFilters({...filters, country: undefined})} />
+                  {countryCodes.map(code => (
+                    <Chip
+                      key={code}
+                      label={countryChipLabel(code)}
+                      accessibilityLabel={`${countryLabel(code)}, ${counts.countries.get(code) || 0}`}
+                      count={counts.countries.get(code) || 0}
+                      selected={picked === code}
+                      onPress={() => updateFilters({...filters, country: code})}
+                    />
+                  ))}
+                </ScrollView>
+              ) : null}
               {groups.length > 1 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingTop: 12}}>
                   <Chip label="All" count={counts.allGroups} selected={!group} onPress={() => updateFilters({...filters, group: undefined})} />
@@ -655,7 +689,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
             badge={filters.qualityBadge ? channelFacets(item).quality : undefined}
             width={tileWidth}
             favourite={favouriteKeys.has(`${item.sourceId}|${item.id}`)}
-            now={item.tvgId ? guide.get(item.tvgId)?.now?.title : undefined}
+            now={nowOf(item)}
             preferred={index === 0 && !chipsUsed}
             busy={opening === item.id}
             onPress={() => onPlay(item)}

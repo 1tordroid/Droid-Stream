@@ -66,6 +66,8 @@ export interface FilterableChannel {
   resolution?: string;
   /** Languages kept with a saved channel. */
   languages?: string[];
+  /** Countries that list the channel (All countries only). */
+  countries?: string[];
 }
 
 // ---- Quality ----
@@ -238,6 +240,8 @@ export interface ChannelFilters {
   /** Any of these languages; empty means all. */
   languages: string[];
   group?: string;
+  /** Country code (All countries only): channels that country lists. */
+  country?: string;
   /** Hide "(1080p)" in names and show a quality badge instead. */
   qualityBadge: boolean;
 }
@@ -252,17 +256,19 @@ export const sanitizeFilters = (value: unknown): ChannelFilters => {
   const resolution = typeof raw.resolution === 'string' && RESOLUTION_IDS.has(raw.resolution) ? (raw.resolution as ResolutionFilter) : 'all';
   const languages = Array.isArray(raw.languages) ? unique(raw.languages.filter((item): item is string => typeof item === 'string').map(item => item.trim())) : [];
   const group = typeof raw.group === 'string' && raw.group.trim() ? raw.group : undefined;
+  const country = typeof raw.country === 'string' && /^[A-Z]{2,3}$/.test(raw.country) ? raw.country : undefined;
   return {
     resolution,
     languages,
     ...(group ? {group} : {}),
+    ...(country ? {country} : {}),
     qualityBadge: typeof raw.qualityBadge === 'boolean' ? raw.qualityBadge : DEFAULT_FILTERS.qualityBadge,
   };
 };
 
 /** Filters that narrow the list (the badge setting does not count). */
 export const activeFilterCount = (filters: ChannelFilters): number =>
-  (filters.resolution !== 'all' ? 1 : 0) + (filters.languages.length ? 1 : 0) + (filters.group ? 1 : 0);
+  (filters.resolution !== 'all' ? 1 : 0) + (filters.languages.length ? 1 : 0) + (filters.group ? 1 : 0) + (filters.country ? 1 : 0);
 
 /** Clears what narrows the list; keeps the badge setting. */
 export const resetFilters = (filters: ChannelFilters): ChannelFilters => ({...DEFAULT_FILTERS, qualityBadge: filters.qualityBadge});
@@ -272,10 +278,11 @@ export const toggleLanguage = (filters: ChannelFilters, language: string): Chann
   languages: filters.languages.includes(language) ? filters.languages.filter(item => item !== language) : [...filters.languages, language],
 });
 
-type Skip = 'resolution' | 'language' | 'group';
+type Skip = 'resolution' | 'language' | 'group' | 'country';
 
 const matches = (channel: FilterableChannel, filters: ChannelFilters, query: string, skip?: Skip): boolean => {
   const facets = channelFacets(channel);
+  if (skip !== 'country' && filters.country && !channel.countries?.includes(filters.country)) return false;
   if (skip !== 'group' && filters.group && !inGroup(channel, filters.group)) return false;
   if (skip !== 'resolution' && filters.resolution !== 'all' && facets.bucket !== filters.resolution) return false;
   if (skip !== 'language' && filters.languages.length && !facets.languages.some(language => filters.languages.includes(language))) return false;
@@ -302,6 +309,10 @@ export interface FilterCounts {
   groups: Map<string, number>;
   /** Channels with every filter but the group (for the "All" group chip). */
   allGroups: number;
+  /** Channels per country with the other filters kept (All countries only; empty otherwise). */
+  countries: Map<string, number>;
+  /** Channels with every filter but the country. */
+  allCountries: number;
 }
 
 /**
@@ -317,7 +328,9 @@ export const filterCounts = (channels: FilterableChannel[], filters: ChannelFilt
   const languageCounts = new Map<string, number>();
   const languageTotals = new Map<string, number>();
   const groups = new Map<string, number>();
+  const countries = new Map<string, number>();
   let allGroups = 0;
+  let allCountries = 0;
   let allResolutions = 0;
   let allLanguages = 0;
 
@@ -340,6 +353,10 @@ export const filterCounts = (channels: FilterableChannel[], filters: ChannelFilt
         if (name) groups.set(name, (groups.get(name) || 0) + 1);
       }
     }
+    if (channel.countries && matches(channel, filters, q, 'country')) {
+      allCountries++;
+      for (const code of channel.countries) countries.set(code, (countries.get(code) || 0) + 1);
+    }
   }
 
   const resolutions: FilterOption<ResolutionFilter>[] = RESOLUTION_OPTIONS.filter(
@@ -360,7 +377,7 @@ export const filterCounts = (channels: FilterableChannel[], filters: ChannelFilt
     ...names.map(name => ({id: name, label: name, count: languageCounts.get(name) || 0})),
   ];
 
-  return {resolutions, languages, groups, allGroups};
+  return {resolutions, languages, groups, allGroups, countries, allCountries};
 };
 
 /** Whether the language and quality choices are worth showing for this list. */

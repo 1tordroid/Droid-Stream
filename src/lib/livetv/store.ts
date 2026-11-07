@@ -38,6 +38,8 @@ export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'g
   languages?: string[];
   /** Only the catch-up attributes, so the guide can replay from Favourites and Recent. */
   attrs?: Record<string, string>;
+  /** Countries that list the channel (All countries), so its guide can be found. */
+  countries?: string[];
 };
 
 const KEYS = {
@@ -250,6 +252,7 @@ const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedCh
   const resolution = channel.resolution || parseResolution(channel.name, 'attrs' in channel ? channel.attrs : undefined, channel.tvgId);
   const languages = detectLanguages(channel);
   const attrs = catchupAttrsOf(channel.attrs);
+  const countries = 'countries' in channel && Array.isArray(channel.countries) && channel.countries.length ? channel.countries : undefined;
   return {
     id: channel.id,
     name: channel.name,
@@ -263,6 +266,7 @@ const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedCh
     ...(resolution ? {resolution} : {}),
     ...(languages.length ? {languages} : {}),
     ...(attrs ? {attrs} : {}),
+    ...(countries ? {countries} : {}),
     sourceId,
   };
 };
@@ -305,6 +309,7 @@ export const setChannelFilters = (sourceId: string, filters: ChannelFilters) => 
     clean.resolution === DEFAULT_FILTERS.resolution &&
     !clean.languages.length &&
     !clean.group &&
+    !clean.country &&
     clean.qualityBadge === DEFAULT_FILTERS.qualityBadge;
   if (isDefault) {
     if (!(sourceId in all)) return;

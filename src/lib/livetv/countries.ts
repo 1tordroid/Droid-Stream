@@ -57,6 +57,15 @@ const BY_CODE = new Map(COUNTRIES.map(country => [country.code, country]));
 /** India has its own source (Free Indian channels), so World never shows it. */
 export const INDIA = 'IN';
 
+/** The "All countries" entry of the country list (not a real code). */
+export const ALL_COUNTRIES = 'ALL';
+/** iptv-org files channels made for viewers abroad under "International". */
+export const INTERNATIONAL = 'INT';
+
+/** iptv-org's combined playlists: by category (one entry per stream) and by country. */
+export const ALL_CATEGORIES_PLAYLIST_URL = 'https://iptv-org.github.io/iptv/index.m3u';
+export const ALL_COUNTRIES_PLAYLIST_URL = 'https://iptv-org.github.io/iptv/index.country.m3u';
+
 /** "gb", " GB " or "uk" as an upper-case code from the list, or undefined. */
 export const normalizeCountryCode = (input: string | null | undefined): string | undefined => {
   let code = (input || '').trim().toUpperCase();
@@ -69,9 +78,11 @@ export const findCountry = (code: string | null | undefined): Country | undefine
   return clean ? BY_CODE.get(clean) : undefined;
 };
 
-/** The flag emoji for a two-letter code (regional indicator letters). */
+/** The flag emoji for a two-letter code (regional indicator letters); a globe for All countries and International. */
 export const flagOf = (code: string): string =>
-  /^[A-Za-z]{2}$/.test(code)
+  code === ALL_COUNTRIES || code === INTERNATIONAL
+    ? '🌐'
+    : /^[A-Za-z]{2}$/.test(code)
     ? String.fromCodePoint(...[...code.toUpperCase()].map(letter => 0x1f1e6 + letter.charCodeAt(0) - 65))
     : '';
 
@@ -119,4 +130,36 @@ export const searchCountries = (
     .filter(item => item.rank >= 0)
     .sort((x, y) => x.rank - y.rank)
     .map(item => item.country);
+};
+
+/** A country's name, "International", or "All countries". */
+export const countryLabel = (code: string): string =>
+  code === ALL_COUNTRIES ? 'All countries' : code === INTERNATIONAL ? 'International' : findCountry(code)?.name || code;
+
+const BY_NAME = new Map(COUNTRIES.map(country => [fold(country.name), country.code]));
+
+/** The code for a country name as iptv-org writes it ("United Kingdom" gives "GB", "International" gives "INT"). */
+export const countryCodeOfName = (name: string | undefined): string | undefined => {
+  const key = fold((name || '').trim());
+  if (!key) return undefined;
+  if (key === 'international') return INTERNATIONAL;
+  return BY_NAME.get(key);
+};
+
+/** The All countries entry of the picker. */
+export const ALL_COUNTRIES_ENTRY: Country = {code: ALL_COUNTRIES, name: 'All countries'};
+
+/**
+ * Rows of the Change country list: the detected country, then All
+ * countries, then recent picks and the rest (see searchCountries). A search
+ * shows All countries when it matches "all countries" or "every".
+ */
+export const countryPickerRows = (query: string, options: {detected?: string; recent?: string[]} = {}): Country[] => {
+  const rows = searchCountries(query, options);
+  const q = fold(query.trim());
+  const showAll = !q || 'all countries'.startsWith(q) || q.startsWith('all') || 'every country'.startsWith(q) || q === 'world';
+  if (!showAll) return rows;
+  const detected = !q ? findCountry(options.detected) : undefined;
+  const at = detected && rows[0]?.code === detected.code ? 1 : 0;
+  return [...rows.slice(0, at), ALL_COUNTRIES_ENTRY, ...rows.slice(at)];
 };

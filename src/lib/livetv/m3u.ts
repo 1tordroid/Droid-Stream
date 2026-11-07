@@ -98,24 +98,48 @@ const splitPipeHeaders = (raw: string): {url: string; headers: Record<string, st
   return {url: raw.slice(0, pipe).trim(), headers};
 };
 
-export const parseM3U = (input: string): ParsedPlaylist => {
-  const text = (input || '').replace(/^﻿/, '');
-  const lines = text.split(/\r\n|\r|\n/);
-  const channels: LiveChannel[] = [];
-  let epgUrl: string | undefined;
-  let pending: {name: string; attrs: Record<string, string>; group?: string; headers: Record<string, string>; drm?: boolean} | null = null;
-  const seen = new Set<string>();
+type Pending = {name: string; attrs: Record<string, string>; group?: string; headers: Record<string, string>; drm?: boolean};
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
+/**
+ * Reads a playlist one line at a time, so a large one can be fed in pieces
+ * (with pauses between them) and each channel handed on as soon as its URL
+ * line is read. parseM3U below uses it for a whole text.
+ */
+export class M3uParser {
+  epgUrl?: string;
+  private pending: Pending | null = null;
+  private readonly seen = new Set<string>();
+  private rest = '';
+
+  /** `emit` gets each channel; `uniqueIds: false` skips the duplicate-id check (and its memory). */
+  constructor(
+    private readonly emit: (channel: LiveChannel) => void,
+    private readonly options: {uniqueIds?: boolean} = {},
+  ) {}
+
+  /** Feeds a piece of text that may end in the middle of a line. */
+  push(text: string) {
+    const lines = (this.rest + text).split(/\r\n|\r|\n/);
+    this.rest = lines.pop() || '';
+    for (const line of lines) this.line(line);
+  }
+
+  /** Reads what is left. */
+  end() {
+    if (this.rest) this.line(this.rest);
+    this.rest = '';
+  }
+
+  line(rawLine: string) {
+    const line = rawLine.replace(/^﻿/, '').trim();
+    if (!line) return;
     if (line.startsWith('#')) {
       const upper = line.slice(0, 12).toUpperCase();
       if (upper.startsWith('#EXTM3U')) {
         const attrs = parseAttributes(line.slice(7));
         const guide = attrs['url-tvg'] || attrs['x-tvg-url'] || attrs['tvg-url'];
         // Several guides may be listed with commas; the first is enough.
-        if (guide && !epgUrl) epgUrl = guide.split(',')[0].trim() || undefined;
+        if (guide && !this.epgUrl) this.epgUrl = guide.split(',')[0].trim() || undefined;
       } else if (upper.startsWith('#EXTINF:')) {
         const body = line.slice(8);
         const comma = titleComma(body);
@@ -123,39 +147,29 @@ export const parseM3U = (input: string): ParsedPlaylist => {
         const title = comma >= 0 ? body.slice(comma + 1).trim() : '';
         // Drop the leading duration ("-1" or "0").
         const attrs = parseAttributes(attrPart.replace(/^\s*-?\d+(\.\d+)?/, ''));
-        pending = {name: title, attrs, headers: {}};
+        this.pending = {name: title, attrs, headers: {}};
       } else if (upper.startsWith('#EXTVLCOPT:')) {
         const opt = line.slice(11);
         const eq = opt.indexOf('=');
         if (eq > 0) {
           const header = HEADER_OPTS[opt.slice(0, eq).trim().toLowerCase()];
           const value = opt.slice(eq + 1).trim().replace(/^"(.*)"$/, '$1');
-          if (header && value) {
-            if (!pending) pending = {name: '', attrs: {}, headers: {}};
-            pending.headers[header] = value;
-          }
+          if (header && value) this.open().headers[header] = value;
         }
       } else if (upper.startsWith('#EXTGRP:')) {
         const group = line.slice(8).trim();
-        if (group) {
-          if (!pending) pending = {name: '', attrs: {}, headers: {}};
-          pending.group = group;
-        }
+        if (group) this.open().group = group;
       }
       // A licence option (Widevine, PlayReady, ClearKey) marks the entry as DRM.
-      if ((upper.startsWith('#KODIPROP:') || upper.startsWith('#EXTVLCOPT:')) && isDrmOption(line)) {
-        if (!pending) pending = {name: '', attrs: {}, headers: {}};
-        pending.drm = true;
-      }
+      if ((upper.startsWith('#KODIPROP:') || upper.startsWith('#EXTVLCOPT:')) && isDrmOption(line)) this.open().drm = true;
       // Other #KODIPROP, #EXT-X-*, comments: ignored.
-      continue;
+      return;
     }
     // A URL line closes the entry.
+    const pending = this.pending;
+    this.pending = null;
     const {url, headers: pipeHeaders} = splitPipeHeaders(line);
-    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
-      pending = null;
-      continue;
-    }
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return;
     const attrs = pending?.attrs || {};
     const tvgId = attrs['tvg-id'] || undefined;
     const tvgName = attrs['tvg-name'] || undefined;
@@ -164,13 +178,15 @@ export const parseM3U = (input: string): ParsedPlaylist => {
     if (attrs['user-agent'] && !headers['User-Agent']) headers['User-Agent'] = attrs['user-agent'];
     if (attrs['http-referrer'] && !headers.Referer) headers.Referer = attrs['http-referrer'];
     let id = tvgId ? `${tvgId}|${url}` : url;
-    if (seen.has(id)) {
-      let n = 2;
-      while (seen.has(`${id}#${n}`)) n++;
-      id = `${id}#${n}`;
+    if (this.options.uniqueIds !== false) {
+      if (this.seen.has(id)) {
+        let n = 2;
+        while (this.seen.has(`${id}#${n}`)) n++;
+        id = `${id}#${n}`;
+      }
+      this.seen.add(id);
     }
-    seen.add(id);
-    channels.push({
+    this.emit({
       id,
       name,
       url,
@@ -183,9 +199,19 @@ export const parseM3U = (input: string): ParsedPlaylist => {
       attrs,
       ...(pending?.drm ? {drm: true} : {}),
     });
-    pending = null;
   }
-  return {channels, epgUrl};
+
+  private open(): Pending {
+    if (!this.pending) this.pending = {name: '', attrs: {}, headers: {}};
+    return this.pending;
+  }
+}
+
+export const parseM3U = (input: string): ParsedPlaylist => {
+  const channels: LiveChannel[] = [];
+  const parser = new M3uParser(channel => channels.push(channel));
+  for (const line of (input || '').split(/\r\n|\r|\n/)) parser.line(line);
+  return {channels, epgUrl: parser.epgUrl};
 };
 
 /** Groups in playlist order, each once. Channels without a group are left out. */

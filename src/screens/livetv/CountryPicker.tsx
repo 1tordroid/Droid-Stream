@@ -5,7 +5,8 @@ import {TVFocusable} from '../../components/tv';
 import AppText, {RawTextInput as TextInput} from '../../components/ui/Text';
 import {isTV} from '../../lib/tv';
 import {getNodeHandle, requestTVFocusByHandle} from '../../lib/tv/focus';
-import {flagOf, INDIA, searchCountries, type Country} from '../../lib/livetv/countries';
+import {ALL_COUNTRIES, countryPickerRows, flagOf, INDIA, type Country} from '../../lib/livetv/countries';
+import {allCountryCounts} from '../../lib/livetv/allCountries';
 import {DETECTED_FROM, type DetectedCountry} from '../../lib/livetv/deviceCountry';
 import {worldChannelCounts} from '../../lib/livetv/store';
 import {worldSourceId} from '../../lib/livetv/world';
@@ -14,7 +15,10 @@ import {useM3Colors} from '../../theme/M3PaletteContext';
 const countLabel = (count: number | undefined) =>
   count === undefined ? undefined : count === 0 ? 'No free channels' : count === 1 ? '1 channel' : `${count} channels`;
 
-/** Searchable country list for the World source. The detected country is first, then recent picks. */
+/**
+ * Searchable country list for the World source. The detected country is
+ * first, then All countries, then recent picks and the rest by name.
+ */
 const CountryPicker = ({detected, current, recent, header, onPick}: {
   detected?: DetectedCountry;
   /** The country shown now (upper-case code). */
@@ -27,18 +31,22 @@ const CountryPicker = ({detected, current, recent, header, onPick}: {
   const [query, setQuery] = useState('');
   const firstRow = useRef<React.ComponentRef<typeof TVFocusable>>(null);
   const inputRef = useRef<TextInputInstance>(null);
-  const countries = useMemo(() => searchCountries(query, {detected: detected?.code, recent}), [query, detected?.code, recent]);
+  const countries = useMemo(() => countryPickerRows(query, {detected: detected?.code, recent}), [query, detected?.code, recent]);
+  // Counts from countries opened before, else from the last All countries list.
   const counts = useMemo(() => worldChannelCounts(), []);
+  const allCounts = useMemo(() => allCountryCounts(), []);
+  const allKnown = Object.keys(allCounts).length > 0;
   const recentSet = useMemo(() => new Set(recent), [recent]);
 
   const subtitle = (country: Country) => {
+    if (country.code === ALL_COUNTRIES) return 'Every country in one list';
     const parts: string[] = [];
     if (country.code === detected?.code) parts.push(DETECTED_FROM[detected.from][0].toUpperCase() + DETECTED_FROM[detected.from].slice(1));
     else if (recentSet.has(country.code)) parts.push('Recent');
     if (country.code === INDIA) parts.push('Opens Free Indian channels');
     else {
       const id = worldSourceId(country.code);
-      const count = countLabel(id ? counts[id] : undefined);
+      const count = countLabel(id && id in counts ? counts[id] : allKnown ? allCounts[country.code] || 0 : undefined);
       if (count) parts.push(count);
     }
     return parts.join(' · ');
