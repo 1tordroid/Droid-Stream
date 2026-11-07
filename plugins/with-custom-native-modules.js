@@ -234,6 +234,14 @@ allprojects {
       );
     }
 
+    // FTP and FTPS downloads (Apache-2.0).
+    if (!contents.includes('commons-net:commons-net')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match => `${match}\n    implementation 'commons-net:commons-net:3.11.1'\n`,
+      );
+    }
+
     if (!contents.includes('androidx.documentfile:documentfile')) {
       contents = contents.replace(
         /dependencies\s*\{/,

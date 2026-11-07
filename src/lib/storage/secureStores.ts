@@ -3,7 +3,8 @@ import {MMKVLoader} from 'react-native-mmkv-storage';
 /**
  * Every MMKV instance opened with withEncryption(): saved sign-ins (Sources,
  * PikPak, debrid, watch sync, JioTV), Stremio add-ons, torrent settings with the
- * proxy password, private provider source tokens, and profile PIN hashes. plugins/
+ * proxy password, private provider source tokens, profile PIN hashes and FTP
+ * passwords. plugins/
  * with-backup-rules.js keeps the same list out of Auto Backup; a Jest test
  * checks both lists against the source. Each also opens with
  * recoverOnKeyLoss(): when its Keystore key is gone (a reinstall over kept
@@ -19,6 +20,7 @@ export const SECURE_STORE_IDS = [
   'provider-source-tokens',
   'droid-stream-jiotv',
   'droid-stream-profiles',
+  'droid-stream-ftp',
 ] as const;
 
 /**

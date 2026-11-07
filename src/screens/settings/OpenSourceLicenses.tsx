@@ -35,6 +35,11 @@ const LICENSES = [
     note: 'HTTP client used for segmented downloads.',
   },
   {
+    name: 'Apache Commons Net',
+    license: 'Apache-2.0',
+    note: 'FTP and FTPS downloads. By The Apache Software Foundation.',
+  },
+  {
     name: 'jiotv_go by the jiotv-go project',
     license: 'CC-BY-4.0',
     note: 'The JioTV source in Live TV adapts its sign-in, token renewal, channel list and stream request logic, rewritten in TypeScript and changed to run inside the app. https://github.com/jiotv-go/jiotv_go. Not affiliated with Jio.',
