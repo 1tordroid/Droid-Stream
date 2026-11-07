@@ -93,7 +93,7 @@ It runs on Android phones, tablets and Android TV.
 - ✅ HLS downloads with a quality choice, and checksum checks.
 - ✅ Copy a link and the app offers to download it.
 - ✅ External downloader support.
-- 🔨 yt-dlp downloader:
+- 🧪 yt-dlp downloader:
   - share a link from any app
   - pick a video quality, or audio as MP3, M4A or Opus
   - subtitles, thumbnails and SponsorBlock

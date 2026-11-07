@@ -23,12 +23,17 @@ Not released yet. Built and being tested:
   rewind on live channels.
 - Profiles with their own history and library, a kids mode and PIN
   locks. Your current data becomes the first profile.
+- A yt-dlp video and audio downloader: share a link from any app, pick
+  quality or audio format, subtitles, cover, SponsorBlock, clips,
+  playlists, a queue with start times, site sign-in for cookies, and
+  yt-dlp updates inside the app.
 - Update download notifications no longer vibrate every second.
 
 Being built:
 
-- A yt-dlp downloader, social media downloads with a built-in browser,
-  photos and Instagram photos with their song saved as a video.
+- Social media downloads with a built-in browser (download detection,
+  ad blocker, userscripts), photos and Instagram photos with their song
+  saved as a video.
 - Live channel recording, MPEG-DASH and FTP downloads, and fixing a
   download's link mid-way.
 - Advanced downloads (off by default): eD2k, mirrors, aria2-style remote
