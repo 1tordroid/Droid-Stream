@@ -6,7 +6,9 @@ import {RawTextInput as TextInput} from '../../components/ui/Text';
 import Chip from '../../components/torrentSearch/Chip';
 import AppText from '../../components/ui/Text';
 import {TVFocusable} from '../../components/tv';
-import {listSources, type SourceKind} from '../../lib/sources/vault';
+import {listSources, type SavedSource, type SourceKind} from '../../lib/sources/vault';
+import {listDeviceSources, loadLibrary} from '../../lib/netlib/cache';
+import {itemTab} from '../../lib/netlib/group';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -30,6 +32,22 @@ const FILTERS: {id: 'all' | SourceKind; label: string}[] = [
 ];
 
 const iconOf = (kind: string): IconName => ICONS.find(item => item.kind === kind)?.icon || 'folder-outline';
+
+/** WebDAV and SMB sources open as poster libraries; media servers keep their own folders. */
+const hasLibrary = (kind: string) => kind === 'webdav' || kind === 'smb';
+
+/** "WebDAV · 120 movies · 14 shows", or a hint before the first scan. */
+export const sourceCardDescription = (source: Pick<SavedSource, 'id' | 'kind' | 'server' | 'authState'>, label: string): string => {
+  if (source.authState === 'signedOut') return `${label} · signed out, tap to sign in again`;
+  if (!hasLibrary(source.kind)) return `${label} · ${source.server}`;
+  const library = loadLibrary(source.id);
+  if (!library) return `${label} · tap to build its poster library`;
+  const counts = {movies: 0, shows: 0, other: 0};
+  library.items.forEach(item => {
+    counts[itemTab(item)] += 1;
+  });
+  return [label, `${counts.movies} movies`, `${counts.shows} shows`, ...(counts.other ? [`${counts.other} other`] : [])].join(' · ');
+};
 
 const Row = ({label, title, description, icon, onPress}: {label: string; title: string; description: string; icon: IconName; onPress: () => void}) => {
   const colors = useM3Colors();
@@ -84,9 +102,18 @@ const LibraryHub = ({navigation}: {navigation: any}) => {
           {FILTERS.map(item => <Chip key={item.id} label={item.label} accessibilityLabel={`Filter ${item.id}`} selected={filter === item.id} onPress={() => setFilter(item.id)} />)}
         </ScrollView>
       ) : null}
-      {sources.map(source => (
-        <Row key={source.id} label={`Open ${source.name}`} title={source.name} description={`${source.kind} · ${source.server}`} icon={iconOf(source.kind)} onPress={() => navigation.navigate('Sources', {openId: source.id})} />
-      ))}
+      {sources.map(source => {
+        const label = FILTERS.find(item => item.id === source.kind)?.label || source.kind;
+        const library = hasLibrary(source.kind) && source.authState !== 'signedOut';
+        return (
+          <Row key={source.id} label={`Open ${source.name}`} title={source.name} description={sourceCardDescription(source, label)} icon={iconOf(source.kind)}
+            onPress={() => (library ? navigation.navigate('SourceLibrary', {sourceId: source.id}) : navigation.navigate('Sources', {openId: source.id}))} />
+        );
+      })}
+      {filter === 'all' && !query ? listDeviceSources().map(source => (
+        <Row key={source.id} label={`Open ${source.name}`} title={source.name} description={sourceCardDescription({id: source.id, kind: 'webdav', server: '', authState: 'ok'}, 'This device')} icon="cellphone"
+          onPress={() => navigation.navigate('LocalLibrary')} />
+      )) : null}
       {!saved.length ? (
         <AppText role="bodyMedium" style={{color: colors.onSurfaceVariant, marginBottom: 4}}>No sources yet. Add your own server below and its videos appear here.</AppText>
       ) : !sources.length ? (

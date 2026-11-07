@@ -4,6 +4,9 @@ import useLocalContentStore from '../zustand/localContentStore';
 import {localContentId, localContentInfo} from '../localContent/library';
 import {scanEpisodes} from '../localContent/model';
 import {listLocalFolder} from '../localContent/files';
+import {netlibItemIdOf} from '../netlib/ids';
+import {netlibInfo, netlibMeta} from '../netlib/info';
+import {scanNetlibSource, useNetlibItem} from '../netlib/library';
 import {useQuery} from '@tanstack/react-query';
 import {providerManager} from '../services/ProviderManager';
 import {cacheStorage} from '../storage';
@@ -127,6 +130,8 @@ export const useEnhancedMetadata = (
 export const useContentDetails = (link: string, providerValue: string) => {
   const localId = localContentId(link);
   const localTitle = useLocalContentStore(state => state.titles.find(title => title.id === localId));
+  const netlibId = netlibItemIdOf(link);
+  const netlibItem = useNetlibItem(netlibId);
   // First, get the basic content info
   const {
     data: providerInfo,
@@ -134,7 +139,7 @@ export const useContentDetails = (link: string, providerValue: string) => {
     isFetching: infoFetching,
     error: infoError,
     refetch: refetchInfo,
-  } = useContentInfo(link, providerValue, !localId);
+  } = useContentInfo(link, providerValue, !localId && !netlibId);
 
   const manualMetadata = useMetadataOverrideStore(state => state.overrides[metadataOverrideKey(providerValue, link)]);
   const info = providerInfo ? applyMetadataOverride(providerInfo, manualMetadata) : undefined;
@@ -153,8 +158,22 @@ export const useContentDetails = (link: string, providerValue: string) => {
   const metaLoading = shouldPopulateMeta && enhancedMetaLoading;
   const metaFetching = shouldPopulateMeta && enhancedMetaFetching;
 
+  if (netlibId) {
+    return {
+      info: netlibItem ? netlibInfo(netlibItem) : undefined,
+      meta: netlibItem ? netlibMeta(netlibItem) : null,
+      localTitle: undefined,
+      netlibItem,
+      isLoading: false, isMetaLoading: false, isRefetching: false, isSynopsisLoading: false,
+      error: netlibItem ? null : new Error('This title is no longer in the library. Rescan its source to bring it back.'),
+      refetch: async () => {
+        if (netlibItem) await scanNetlibSource(netlibItem.sourceId);
+      },
+    };
+  }
   if (localId) {
     return {
+      netlibItem: undefined,
       info: localTitle ? localContentInfo(localTitle) : undefined,
       meta: localTitle?.metadata ? {...localTitle.metadata, name: localTitle.metadata.title,
         imdbRating: localTitle.metadata.rating} : null,
@@ -170,6 +189,7 @@ export const useContentDetails = (link: string, providerValue: string) => {
   }
   return {
     localTitle: undefined,
+    netlibItem: undefined,
     info,
     meta,
     isLoading: infoLoading,

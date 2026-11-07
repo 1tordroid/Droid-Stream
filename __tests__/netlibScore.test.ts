@@ -33,4 +33,12 @@ describe('netlib match scoring', () => {
     expect(cache.getCachedMatch('miss', 6 * day)).toBeNull();
     expect(cache.getCachedMatch('miss', 8 * day)).toBeUndefined();
   });
+
+  it('is cleared by Erase all', () => {
+    const cache = require('../src/lib/netlib/cache');
+    const {clearAllMMKVStorage} = require('../src/lib/storage/StorageService');
+    cache.saveLibrary({sourceId: 'x', scannedAt: 1, items: []});
+    clearAllMMKVStorage();
+    expect(cache.loadLibrary('x')).toBeUndefined();
+  });
 });

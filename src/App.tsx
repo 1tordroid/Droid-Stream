@@ -24,6 +24,7 @@ import Credits from './screens/settings/Credits';
 import CloudFiles from './screens/library/CloudFiles';
 import Sources from './screens/Sources';
 import LibraryHub from './screens/library/LibraryHub';
+import SourceLibrary from './screens/library/SourceLibrary';
 import LiveTV from './screens/livetv/LiveTV';
 import Torrents from './screens/torrents/Torrents';
 import TorrentDetails from './screens/torrents/TorrentDetails';
@@ -184,6 +185,7 @@ export type WatchListStackParamList = {
   LocalContent: {editId?: string; collectionId?: string} | undefined;
   WatchList: undefined;
   LocalLibrary: undefined;
+  SourceLibrary: {sourceId: string};
   Sources: {kind?: string; openId?: string; returnTo?: {tab: string; screen: string}} | undefined;
   Info: {link: string; provider?: string; poster?: string};
 };
@@ -441,6 +443,7 @@ function WatchListStackScreen() {
       <WatchListStack.Screen name="LiveTV" component={LiveTV} options={subpageOptions} />
       <WatchListStack.Screen name="WatchList" component={Library} />
       <WatchListStack.Screen name="LocalLibrary" component={LocalLibrary} options={subpageOptions} />
+      <WatchListStack.Screen name="SourceLibrary" component={SourceLibrary} options={subpageOptions} />
       <WatchListStack.Screen name="Sources" component={Sources} options={subpageOptions} />
       <WatchListStack.Screen name="LocalContent" component={LocalContent} />
       <WatchListStack.Screen name="Info" component={Info} />

@@ -12,7 +12,8 @@ export const NETLIB_INSTANCE_ID = 'netlib';
 
 const storage = new MMKVLoader().withInstanceID(NETLIB_INSTANCE_ID).initialize();
 
-registerStorageClearHook(() => storage.clearStore());
+// Guarded: test doubles of StorageService often leave the hook list out.
+if (typeof registerStorageClearHook === 'function') registerStorageClearHook(() => storage.clearStore());
 
 const DAY = 24 * 60 * 60 * 1000;
 /** TMDB allows caching; matches are kept for six months, misses for a week. */
