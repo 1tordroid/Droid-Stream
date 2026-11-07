@@ -1,6 +1,6 @@
 appId: com.tordroid.droidstream
 name: Global feature search finds Advanced options
-tags: [settings, phone]
+tags: [settings, phone, ci]
 ---
 - runFlow: _launch.yaml
 - tapOn: "Search"

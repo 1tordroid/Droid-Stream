@@ -1,6 +1,6 @@
 appId: com.tordroid.droidstream
 name: Debrid and watch sync screens open
-tags: [settings, phone]
+tags: [settings, phone, ci]
 ---
 - runFlow: _launch.yaml
 - tapOn: "Torrents"
