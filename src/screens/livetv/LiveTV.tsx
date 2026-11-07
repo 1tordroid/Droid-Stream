@@ -516,7 +516,7 @@ const LiveTV = ({navigation}: {navigation: any}) => {
               <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHigh, borderRadius: 28, minHeight: 48, paddingHorizontal: 16}}>
                 <MaterialCommunityIcons name="magnify" size={22} color={colors.onSurfaceVariant} />
                 <TextInput value={query} onChangeText={setQuery} placeholder="Search channels" placeholderTextColor={colors.onSurfaceVariant} accessibilityLabel="Search channels" returnKeyType="search" style={{flex: 1, color: colors.onSurface, marginLeft: 8, fontSize: 16}} />
-                {source || (isJio && jioNumber) ? (
+                {source || (isJio && jioNumber) || ((view === 'favourites' || view === 'recent') && channels.length) ? (
                   <TVFocusable accessibilityRole="button" accessibilityLabel="Open the TV guide" onPress={() => navigation.navigate('LiveGuide', {sourceId: view})} borderRadius={20} style={{padding: 6}}>
                     <MaterialCommunityIcons name="television-guide" size={22} color={colors.onSurfaceVariant} />
                   </TVFocusable>

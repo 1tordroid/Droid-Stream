@@ -28,7 +28,8 @@ import {
 import {TVFocusable} from '../../components/tv';
 import Button from '../../components/ui/Button';
 import AppText, {RawTextInput as TextInput} from '../../components/ui/Text';
-import {catchupInfo} from '../../lib/livetv/catchup';
+import {catchupAttrsOf, catchupInfo} from '../../lib/livetv/catchup';
+import {isMixedGuide, planGuideLoads, withPlaylistDetails} from '../../lib/livetv/guideSources';
 import {
   DAY,
   HOUR,
@@ -54,6 +55,8 @@ import {
   getEpgOverride,
   getJioServer,
   jioEpgUrl,
+  listFavourites,
+  listRecent,
   listSources,
   loadPlaylist,
   readCachedPlaylist,
@@ -327,8 +330,15 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   const colors = useM3Colors();
   const {width: screenWidth} = useWindowDimensions();
   const isJio = sourceId === JIO_SOURCE_ID;
-  const source = useMemo(() => listSources().find(item => item.id === sourceId), [sourceId]);
-  const sourceName = isJio ? 'JioTV' : source?.name || 'Live TV';
+  // Favourites and Recent mix sources: each channel uses its own source's guide.
+  const mixed = isMixedGuide(sourceId);
+  const sources = useMemo(() => listSources(), []);
+  const source = useMemo(() => sources.find(item => item.id === sourceId), [sources, sourceId]);
+  const sourceName = mixed ? (sourceId === 'favourites' ? 'Favourites' : 'Recent') : isJio ? 'JioTV' : source?.name || 'Live TV';
+  const nameOfSource = useCallback(
+    (id: string) => (id === JIO_SOURCE_ID ? 'JioTV' : sources.find(item => item.id === id)?.name || 'Live TV'),
+    [sources],
+  );
   // A kids profile keeps only kids, animation and cartoon groups.
   const filterKids = useCallback(
     (list: GridChannel[]) => (isKidsProfileActive() ? list.filter(channel => isKidsChannelGroup(channel.group)) : list),
@@ -336,6 +346,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   );
 
   const [allChannels, setAllChannels] = useState<GridChannel[]>(() => {
+    if (mixed) return filterKids(sourceId === 'favourites' ? listFavourites() : listRecent());
     const cached = source ? readCachedPlaylist(source) : undefined;
     return cached ? filterKids(withSource(cached.playlist.channels, sourceId)) : [];
   });
@@ -362,7 +373,10 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   const [override, setOverride] = useState(() => getEpgOverride(sourceId) || '');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(override);
-  const [guide, setGuide] = useState<GuideData>();
+  /** The guide address each source's playlist gives (Favourites and Recent). */
+  const [mixedEpgs, setMixedEpgs] = useState<Record<string, string | undefined>>({});
+  /** The loaded guide, per source. */
+  const [guides, setGuides] = useState<Record<string, GuideData>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -374,6 +388,32 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
   // ---- Channels ----
   useEffect(() => {
     let alive = true;
+    if (mixed) {
+      // Saved channels, completed from their sources' playlists, and each source's guide address.
+      const saved = sourceId === 'favourites' ? listFavourites() : listRecent();
+      setAllChannels(filterKids(saved));
+      (async () => {
+        let list: GridChannel[] = saved;
+        const epgs: Record<string, string | undefined> = {};
+        for (const id of [...new Set(saved.map(channel => channel.sourceId))]) {
+          const from = sources.find(item => item.id === id);
+          if (!from) continue;
+          try {
+            const result = await loadPlaylist(from);
+            epgs[id] = result.playlist.epgUrl;
+            list = withPlaylistDetails(list, id, result.playlist.channels, catchupAttrsOf);
+          } catch {
+            // That source's channels show without a guide.
+          }
+        }
+        if (!alive) return;
+        setMixedEpgs(epgs);
+        setAllChannels(filterKids(list));
+      })();
+      return () => {
+        alive = false;
+      };
+    }
     const load = isJio
       ? loadJioChannels().then(list => withSource(list, sourceId))
       : source
@@ -388,7 +428,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     return () => {
       alive = false;
     };
-  }, [isJio, source, sourceId, filterKids]);
+  }, [isJio, mixed, source, sources, sourceId, filterKids]);
 
   // ---- Time ----
   useEffect(() => {
@@ -405,40 +445,57 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
 
   // ---- XMLTV guide ----
   const jiotv = source?.kind === 'jiotv' ? getJioServer() : undefined;
-  const epgUrl = isJio ? undefined : override || playlistEpg || (jiotv ? jioEpgUrl(jiotv) : undefined);
-  // Every channel of the source, so changing a filter does not load the guide again.
-  const wanted = useMemo(() => {
-    const ids = new Set<string>();
-    const names = new Set<string>();
-    for (const channel of allChannels) {
-      if (channel.tvgId) ids.add(channel.tvgId);
-      for (const name of ['tvgName' in channel ? channel.tvgName : undefined, channel.name]) {
-        const clean = name ? normalizeChannelName(name) : '';
-        if (clean) names.add(clean);
-      }
-    }
-    return {ids: [...ids], names: [...names], key: `${[...ids].join(',')}|${[...names].join(',')}`};
-  }, [allChannels]);
-  const wantedRef = useRef(wanted);
-  wantedRef.current = wanted;
+  const epgUrl = isJio || mixed ? undefined : override || playlistEpg || (jiotv ? jioEpgUrl(jiotv) : undefined);
+  const guideUrlFor = useCallback(
+    (id: string): string | undefined => {
+      if (!mixed) return id === sourceId ? epgUrl : undefined;
+      const from = sources.find(item => item.id === id);
+      if (!from) return undefined;
+      const server = from.kind === 'jiotv' ? getJioServer() : undefined;
+      return getEpgOverride(id) || mixedEpgs[id] || (server ? jioEpgUrl(server) : undefined);
+    },
+    [mixed, sourceId, epgUrl, sources, mixedEpgs],
+  );
+  // Every channel shown here, so changing a filter does not load the guide again.
+  const loads = useMemo(() => planGuideLoads(allChannels, guideUrlFor, normalizeChannelName), [allChannels, guideUrlFor]);
+  const loadsKey = loads.map(load => load.key).join('\n');
+  const loadsRef = useRef(loads);
+  loadsRef.current = loads;
+  const hasJioChannels = useMemo(() => allChannels.some(channel => jioChannelId(channel.url)), [allChannels]);
 
   useEffect(() => {
-    if (!epgUrl || !wanted.key || wanted.key === '|') {
-      setGuide(undefined);
+    const list = loadsRef.current;
+    if (!list.length) {
+      setGuides({});
       return;
     }
     let alive = true;
     setLoading(true);
     setError('');
-    const {ids, names} = wantedRef.current;
-    loadXmltvGuide(epgUrl, {ids, names, backMs}, {force: reload > 0})
-      .then(result => alive && setGuide(result))
-      .catch(err => alive && setError(err?.message || 'Could not load the guide.'))
-      .finally(() => alive && setLoading(false));
+    (async () => {
+      // One guide at a time, so the screen stays responsive while each file is read.
+      const next: Record<string, GuideData> = {};
+      let failure = '';
+      for (const load of list) {
+        try {
+          const result = await loadXmltvGuide(load.url, {ids: load.ids, names: load.names, backMs}, {force: reload > 0});
+          load.sourceIds.forEach(id => {
+            next[id] = result;
+          });
+          if (alive) setGuides({...next});
+        } catch (err: any) {
+          failure = failure || err?.message || 'Could not load the guide.';
+        }
+        if (!alive) return;
+      }
+      // With several sources, one that fails leaves the others shown.
+      if (failure && !Object.keys(next).length) setError(failure);
+      setGuides(next);
+    })().finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [epgUrl, wanted.key, backMs, reload]);
+  }, [loadsKey, backMs, reload]);
 
   // ---- Scrolling ----
   const scrollRef = useRef<ScrollViewInstance | null>(null);
@@ -509,7 +566,10 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     [opening],
   );
 
-  const playLive = useCallback((channel: GridChannel) => play(() => openChannel(navigation, channel, sourceName)), [play, navigation, sourceName]);
+  const playLive = useCallback(
+    (channel: GridChannel) => play(() => openChannel(navigation, channel, mixed ? nameOfSource(channel.sourceId) : sourceName)),
+    [play, navigation, sourceName, mixed, nameOfSource],
+  );
 
   const onPressCell = useCallback(
     (channel: GridChannel, cell: GuideCell) => {
@@ -518,7 +578,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
       const time = Date.now();
       if (!programme || programme.start <= time) {
         if (programme && programme.stop <= time) {
-          if (canReplayOn(channel, programme, time)) play(() => openReplay(navigation, channel, programme, sourceName));
+          if (canReplayOn(channel, programme, time)) play(() => openReplay(navigation, channel, programme, mixed ? nameOfSource(channel.sourceId) : sourceName));
           else ToastAndroid.show('This programme cannot be replayed.', ToastAndroid.SHORT);
           return;
         }
@@ -539,7 +599,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
         })
         .catch(() => ToastAndroid.show('Could not set the reminder.', ToastAndroid.SHORT));
     },
-    [play, playLive, navigation, sourceName],
+    [play, playLive, navigation, sourceName, mixed, nameOfSource],
   );
 
   const onLongPressCell = useCallback(
@@ -597,7 +657,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
       <Row
         channel={item}
         index={index}
-        guide={guide}
+        guide={guides[item.sourceId]}
         window={window}
         range={range}
         now={minuteNow}
@@ -613,7 +673,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
         onPlayChannel={playLive}
       />
     ),
-    [guide, window, range, minuteNow, scrollX, colors, reminders, editing, filtersUsed, filters.qualityBadge, registerNowCell, onPressCell, onLongPressCell, onFocusCell, playLive],
+    [guides, window, range, minuteNow, scrollX, colors, reminders, editing, filtersUsed, filters.qualityBadge, registerNowCell, onPressCell, onLongPressCell, onFocusCell, playLive],
   );
 
   const slots = useMemo(() => timeSlots({start: Math.max(window.start, range.start), end: Math.min(window.end, range.end)}), [window, range]);
@@ -623,8 +683,11 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
     if (error) return error;
     if (loading) return 'Loading the guide…';
     if (isJio) return '';
-    if (!epgUrl) return 'This playlist has no guide address. Add one to see programmes.';
-    if (guide && !Object.keys(guide.programmes).length) return 'The guide has no programmes for these channels.';
+    const loaded = Object.values(guides);
+    if (mixed) {
+      if (!loads.length && !hasJioChannels && allChannels.length) return 'No guide for these channels. Add a guide address on the TV guide of their source.';
+    } else if (!epgUrl) return 'This playlist has no guide address. Add one to see programmes.';
+    if (loaded.length && loaded.every(item => !Object.keys(item.programmes).length)) return 'The guide has no programmes for these channels.';
     return '';
   })();
 
@@ -663,7 +726,7 @@ const LiveGuide = ({navigation, route}: {navigation: any; route: {params: Params
           <TVFocusable accessibilityRole="button" accessibilityLabel="Jump to now" onPress={jumpToNow} borderRadius={20} style={{padding: 8}}>
             <MaterialCommunityIcons name="clock-outline" size={22} color={colors.onSurfaceVariant} />
           </TVFocusable>
-          {!isJio ? (
+          {!isJio && !mixed ? (
             <TVFocusable accessibilityRole="button" accessibilityLabel="Guide address" onPress={() => { setDraft(override); setEditing(value => !value); }} borderRadius={20} style={{padding: 8}}>
               <MaterialCommunityIcons name="link-variant" size={22} color={colors.onSurfaceVariant} />
             </TVFocusable>

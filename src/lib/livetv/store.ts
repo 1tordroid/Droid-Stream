@@ -2,6 +2,7 @@ import {MMKVLoader} from 'react-native-mmkv-storage';
 import {parseM3U, type LiveChannel, type ParsedPlaylist} from './m3u';
 import {DEFAULT_FILTERS, detectLanguages, parseResolution, sanitizeFilters, type ChannelFilters} from './filters';
 import {profileKey} from '../profiles/scope';
+import {catchupAttrsOf} from './catchup';
 
 const storage = new MMKVLoader().withInstanceID('droid-stream-livetv').initialize();
 
@@ -27,10 +28,12 @@ export interface UserPlaylist {
 }
 
 /** What the grid needs to replay a channel from Favourites or Recent. */
-export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'headers' | 'drm' | 'resolution'> & {
+export type SavedChannel = Pick<LiveChannel, 'id' | 'name' | 'url' | 'logo' | 'group' | 'tvgId' | 'tvgName' | 'headers' | 'drm' | 'resolution'> & {
   sourceId: string;
   /** Kept so filters still work on Favourites and Recent. */
   languages?: string[];
+  /** Only the catch-up attributes, so the guide can replay from Favourites and Recent. */
+  attrs?: Record<string, string>;
 };
 
 const KEYS = {
@@ -214,6 +217,7 @@ export const loadPlaylist = async (
 const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedChannel => {
   const resolution = channel.resolution || parseResolution(channel.name, 'attrs' in channel ? channel.attrs : undefined, channel.tvgId);
   const languages = detectLanguages(channel);
+  const attrs = catchupAttrsOf(channel.attrs);
   return {
     id: channel.id,
     name: channel.name,
@@ -221,10 +225,12 @@ const toSaved = (channel: LiveChannel | SavedChannel, sourceId: string): SavedCh
     logo: channel.logo,
     group: channel.group,
     tvgId: channel.tvgId,
+    ...(channel.tvgName ? {tvgName: channel.tvgName} : {}),
     headers: channel.headers,
     ...(channel.drm ? {drm: true} : {}),
     ...(resolution ? {resolution} : {}),
     ...(languages.length ? {languages} : {}),
+    ...(attrs ? {attrs} : {}),
     sourceId,
   };
 };
