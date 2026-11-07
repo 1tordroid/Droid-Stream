@@ -1,11 +1,9 @@
 import {Linking, NativeModules, ToastAndroid} from 'react-native';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import * as Application from 'expo-application';
-import Constants from 'expo-constants';
 import {notificationService} from '../services/Notification';
 import {settingsStorage} from '../storage';
 import {showAppDialog} from '../zustand/appDialogStore';
-import {isTV} from '../tv';
 import {
   GithubRelease,
   UPDATE_REPOSITORY,
@@ -13,10 +11,10 @@ import {
   compareVersions,
   isAllowedUpdateUrl,
   selectReleaseApk,
-  type AppEdition,
   stripVersionTag,
 } from './release';
 import {verifyApkDigest} from './verifyApk';
+import {currentEdition} from '../appVersion';
 
 const deletePartialFile = async (filePath: string) => {
   try {
@@ -24,15 +22,6 @@ const deletePartialFile = async (filePath: string) => {
       await RNFS.unlink(filePath);
     }
   } catch {}
-};
-
-/** This build's edition, so updates never switch to another edition's APK. */
-const currentEdition = (): AppEdition => {
-  const value = Constants.expoConfig?.extra?.appEdition;
-  if (value === 'ext' || value === 'tv' || value === 'main') {
-    return value;
-  }
-  return isTV ? 'tv' : 'main';
 };
 
 /** The CPU types this device runs, best first, from the native module. */
