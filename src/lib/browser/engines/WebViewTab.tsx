@@ -1,5 +1,5 @@
 import React, {memo, useEffect, useRef, useState} from 'react';
-import {View} from 'react-native';
+import {View, type HostInstance} from 'react-native';
 import {getNodeHandle} from '../../tv/focus';
 import {WebView} from '../../webview';
 import type {BrowserTabViewProps} from '../engine';
@@ -14,6 +14,9 @@ const BLANK = '<!doctype html><meta name="viewport" content="width=device-width"
  */
 const WebViewTab = ({tab, visible, bootstrap, userAgent, autofill, passkeys, callbacks}: BrowserTabViewProps) => {
   const ref = useRef<WebView>(null);
+  // The WebView ref is an imperative handle, not a native view, so the native
+  // hook is given this wrapper's view and finds the WebView inside it.
+  const hostRef = useRef<HostInstance>(null);
   const [ready, setReady] = useState(!browserNativeAvailable());
   const clearedHistory = useRef(false);
   const tabId = tab.id;
@@ -35,7 +38,7 @@ const WebViewTab = ({tab, visible, bootstrap, userAgent, autofill, passkeys, cal
     let cancelled = false;
     // The native view exists a moment after the first render.
     const timer = setTimeout(() => {
-      const tag = getNodeHandle(ref.current as never);
+      const tag = getNodeHandle(hostRef.current);
       attachWebView(tag, tabId, {autofill, passkeys}).finally(() => {
         if (!cancelled) setReady(true);
       });
@@ -50,7 +53,7 @@ const WebViewTab = ({tab, visible, bootstrap, userAgent, autofill, passkeys, cal
   useEffect(() => () => detachWebView(tabId), [tabId]);
 
   return (
-    <View style={visible ? {flex: 1} : {display: 'none'}} pointerEvents={visible ? 'auto' : 'none'}>
+    <View ref={hostRef} collapsable={false} style={visible ? {flex: 1} : {display: 'none'}} pointerEvents={visible ? 'auto' : 'none'}>
       <WebView
         ref={ref}
         source={ready ? {uri: tab.startUrl} : {html: BLANK}}
