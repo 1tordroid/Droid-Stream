@@ -62,7 +62,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "npm:react-native-tvos@~0.88.1-0",
-    "react-native-bootsplash": "^6.3.10",
+    "react-native-bootsplash": "7.3.5",
     "react-native-css-interop": "^0.2.1",
     "react-native-drawer-layout": "4.2.12",
     "react-native-edge-to-edge": "^1.8.2",
@@ -130,7 +130,8 @@
       "exclude": [
         "react-native",
         "jest",
-        "@types/jest"
+        "@types/jest",
+        "react-native-bootsplash"
       ]
     }
   },

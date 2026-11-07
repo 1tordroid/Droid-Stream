@@ -76,10 +76,12 @@ module.exports = () => {
     [
       'react-native-bootsplash',
       {
-        assetsDir: 'assets/bootsplash',
-        android: {
-          parentTheme: 'EdgeToEdge',
-        },
+        // v7 generates the splash at prebuild from this logo. Edge-to-edge is
+        // the default, so there is no parentTheme any more.
+        logo: './assets/bootsplash/logo@4x.png',
+        logoWidth: 200,
+        background: '#000000',
+        assetsOutput: 'assets/bootsplash',
       },
     ],
     [

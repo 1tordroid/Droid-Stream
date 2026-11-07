@@ -125,7 +125,8 @@ const withLauncherStyles = config =>
     if (bootTheme) {
       bootTheme.item = [];
     }
-    upsertStyle(styles, 'BootTheme.Base', 'Theme.BootSplash.EdgeToEdge', [
+    // bootsplash 7 is edge-to-edge by default and has no EdgeToEdge theme.
+    upsertStyle(styles, 'BootTheme.Base', 'Theme.BootSplash', [
       ['postBootSplashTheme', '@style/AppTheme'],
       ['bootSplashBackground', '@color/bootsplash_background'],
     ]);

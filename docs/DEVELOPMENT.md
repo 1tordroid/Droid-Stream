@@ -129,7 +129,6 @@ Not tested yet: Cloud files with real PikPak or debrid accounts, debrid and watc
 ## Roadmap
 
 - Android TV focus pass on the newer screens, and the TV Maestro flow.
-- `react-native-bootsplash` 7. It removes the build-time `sharp`, `fast-xml-parser` and `uuid` advisories, but it generates the splash at prebuild with new options (`logo`, `assetsOutput`, no `parentTheme`), so `plugins/with-dynamic-launcher-splash.js` has to move to the v7 resources and themes first.
 - `react-native-mmkv-storage` 13. It wraps Android encryption keys in the Keystore ("migrated automatically"), `initialize()` throws instead of failing silently, and `useMMKVStorage` returns stored falsy values. Test the encrypted debrid and network stores on an upgraded install before taking it.
 - Point `extra.eas.projectId` in `app.config.js` at a Droid Stream Expo project. It still names the upstream project.
 - A yt-dlp based downloader, written from scratch (nothing from the GPL YTDLnis or youtubedl-android).
