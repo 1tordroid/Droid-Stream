@@ -37,6 +37,16 @@ Built and being tested:
 - Both work on decoded audio. When sound goes encoded to a receiver,
   the menu says so. VLC has night mode (it restarts at the same time);
   dialogue boost is in the built-in player only.
+- Live TV: Multi-view shows 2 to 4 channels at once. Open it with the
+  Multi-view chip, or long-press a channel and pick Add to multi-view.
+  Layouts: side by side, a 2 x 2 grid, or one big tile with small ones.
+  Only the highlighted tile plays sound: tap or press OK on another tile
+  to hear it, and again for Change channel, Swap with big tile, Remove
+  or Full screen. Phones and TVs with 2 GB of RAM or less show 2 tiles,
+  up to 4 GB show 3, more show 4. Small tiles use the lowest quality,
+  tiles pause in the background and stop when you leave, and only one
+  protected (DRM) channel plays at a time. The last set is kept per
+  profile.
 
 ## 5.6.1
 

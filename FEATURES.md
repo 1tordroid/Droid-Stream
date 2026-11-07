@@ -66,7 +66,7 @@ It runs on Android phones, tablets and Android TV.
 - 🧪 TV guide for World channels without typing an address: a free guide file for the country loads by itself (72 countries), and Free Indian channels get one too. Your own guide address still wins. Countries without a free guide say so.
 - 🧪 All countries: every country's free channels in one list, with a country filter (flags and counts), plus groups, quality, language and search.
 - 🧪 Channel counts for every country in Change country once All countries has loaded.
-- 📋 Watch 2 to 4 channels at once.
+- 🧪 Multi-view: watch 2 to 4 channels at once (side by side, 2 x 2 grid, or one big with small ones). Only the highlighted tile plays sound; tap or press OK to move it. The tile count depends on the device's RAM, and the last set is kept per profile.
 
 ## Torrents
 
