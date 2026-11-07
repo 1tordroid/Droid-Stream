@@ -4,7 +4,7 @@ tags: [settings, phone, ci]
 ---
 - runFlow: _launch.yaml
 - tapOn: "Torrents"
-- tapOn: "Debrid and cloud services"
+- tapOn: "Debrid & cloud"
 - assertVisible: "Debrid and cloud"
 - assertVisible: "TorBox"
 - scrollUntilVisible:

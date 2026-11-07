@@ -24,8 +24,9 @@ tags: [smoke, phone, ci]
     element: "Live TV"
     direction: DOWN
 - tapOn: "Live TV"
+# The source chips (Favourites, Recent, India, JioTV, World) are always there.
 - extendedWaitUntil:
-    visible: "Favourites"
+    visible: "Recent"
     timeout: 20000
 - takeScreenshot: live_tv
 - back
