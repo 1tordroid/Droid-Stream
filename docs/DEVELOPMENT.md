@@ -105,6 +105,17 @@ Release certificate: CN=Tordroid, OU=Droid Stream, SHA-256 `76fb06dd1d36edb89ce3
 
 libtorrent4j 2.1.0-39 runs the torrents. Files stream from a local NanoHTTPD server at `http://127.0.0.1:{port}/stream/{infoHash}/{fileIndex}/{name}`. Seeding is off by default, and schedule, Wi-Fi, VPN and RSS rules apply from app start.
 
+### eD2k downloads
+
+Off by default (Settings > Preferences > Downloads > eD2k downloads). Written from the public eDonkey/eMule protocol descriptions; no aMule, eMule or Kelpie code was used.
+
+- `src/lib/ed2k`: `link.ts` parses `ed2k://` file, server and serverlist links, `settings.ts` keeps the switch and the server list (MMKV), `native.ts` wraps `Ed2kModule`, `intake.ts` handles shared, opened and copied links. `downloadBackends/ed2kBackend.ts` puts eD2k files in the normal downloads list; the screen is `screens/settings/Ed2k.tsx` (paste a link, search, servers).
+- `native-src/android/com/vega/Ed2kProtocol.kt` is the wire format (packets, tags, messages), the part map and MD4 hashing (Bouncy Castle `MD4Digest`), with no Android code. `Ed2kTransfer.kt` is the engine: one shared server connection, a coordinator thread per download and a thread per peer (up to 8). `Ed2kModule.kt` connects it to React Native.
+- Parts are 9,728,000 bytes, fetched in 180 KiB blocks, three requested at a time, plain or zlib-compressed. Each part is checked against its MD4 hash from the hashset (from the link's `p=` or the first peer) and a bad part is fetched again; the hashset is checked against the file hash first. The partial file has a part map next to it (`<file>.part.ed2k`), so pause, a crash or a restart continue from the finished blocks.
+- Upload queues: a peer answers with its queue position ("Waiting in queue (n)" in the list). The client asks again after 29 minutes, or at once when the peer asks for a callback through the server.
+- No uploading or sharing. The client offers the server an empty file list, never listens for connections (so servers give it a low ID and low-ID peers are skipped), and answers peers' file, upload and shared-list requests with "not found" or "denied". Nothing runs unless a download or search is active; the server connection closes a minute after the last one. The torrent Wi-Fi only setting applies (it also allows Ethernet).
+- Not done: obfuscated connections, Kad, AICH recovery, source exchange, UDP reasks.
+
 ### Debrid and cloud
 
 `src/lib/debrid`, with settings in `screens/torrents/DebridSettings`.

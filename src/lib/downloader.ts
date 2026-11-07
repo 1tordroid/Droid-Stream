@@ -27,6 +27,9 @@ const getSourceType = (url: string, fileType: string): DownloadSourceType => {
   if (/^ftp(e?s)?:\/\//i.test(url)) {
     return 'ftp';
   }
+  if (/^ed2k:\/\//i.test(url)) {
+    return 'ed2k';
+  }
   return 'http';
 };
 

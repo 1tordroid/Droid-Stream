@@ -31,7 +31,7 @@ export type DownloadStatus =
   | 'missing'
   | 'canceling';
 
-export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'ytdlp' | 'dash' | 'live' | 'ftp';
+export type DownloadSourceType = 'http' | 'hls' | 'torrent' | 'ytdlp' | 'dash' | 'live' | 'ftp' | 'ed2k';
 
 export interface DownloadSubtitle {
   url: string;
@@ -189,6 +189,9 @@ const getSourceType = (
   }
   if (item.isTorrent || item.url.startsWith('magnet:')) {
     return 'torrent';
+  }
+  if (/^ed2k:\/\//i.test(item.url)) {
+    return 'ed2k';
   }
   if (item.videoType === 'm3u8' || item.url.includes('.m3u8')) {
     return 'hls';
@@ -548,7 +551,7 @@ export const useDownloadsStore = create<DownloadState>()(
                 return [id, item];
               }
               // These continue their partial files, so a paused one stays paused.
-              if ((item.sourceType === 'hls' || item.sourceType === 'ytdlp') && (item.status === 'paused' || item.status === 'pausing')) {
+              if ((item.sourceType === 'hls' || item.sourceType === 'ytdlp' || item.sourceType === 'ed2k') && (item.status === 'paused' || item.status === 'pausing')) {
                 return [id, {...item, status: 'paused' as const, speed: 0, canPause: false, canResume: true, updatedAt: now}];
               }
               return [

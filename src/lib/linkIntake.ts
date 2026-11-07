@@ -15,13 +15,16 @@ import {isPageLink} from './ytdl/formats';
 import {ytdlSupported} from './ytdl/native';
 import {readYtdlSettings} from './ytdl/settings';
 import {offerDashDownload} from './downloadEngine/dashIntake';
+import {ed2kLinksIn, isEd2kLink} from './ed2k/link';
+import {offerEd2kLink} from './ed2k/intake';
 
 const storage = openStore('droid-stream-intake');
 
-export type IncomingKind = 'magnet' | 'torrent' | 'http';
+export type IncomingKind = 'magnet' | 'torrent' | 'http' | 'ed2k';
 
 export const classifyLink = (value: string): IncomingKind | null => {
   const text = value.trim();
+  if (isEd2kLink(text)) return 'ed2k';
   if (/^magnet:\?/i.test(text)) return 'magnet';
   if (/^content:\/\//i.test(text) || /\.torrent(\?|$)/i.test(text)) return 'torrent';
   if (/^(https?|ftps?|ftpes):\/\/\S+$/i.test(text)) return 'http';
@@ -30,7 +33,7 @@ export const classifyLink = (value: string): IncomingKind | null => {
 
 /** First magnet or URL in copied text, if any. */
 export const linkInText = (text: string): string | undefined =>
-  text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] || text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0];
+  ed2kLinksIn(text)[0] || text.match(/magnet:\?xt=urn:btih:[^\s"'<>]+/i)?.[0] || text.match(/https?:\/\/\S+\.(torrent|mkv|mp4|m3u8|avi|webm|zip|apk)(\?\S*)?/i)?.[0];
 
 const nameOf = (value: string): string => {
   const dn = value.match(/[?&]dn=([^&]+)/i)?.[1];
@@ -80,6 +83,10 @@ const downloadLink = async (url: string): Promise<void> => {
 export const offerLink = (value: string, navigate: (screen: string, params?: object) => void, origin: 'shared' | 'clipboard'): void => {
   const kind = classifyLink(value);
   if (!kind) return;
+  if (kind === 'ed2k') {
+    offerEd2kLink(value, origin);
+    return;
+  }
   const title = nameOf(value);
   // A shared web page (a YouTube, Instagram or X post) opens the yt-dlp sheet.
   if (kind === 'http' && origin === 'shared' && isPageLink(value) && ytdlSupported() && readYtdlSettings().offerForAllLinks) {

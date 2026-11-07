@@ -1,6 +1,7 @@
 import type {DownloadSourceType} from '../zustand/downloadsStore';
 import {dashDownloadBackend} from './dashBackend';
 import {ftpDownloadBackend} from './ftpBackend';
+import {ed2kDownloadBackend} from './ed2kBackend';
 import {hlsDownloadBackend} from './hlsBackend';
 import {httpDownloadBackend} from './httpBackend';
 import {liveDownloadBackend} from './liveBackend';
@@ -16,6 +17,7 @@ const backends: Record<DownloadSourceType, DownloadBackend> = {
   dash: dashDownloadBackend,
   live: liveDownloadBackend,
   ftp: ftpDownloadBackend,
+  ed2k: ed2kDownloadBackend,
 };
 
 export const getDownloadBackend = (
